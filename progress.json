@@ -1218,5 +1218,505 @@
     "scope": "",
     "scope_detail": "",
     "timestamp": "2026-09-22T13:39:17.224120+00:00"
+  },
+  {
+    "rule_name": "AggregateFilterToFilteredAggregate",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateFilterToFilteredAggregateRule.java",
+    "status": "SKIPPED",
+    "attempts_used": 30,
+    "reason": "The rule's validity rests entirely on the algebraic identity `agg(input restricted to rows where P) \u2261 agg FILTER (WHERE P)(full input)` \u2014 the internal semantics of a *filtered* aggregate call \u2014 and QED equates aggregate calls only by same uninterpreted operator plus bag-equality of input, knowing nothing else about aggregate algebra, so it cannot relate the two sides. The \"after\" side cannot even be faithfully encoded: QED's JSON model of an aggregate (`group.function`) carries only `operator/operand/distinct/ignoreNulls/type` with no `filter` field, and the DSL's `AggCall` has no filter parameter. Extending the Java-side DSL cannot close this gap because the missing semantics lives in the (off-limits) Rust prover, so the only encodable version would be a degenerate identity \u2014 UNSUPPORTED is genuinely correct (the porter's recorded HTTP-400 error is a mechanical failure, but its pre-failure analysis had already landed on this exact limitation).",
+    "prover_stats": {},
+    "verification_rounds_used": 1,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's validity rests entirely on the algebraic identity `agg(input restricted to rows where P) \u2261 agg FILTER (WHERE P)(full input)` \u2014 the internal semantics of a *filtered* aggregate call \u2014 and QED equates aggregate calls only by same uninterpreted operator plus bag-equality of input, knowing nothing else about aggregate algebra, so it cannot relate the two sides. The \"after\" side cannot even be faithfully encoded: QED's JSON model of an aggregate (`group.function`) carries only `operator/operand/distinct/ignoreNulls/type` with no `filter` field, and the DSL's `AggCall` has no filter parameter. Extending the Java-side DSL cannot close this gap because the missing semantics lives in the (off-limits) Rust prover, so the only encodable version would be a degenerate identity \u2014 UNSUPPORTED is genuinely correct (the porter's recorded HTTP-400 error is a mechanical failure, but its pre-failure analysis had already landed on this exact limitation).",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-22T16:20:55.450247+00:00"
+  },
+  {
+    "rule_name": "AggregateCaseToFilter",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateCaseToFilterRule.java",
+    "status": "SKIPPED",
+    "attempts_used": 30,
+    "reason": "The rule's correctness rests on aggregate-function algebra that QED explicitly does not model \u2014 that null-skipping aggregates (COUNT/SUM) ignore NULL inputs, that SUM0 is additive with 0/NULL as neutral, and that COUNT of a non-null constant equals counting rows \u2014 and per its own evaluation QED can only equate aggregates whose input bags are equal, whereas here the two sides aggregate different bags (CASE values over all rows, NULLs from the else branch included, versus plain values over only the rows satisfying the filter). The gap is on the prover side, not the DSL: even extending the DSL (which today also lacks a `filterArg` on `RelRN.AggCall` and any CASE/NULL literal in `RexRN`, so neither side is expressible as-is) could not make the equivalence derivable, since the null-skipping/sum identity is precisely the \"bespoke internal semantics of an aggregate operator\" QED cannot see through.",
+    "prover_stats": {},
+    "verification_rounds_used": 1,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's correctness rests on aggregate-function algebra that QED explicitly does not model \u2014 that null-skipping aggregates (COUNT/SUM) ignore NULL inputs, that SUM0 is additive with 0/NULL as neutral, and that COUNT of a non-null constant equals counting rows \u2014 and per its own evaluation QED can only equate aggregates whose input bags are equal, whereas here the two sides aggregate different bags (CASE values over all rows, NULLs from the else branch included, versus plain values over only the rows satisfying the filter). The gap is on the prover side, not the DSL: even extending the DSL (which today also lacks a `filterArg` on `RelRN.AggCall` and any CASE/NULL literal in `RexRN`, so neither side is expressible as-is) could not make the equivalence derivable, since the null-skipping/sum identity is precisely the \"bespoke internal semantics of an aggregate operator\" QED cannot see through.",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-22T16:22:09.045404+00:00"
+  },
+  {
+    "rule_name": "AggregateGroupingSetsToUnion",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateGroupingSetsToUnionRule.java",
+    "status": "SKIPPED",
+    "attempts_used": 30,
+    "reason": "The rule's left-hand side is a GROUPING SETS aggregate, but QED's language has no such operator: `RelRN.Aggregate` builds only simple group-key aggregates (`RelBuilder.groupKey` + single group set), and the JSON contract the Rust prover consumes serializes a `group` node with only one \"keys\" list, so the prover has no interpretation for the operator whose expansion identity is the entire content of this rule. Encoding the \"before\" as a simple aggregate over the full group set instead would assert a false equivalence (one aggregate vs. a UNION ALL of sub-aggregates over its subsets, not bag-equal under QED's uninterpreted-aggregate model), and `extend_dsl_file` cannot help since it only touches the Java builders/serializer, not the unmodifiable prover's semantics. (A secondary, fixable gap is that `RexRN` has no NULL-literal builder for the padding columns \u2014 but the missing grouping-sets operator is the real blocker, so a fresh attempt would only confirm non-provability.) ```",
+    "prover_stats": {},
+    "verification_rounds_used": 1,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's left-hand side is a GROUPING SETS aggregate, but QED's language has no such operator: `RelRN.Aggregate` builds only simple group-key aggregates (`RelBuilder.groupKey` + single group set), and the JSON contract the Rust prover consumes serializes a `group` node with only one \"keys\" list, so the prover has no interpretation for the operator whose expansion identity is the entire content of this rule. Encoding the \"before\" as a simple aggregate over the full group set instead would assert a false equivalence (one aggregate vs. a UNION ALL of sub-aggregates over its subsets, not bag-equal under QED's uninterpreted-aggregate model), and `extend_dsl_file` cannot help since it only touches the Java builders/serializer, not the unmodifiable prover's semantics. (A secondary, fixable gap is that `RexRN` has no NULL-literal builder for the padding columns \u2014 but the missing grouping-sets operator is the real blocker, so a fresh attempt would only confirm non-provability.) ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-22T16:30:44.135714+00:00"
+  },
+  {
+    "rule_name": "AggregateExpandDistinctAggregates",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateExpandDistinctAggregatesRule.java",
+    "status": "PROVED",
+    "attempts_used": 72,
+    "reason": "The encoding faithfully mirrors the source rule's `convertMonopole` branch: `before()` is `GROUP BY k` of two distinct calls `f(DISTINCT x), g(DISTINCT x)`, and `after()` makes them non-distinct on top of an intermediate `GROUP BY k, x` (no calls) that is exactly the source's `SELECT DISTINCT`-via-aggregate ded [NOTE: response was truncated at the token limit before finishing \u2014 if this cut off mid-code-block, that's why it couldn't be parsed.]",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 17834793
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 57600124
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 993208
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 1285250
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 39401833
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 58029375
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 114404667
+      }
+    },
+    "verification_rounds_used": 4,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding faithfully mirrors the source rule's `convertMonopole` branch: `before()` is `GROUP BY k` of two distinct calls `f(DISTINCT x), g(DISTINCT x)`, and `after()` makes them non-distinct on top of an intermediate `GROUP BY k, x` (no calls) that is exactly the source's `SELECT DISTINCT`-via-aggregate ded [NOTE: response was truncated at the token limit before finishing \u2014 if this cut off mid-code-block, that's why it couldn't be parsed.]",
+    "scope": "PARTIAL",
+    "scope_detail": "all distinct aggregate calls share the same single argument, no non-distinct calls, no FILTER/GROUPING SETS/WITHIN GROUP",
+    "timestamp": "2026-09-22T16:57:03.593558+00:00"
+  },
+  {
+    "rule_name": "AggregateProjectPullUpConstants",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateProjectPullUpConstantsRule.java",
+    "status": "PROVED",
+    "attempts_used": 63,
+    "reason": "The encoding faithfully captures the rule's core transformation: an aggregate whose leading group key is a constant column is rewritten to an aggregate with that key dropped (group set kept non-empty, matching the rule's guard against an empty GROUP BY) plus a projection re-emitting the same literal in its original position, with the uninterpreted aggregate call shared unchanged and the original output column order preserved \u2014 and before/after are structurally different plans (2-key group-by vs 1-key group-by + project), so the proof is non-vacuous. Fixing the constant as a literal emitted by a Project directly below the aggregate is the only way to express \"this column is constant\" in QED (a pulled-up-predicate-deduced constant would require reasoning about a literal-equality constraint that the prover treats as opaque), so the stated PARTIAL scope is an honest, specific, genuine limitation rather than an avoidable under-generalization, and the specific literal value is immaterial since QED erases all types to integers. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 10933709
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 46940957
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 1283792
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 815375
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 26321875
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 47136458
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 89852292
+      }
+    },
+    "verification_rounds_used": 3,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding faithfully captures the rule's core transformation: an aggregate whose leading group key is a constant column is rewritten to an aggregate with that key dropped (group set kept non-empty, matching the rule's guard against an empty GROUP BY) plus a projection re-emitting the same literal in its original position, with the uninterpreted aggregate call shared unchanged and the original output column order preserved \u2014 and before/after are structurally different plans (2-key group-by vs 1-key group-by + project), so the proof is non-vacuous. Fixing the constant as a literal emitted by a Project directly below the aggregate is the only way to express \"this column is constant\" in QED (a pulled-up-predicate-deduced constant would require reasoning about a literal-equality constraint that the prover treats as opaque), so the stated PARTIAL scope is an honest, specific, genuine limitation rather than an avoidable under-generalization, and the specific literal value is immaterial since QED erases all types to integers. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "the aggregate's constant group key is a literal column emitted by a projection directly below the aggregate, not deduced from pulled-up predicates over an arbitrary input.",
+    "timestamp": "2026-09-22T17:06:18.994233+00:00"
+  },
+  {
+    "rule_name": "AggregateRemoveLiteralAgg",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateRemoveLiteralAggRule.java",
+    "status": "SKIPPED",
+    "attempts_used": 30,
+    "reason": "The rule's entire correctness argument is the Calcite-internal algebraic identity that LITERAL_AGG(lit) evaluates to lit on every group produced by GROUP BY (every produced group is non-empty), and QED models aggregates as uninterpreted functions whose only known behavior is bag-equality of inputs \u2014 it cannot derive that LITERAL_AGG's output equals the literal the after-side re-projects, so an SMT model with LITERAL_AGG \u2260 lit is a valid counterexample to any faithful encoding. No narrowing fixes this (the dependency on LITERAL_AGG's bespoke semantics is present even in the minimal one-group-key, one-LITERAL_AGG(true) case), and the gap is not a missing DSL builder \u2014 the before/after shapes (scan, Aggregate with an AggCall over a literal operand, ProjectMany restoring fields plus a literal) are fully expressible with the current API \u2014 but a genuine limitation of QED's aggregate semantics, with no axiom/interpretation hook (table \"guaranteed\" constraints only constrain scan columns, and the prover itself is off-limits) that a DSL extension could supply. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 1,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's entire correctness argument is the Calcite-internal algebraic identity that LITERAL_AGG(lit) evaluates to lit on every group produced by GROUP BY (every produced group is non-empty), and QED models aggregates as uninterpreted functions whose only known behavior is bag-equality of inputs \u2014 it cannot derive that LITERAL_AGG's output equals the literal the after-side re-projects, so an SMT model with LITERAL_AGG \u2260 lit is a valid counterexample to any faithful encoding. No narrowing fixes this (the dependency on LITERAL_AGG's bespoke semantics is present even in the minimal one-group-key, one-LITERAL_AGG(true) case), and the gap is not a missing DSL builder \u2014 the before/after shapes (scan, Aggregate with an AggCall over a literal operand, ProjectMany restoring fields plus a literal) are fully expressible with the current API \u2014 but a genuine limitation of QED's aggregate semantics, with no axiom/interpretation hook (table \"guaranteed\" constraints only constrain scan columns, and the prover itself is off-limits) that a DSL extension could supply. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-22T17:16:34.923982+00:00"
+  },
+  {
+    "rule_name": "FilterJoin",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/FilterJoinRule.java",
+    "status": "PROVED",
+    "attempts_used": 37,
+    "reason": "before() and after() are structurally different (Filter above an inner join vs. the AND-composed join condition), and the symbol sharing is exactly right: the same `joinCond` and `aboveFilter` occur on both sides, they are two independent uninterpreted predicates over the join row (distinct operator names, same field list), and L/R are independent scans \u2014 so the proof is neither vacuous nor coincidentally over-constrained. For an INNER join, this merged form is bag-equivalent to what the source rule actually emits (it splits conjuncts into child filters + ON condition, which is semantically neutral under inner joins), and INNER is precisely the only join kind for which the unclassified \"merge the whole filter into the condition\" step is valid \u2014 matching the honest PARTIAL scope tag. The single-column scans are a DSL convention rather than a weakening, since both predicates are fully uninterpreted over the product row and the filter/join-commutation claim is width-independent. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 6984584
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 39877709
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 859583
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 424417
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 19254125
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 39975000
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 75058208
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "before() and after() are structurally different (Filter above an inner join vs. the AND-composed join condition), and the symbol sharing is exactly right: the same `joinCond` and `aboveFilter` occur on both sides, they are two independent uninterpreted predicates over the join row (distinct operator names, same field list), and L/R are independent scans \u2014 so the proof is neither vacuous nor coincidentally over-constrained. For an INNER join, this merged form is bag-equivalent to what the source rule actually emits (it splits conjuncts into child filters + ON condition, which is semantically neutral under inner joins), and INNER is precisely the only join kind for which the unclassified \"merge the whole filter into the condition\" step is valid \u2014 matching the honest PARTIAL scope tag. The single-column scans are a DSL convention rather than a weakening, since both predicates are fully uninterpreted over the product row and the filter/join-commutation claim is width-independent. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "INNER join only; the above filter is merged into the join condition rather than being classified by referenced side",
+    "timestamp": "2026-09-22T17:31:17.231734+00:00"
+  },
+  {
+    "rule_name": "AggregateJoinJoinRemove",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateJoinJoinRemoveRule.java",
+    "status": "SKIPPED",
+    "attempts_used": 60,
+    "reason": "The rule's soundness hinges on the null-extension branch of the bottom left join: rows l with no matching m (\u00ac\u2203m. PB(l,m)) must be shown to survive via null-extension and then collapse under the distinct group-by, so proving the rewrite requires case-splitting on the existence of a match for an uninterpreted join condition PB \u2014 i.e. reasoning about the existential image of an uninterpreted predicate over independent symbols, which QED's bag-semantics normal-form/unification pipeline cannot do (its prover explicitly cannot reason about predicate inference/entailment between independent symbols). The porter's Probe 1 confirms this at the core: even the simplest non-trivial instance, a pure distinct group-by (no aggregate calls) over the nested left join vs. the single left join, was not provable, and no special case can remove that dichotomy without ceasing to be a left-join rule (a true-condition join still leaves the \u2203m / M-empty case split over an uninterpreted table). ```",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's soundness hinges on the null-extension branch of the bottom left join: rows l with no matching m (\u00ac\u2203m. PB(l,m)) must be shown to survive via null-extension and then collapse under the distinct group-by, so proving the rewrite requires case-splitting on the existence of a match for an uninterpreted join condition PB \u2014 i.e. reasoning about the existential image of an uninterpreted predicate over independent symbols, which QED's bag-semantics normal-form/unification pipeline cannot do (its prover explicitly cannot reason about predicate inference/entailment between independent symbols). The porter's Probe 1 confirms this at the core: even the simplest non-trivial instance, a pure distinct group-by (no aggregate calls) over the nested left join vs. the single left join, was not provable, and no special case can remove that dichotomy without ceasing to be a left-join rule (a true-condition join still leaves the \u2203m / M-empty case split over an uninterpreted table). ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-22T17:41:52.597225+00:00"
+  },
+  {
+    "rule_name": "FilterRemoveIsNotDistinctFrom",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/FilterRemoveIsNotDistinctFromRule.java",
+    "status": "PROVED",
+    "attempts_used": 37,
+    "reason": "The encoding is non-trivial and operator-correct: before() is Filter(IS_NOT_DISTINCT_FROM(x,y)) and after() is the DNF `(x IS NULL AND y IS NULL) OR IS_TRUE(x = y)`, which I verified against Calcite's RelOptUtil.isDistinctFrom(rexBuilder, x, y, true) CASE expansion across all four null/non-null combinations under three-valued logic \u2014 both sides are never NULL and agree on every branch (both-null \u2192 TRUE; one-null \u2192 FALSE; both non-null \u2192 x = y). Symbol usage is right: x and y are two independent nullable columns of a single shared uninterpreted type V (sharing the type mirrors SQL's same-type requirement for the operator, not an over-constraint), and because they live in an inner cross-product join, the proven identity is pointwise over all value pairs (a,b), which by substitution subsumes any occurrence of the operator nested inside a larger filter condition. The SCOPE:PARTIAL tag is honest and specific \u2014 the pattern matches only a top-level IS NOT DISTINCT FROM over a two-column join row, which is the strongest relational shape the DSL can express (scans are single-column and there is no uninterpreted predicate-context hole) \u2014 so the narrowing is real, degenerate, and loses no logical content. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 7543751
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 36764459
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 847541
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 447500
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 19984292
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 36858000
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 72516208
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is non-trivial and operator-correct: before() is Filter(IS_NOT_DISTINCT_FROM(x,y)) and after() is the DNF `(x IS NULL AND y IS NULL) OR IS_TRUE(x = y)`, which I verified against Calcite's RelOptUtil.isDistinctFrom(rexBuilder, x, y, true) CASE expansion across all four null/non-null combinations under three-valued logic \u2014 both sides are never NULL and agree on every branch (both-null \u2192 TRUE; one-null \u2192 FALSE; both non-null \u2192 x = y). Symbol usage is right: x and y are two independent nullable columns of a single shared uninterpreted type V (sharing the type mirrors SQL's same-type requirement for the operator, not an over-constraint), and because they live in an inner cross-product join, the proven identity is pointwise over all value pairs (a,b), which by substitution subsumes any occurrence of the operator nested inside a larger filter condition. The SCOPE:PARTIAL tag is honest and specific \u2014 the pattern matches only a top-level IS NOT DISTINCT FROM over a two-column join row, which is the strongest relational shape the DSL can express (scans are single-column and there is no uninterpreted predicate-context hole) \u2014 so the narrowing is real, degenerate, and loses no logical content. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "IS NOT DISTINCT FROM is exactly the top-level filter condition applied over a two-column row built as an inner join of two single-column scans; the operands are plain (non-struct) columns of a single shared type",
+    "timestamp": "2026-09-22T17:53:11.248101+00:00"
+  },
+  {
+    "rule_name": "AggregateRemoveDuplicateKeys",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateRemoveDuplicateKeysRule.java",
+    "status": "SKIPPED",
+    "attempts_used": 30,
+    "reason": "The rewrite's soundness rests on ANY_VALUE's choice semantics \u2014 its result must be the group's functionally-determined value \u2014 but QED treats aggregate functions as uninterpreted functions of their input bag and, per the reference, \"knows nothing about a specific aggregate function's algebra beyond bag equality of its input,\" so it cannot prove ANY_VALUE(group-bag) = f(a). The mq.determinesSet functional-dependency premise can at best be baked into a narrower source shape, but the rule's `after` always contains an ANY_VALUE call for each removed key, so no non-degenerate instance of this exact before/after shape is provable; the only provable variant (re-deriving the removed key as f(A) in a trailing project instead of ANY_VALUE) is a different rewrite, not a special case of this rule. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 1,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rewrite's soundness rests on ANY_VALUE's choice semantics \u2014 its result must be the group's functionally-determined value \u2014 but QED treats aggregate functions as uninterpreted functions of their input bag and, per the reference, \"knows nothing about a specific aggregate function's algebra beyond bag equality of its input,\" so it cannot prove ANY_VALUE(group-bag) = f(a). The mq.determinesSet functional-dependency premise can at best be baked into a narrower source shape, but the rule's `after` always contains an ANY_VALUE call for each removed key, so no non-degenerate instance of this exact before/after shape is provable; the only provable variant (re-deriving the removed key as f(A) in a trailing project instead of ANY_VALUE) is a different rewrite, not a special case of this rule. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-22T18:01:18.051427+00:00"
+  },
+  {
+    "rule_name": "IntersectToExists",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/IntersectToExistsRule.java",
+    "status": "SKIPPED",
+    "attempts_used": 30,
+    "reason": "The porter's stated reason was merely an LLM context-length crash, but the conclusion is correct for a real reason: the EXISTS arm of the rewrite depends on per-field IS NOT DISTINCT FROM comparisons (and correlated-subquery semantics), which QED treats as uninterpreted symbols with no built-in equality meaning, while the before side is a bare INTERSECT containing no such symbols \u2014 so QED would have to prove equivalence for *every* instantiation of that comparison (e.g. one that is always false, making the result just A rather than A\u2229B) and fail. The DSL also has no correlate/exists builder at all (only JSONSerializer's output format can carry them), but extending the DSL would not close the gap, since the blocker is QED's inability to see through the comparison operator's row-identity semantics, not a missing builder. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 1,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The porter's stated reason was merely an LLM context-length crash, but the conclusion is correct for a real reason: the EXISTS arm of the rewrite depends on per-field IS NOT DISTINCT FROM comparisons (and correlated-subquery semantics), which QED treats as uninterpreted symbols with no built-in equality meaning, while the before side is a bare INTERSECT containing no such symbols \u2014 so QED would have to prove equivalence for *every* instantiation of that comparison (e.g. one that is always false, making the result just A rather than A\u2229B) and fail. The DSL also has no correlate/exists builder at all (only JSONSerializer's output format can carry them), but extending the DSL would not close the gap, since the blocker is QED's inability to see through the comparison operator's row-identity semantics, not a missing builder. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-22T18:07:09.441253+00:00"
+  },
+  {
+    "rule_name": "AggregateReduceFunctionsOnGroupKeys",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateReduceFunctionsOnGroupKeysRule.java",
+    "status": "SKIPPED",
+    "attempts_used": 30,
+    "reason": "Every reduction branch of this rule (MAX/MIN/AVG/ANY_VALUE applied to a group key becoming the key reference, or a SqlConstantValueAggFunction becoming its declared constant, with NULL-preserving CASE) rests on the algebra of the specific aggregate function, whereas QED models every aggregate call as an uninterpreted function of its input bag \u2014 so the before/after equality fails for some instantiation of the aggregate symbol for any encoding, and the porter's probe (not provable, no timeout, complete) was the correct experiment, not a symbol-mismatch bug to diagnose further. No non-trivial special case survives: any provably-correct variant would have to omit the call elimination entirely, which is a trivial identity rather than the rule. This is a genuine QED limitation (no aggregate algebra beyond bag equality of inputs, and QED itself is unmodifiable), not a missing DSL capability, so extend_dsl_file cannot close the gap. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 1,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "Every reduction branch of this rule (MAX/MIN/AVG/ANY_VALUE applied to a group key becoming the key reference, or a SqlConstantValueAggFunction becoming its declared constant, with NULL-preserving CASE) rests on the algebra of the specific aggregate function, whereas QED models every aggregate call as an uninterpreted function of its input bag \u2014 so the before/after equality fails for some instantiation of the aggregate symbol for any encoding, and the porter's probe (not provable, no timeout, complete) was the correct experiment, not a symbol-mismatch bug to diagnose further. No non-trivial special case survives: any provably-correct variant would have to omit the call elimination entirely, which is a trivial identity rather than the rule. This is a genuine QED limitation (no aggregate algebra beyond bag equality of inputs, and QED itself is unmodifiable), not a missing DSL capability, so extend_dsl_file cannot close the gap. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-22T18:14:41.912969+00:00"
+  },
+  {
+    "rule_name": "AggregateValues",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateValuesRule.java",
+    "status": "PROVED",
+    "attempts_used": 10,
+    "reason": "The encoding faithfully captures the rule's dedup branch \u2014 a simple aggregate (group by the relation's only column, zero aggregate calls) over an uninterpreted scan is proven equivalent to its distinct-union (i.e. DISTINCT), and the two sides are structurally different, so the proof is non-vacuous. This is the genuinely provable half of the Calcite rule; the only unmodeled branch (empty-Values grand total) is correctly excluded in the PARTIAL scope because it requires aggregate-function algebra and empty-input semantics that QED does not model.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 8441001
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 26508375
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 926042
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 367875
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 21817583
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 26591791
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 64139500
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding faithfully captures the rule's dedup branch \u2014 a simple aggregate (group by the relation's only column, zero aggregate calls) over an uninterpreted scan is proven equivalent to its distinct-union (i.e. DISTINCT), and the two sides are structurally different, so the proof is non-vacuous. This is the genuinely provable half of the Calcite rule; the only unmodeled branch (empty-Values grand total) is correctly excluded in the PARTIAL scope because it requires aggregate-function algebra and empty-input semantics that QED does not model.",
+    "scope": "PARTIAL",
+    "scope_detail": "only the dedup branch (no-aggregate-call GROUP BY over all columns \u2261 DISTINCT); the empty-Values grand-total branch requires aggregate-function algebra and empty-input semantics that QED does not model.",
+    "timestamp": "2026-09-22T18:24:18.199365+00:00"
+  },
+  {
+    "rule_name": "AggregateJoinTranspose",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateJoinTransposeRule.java",
+    "status": "PROVED",
+    "attempts_used": 126,
+    "reason": "Hand-applied by harness operator: added additive RelRN.scanMany/ScanMany multi-column scan, encoded the DEFAULT-config (no-agg-function) group-by-through-join fragment per the round-5 verifier's own concrete suggestion. 0 regressions across 27 baseline rules; LLM auditor verdict SAFE.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 9302166
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 6322833
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 86083
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 713583
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 18541666
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 6382167
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 27863916
+      }
+    },
+    "verification_rounds_used": 5,
+    "verifier_verdict": "CONFIRMED (hand-applied fix)",
+    "verifier_reasoning": "It adds only a new static factory and a new nested record without altering any existing signatures or semantics, and its `semantics()` follows the existing uninterpreted-table/Calcite-scan pattern. A multi-column scan is a natural generalization needed when a base relation must expose distinct columns for join and grouping, not a one-off rule hack. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "DEFAULT config only (no aggregate-function calls); INNER join; group set spans both sides. EXTENDED config with splittable aggregate functions is unsupported.",
+    "timestamp": "2026-09-22T18:36:14.690113+00:00"
+  },
+  {
+    "rule_name": "AggregateUnionAggregate",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateUnionAggregateRule.java",
+    "status": "PROVED",
+    "attempts_used": 8,
+    "reason": "The encoding is faithful and non-vacuous: `before()` truly differs from `after()` (an extra group-by-all, no-agg-call dedup beneath the second UNION ALL arm), and the proved identity dedup(A \u228e dedup(L)) \u2261 dedup(A \u228e L) is exactly the algebraic content of Calcite's rule \u2014 UNION ALL (`all=true` as the source requires), top aggregate `isSimple` (group by all columns, no agg calls), bottom aggregate with no agg calls, and L/A are independent scans sharing only the row type the union itself mandates, so there is no triviality, wrong operator, sharing error, or silently dropped precondition. It is an honest, specific PARTIAL special case (single-column arms, inner dedup fixed to the second arm, and the bottom aggregate group-by-all rather than Calcite's allowed subset-group-set with an inserted Project), but the restriction is genuine rather than degenerate: the rule still removes a real aggregation, and the dropped generality (multi-column rows, which the current one-column `RelRN.scan` cannot express, and first-arm placement, which follows by UNION ALL symmetry) is what it is.\n\n(This proof relies on an accepted RuleScript DSL extension made during this session \u2014 see the extended file(s) for what changed.)",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 11601751
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 25499042
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 933542
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 557334
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 27496375
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 25613041
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 68903375
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is faithful and non-vacuous: `before()` truly differs from `after()` (an extra group-by-all, no-agg-call dedup beneath the second UNION ALL arm), and the proved identity dedup(A \u228e dedup(L)) \u2261 dedup(A \u228e L) is exactly the algebraic content of Calcite's rule \u2014 UNION ALL (`all=true` as the source requires), top aggregate `isSimple` (group by all columns, no agg calls), bottom aggregate with no agg calls, and L/A are independent scans sharing only the row type the union itself mandates, so there is no triviality, wrong operator, sharing error, or silently dropped precondition. It is an honest, specific PARTIAL special case (single-column arms, inner dedup fixed to the second arm, and the bottom aggregate group-by-all rather than Calcite's allowed subset-group-set with an inserted Project), but the restriction is genuine rather than degenerate: the rule still removes a real aggregation, and the dropped generality (multi-column rows, which the current one-column `RelRN.scan` cannot express, and first-arm placement, which follows by UNION ALL symmetry) is what it is.\n\n(This proof relies on an accepted RuleScript DSL extension made during this session \u2014 see the extended file(s) for what changed.)",
+    "scope": "PARTIAL",
+    "scope_detail": "the two union inputs are one-column relations of the same type (arbitrary-arity versions are not modeled) and the inner dedup is fixed to the second union input; both aggregates are group-by-all-columns with no aggregate calls, matching Calcite's isSimple / no-agg-call requirement.",
+    "timestamp": "2026-09-22T18:36:22.131201+00:00"
+  },
+  {
+    "rule_name": "FilterTableScan",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/FilterTableScanRule.java",
+    "status": "SKIPPED",
+    "attempts_used": 9,
+    "reason": "FilterTableScanRule is a purely physical pushdown (Filter(TableScan) \u2192 BindableTableScan) whose before and after differ only in representation \u2014 the BindableTableScan's output rows are *defined* by the backend FilterableTable/BindableTableScan contract to equal the logical Filter-over-Scan, so there is no logical algebraic identity for QED to verify. The bag-semantic core language has no physical/native-filtered-scan operator, so the after-side can only be encoded as the textually identical Filter(P,Scan) (a tautology that proves nothing about the rewrite) or as an uninterpreted operator to which the fixed QED prover has no axiom linking it back to Filter(P,Scan) \u2014 and this gap is a genuine limitation of QED's logical model, not a missing DSL builder that `extend_dsl_file` could close, since the physical operator has no distinct logical identity at all. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 1,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "FilterTableScanRule is a purely physical pushdown (Filter(TableScan) \u2192 BindableTableScan) whose before and after differ only in representation \u2014 the BindableTableScan's output rows are *defined* by the backend FilterableTable/BindableTableScan contract to equal the logical Filter-over-Scan, so there is no logical algebraic identity for QED to verify. The bag-semantic core language has no physical/native-filtered-scan operator, so the after-side can only be encoded as the textually identical Filter(P,Scan) (a tautology that proves nothing about the rewrite) or as an uninterpreted operator to which the fixed QED prover has no axiom linking it back to Filter(P,Scan) \u2014 and this gap is a genuine limitation of QED's logical model, not a missing DSL builder that `extend_dsl_file` could close, since the physical operator has no distinct logical identity at all. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-22T18:36:24.001981+00:00"
+  },
+  {
+    "rule_name": "ExpandDisjunctionForJoinInputs",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/ExpandDisjunctionForJoinInputsRule.java",
+    "status": "FAILED",
+    "attempts_used": 0,
+    "reason": "agent error: [Errno 54] Connection reset by peer",
+    "prover_stats": {},
+    "verification_rounds_used": 0,
+    "verifier_verdict": "",
+    "verifier_reasoning": "",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-22T19:42:41.694291+00:00"
   }
 ]

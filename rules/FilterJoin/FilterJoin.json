@@ -1,0 +1,90 @@
+{
+  "help" : [ "LogicalFilter(condition=[above_filter($0, $1)])\n  LogicalJoin(condition=[join_cond($0, $1)], joinType=[inner])\n    LogicalTableScan(table=[[L]])\n    LogicalTableScan(table=[[R]])\n", "LogicalJoin(condition=[AND(join_cond($0, $1), above_filter($0, $1))], joinType=[inner])\n  LogicalTableScan(table=[[L]])\n  LogicalTableScan(table=[[R]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "L",
+    "guaranteed" : [ ],
+    "fields" : [ "col-L" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "R",
+    "guaranteed" : [ ],
+    "fields" : [ "col-R" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "filter" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "above_filter"
+      },
+      "source" : {
+        "join" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            }, {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "join_cond"
+          },
+          "left" : {
+            "scan" : 0
+          },
+          "kind" : "INNER",
+          "right" : {
+            "scan" : 1
+          }
+        }
+      }
+    }
+  }, {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "type" : "BOOLEAN",
+          "operand" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          }, {
+            "column" : 1,
+            "type" : "INTEGER"
+          } ],
+          "operator" : "join_cond"
+        }, {
+          "type" : "BOOLEAN",
+          "operand" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          }, {
+            "column" : 1,
+            "type" : "INTEGER"
+          } ],
+          "operator" : "above_filter"
+        } ],
+        "operator" : "AND"
+      },
+      "left" : {
+        "scan" : 0
+      },
+      "kind" : "INNER",
+      "right" : {
+        "scan" : 1
+      }
+    }
+  } ]
+}

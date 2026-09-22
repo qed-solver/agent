@@ -67,6 +67,15 @@ class RepoTools:
     # snapshot of RRuleInstances/ at startup, so the rule currently being
     # worked on is never included (it isn't proved yet).
     baseline_proved_rules: tuple[str, ...] = ()
+    # Set True the moment *this* rule's own extend_dsl_file call actually
+    # keeps an edit. finalize_dsl_changes uses this — not a snapshot diff —
+    # to decide whether the DSL was touched by this rule specifically, since
+    # a snapshot diff alone can't tell "I changed it" apart from "another
+    # concurrently-running process changed it while I was running", and
+    # wrongly reverting the latter back to a stale per-rule snapshot would
+    # silently destroy a concurrent process's (or a human operator's)
+    # legitimate, independently-verified DSL change.
+    dsl_extended_this_run: bool = False
 
     def _root(self, root: str) -> Path:
         if root == "rulescript":
@@ -241,6 +250,7 @@ class RepoTools:
                         "previously-proved rule(s) would have broken.",
             }
 
+        self.dsl_extended_this_run = True
         return {
             "ok": True, "file": file, "reason": reason,
             "regression_checked": checked,

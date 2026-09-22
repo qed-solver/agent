@@ -1,20 +1,27 @@
 # RuleScript porting progress
 
-_Last updated: 2026-09-22T13:39:17.227280+00:00_
+_Last updated: 2026-09-22T19:42:41.698789+00:00_
 
-**22/30 rules proved** (0 failed, 8 skipped as out of QED's supported fragment).
+**29/47 rules proved** (1 failed, 17 skipped as out of QED's supported fragment).
 
 | Rule | Backend | Status | Scope | Attempts | Notes |
 |---|---|---|---|---|---|
+| `AggregateExpandDistinctAggregates` | Apache Calcite | ✅ PROVED | PARTIAL | 72 | The encoding faithfully mirrors the source rule's `convertMonopole` branch: `before()` is `GROUP BY k` of two distinct calls `f(DISTINCT ... |
 | `AggregateExtractProject` | Apache Calcite | ✅ PROVED | PARTIAL | 14 | The encoding faithfully mirrors the source rule's actual computation: it computes the used columns (group col 0, agg arg col 1), projects... |
 | `AggregateFilterTranspose` | Apache Calcite | ✅ PROVED | PARTIAL | 9 | The encoding faithfully captures Case 1 of the source rule: the uninterpreted predicate depends only on the group key (i.e. all filter co... |
 | `AggregateJoinRemove` | Apache Calcite | ✅ PROVED | PARTIAL | 67 | The encoding correctly captures the core semantic content of AggregateJoinRemove's LEFT-join branch: a DISTINCT aggregate (group key on t... |
+| `AggregateJoinTranspose` | Apache Calcite | ✅ PROVED | PARTIAL | 126 | Hand-applied by harness operator: added additive RelRN.scanMany/ScanMany multi-column scan, encoded the DEFAULT-config (no-agg-function) ... |
 | `AggregateMerge` | Apache Calcite | ✅ PROVED | PARTIAL | 37 | The encoding is a genuine, non-vacuous instance of the source rule: when the top aggregate has no aggregate calls, Calcite's onMatch skip... |
 | `AggregateProjectMerge` | Apache Calcite | ✅ PROVED | PARTIAL | 68 | The encoding is a line-faithful instance of the source rule's `apply`: for the swap project `[x1, x0]` the interesting-field map is `{0→1... |
+| `AggregateProjectPullUpConstants` | Apache Calcite | ✅ PROVED | PARTIAL | 63 | The encoding faithfully captures the rule's core transformation: an aggregate whose leading group key is a constant column is rewritten t... |
 | `AggregateRemove` | Apache Calcite | ✅ PROVED | PARTIAL | 34 | `before()` (a SIMPLE group-by on column 0 with zero agg calls, i.e. SELECT DISTINCT) is structurally and semantically distinct from `afte... |
+| `AggregateUnionAggregate` | Apache Calcite | ✅ PROVED | PARTIAL | 8 | The encoding is faithful and non-vacuous: `before()` truly differs from `after()` (an extra group-by-all, no-agg-call dedup beneath the s... |
+| `AggregateValues` | Apache Calcite | ✅ PROVED | PARTIAL | 10 | The encoding faithfully captures the rule's dedup branch — a simple aggregate (group by the relation's only column, zero aggregate calls)... |
 | `FilterAggregateTranspose` | Apache Calcite | ✅ PROVED | PARTIAL | 13 | The encoding is a non-vacuous, faithful instance of the rule's core transformation: the conjunct P depending only on the (identity) group... |
+| `FilterJoin` | Apache Calcite | ✅ PROVED | PARTIAL | 37 | before() and after() are structurally different (Filter above an inner join vs. the AND-composed join condition), and the symbol sharing ... |
 | `FilterMerge` | Apache Calcite | ✅ PROVED | FULL | 4 | before() is a genuinely nested Filter(Filter(scan)) while after() is a single Filter over an uninterpreted conjunction, so the proof is o... |
 | `FilterProjectTranspose` | Apache Calcite | ✅ PROVED | PARTIAL | 42 | The encoding faithfully captures the core mechanism of FilterProjectTranspose — pushing a predicate below a project by substituting the p... |
+| `FilterRemoveIsNotDistinctFrom` | Apache Calcite | ✅ PROVED | PARTIAL | 37 | The encoding is non-trivial and operator-correct: before() is Filter(IS_NOT_DISTINCT_FROM(x,y)) and after() is the DNF `(x IS NULL AND y ... |
 | `FilterSetOpTranspose` | Apache Calcite | ✅ PROVED | PARTIAL | 6 | before() = Filter(P, UnionAll(L, R)) and after() = UnionAll(Filter(P, L), Filter(P, R)) are structurally distinct and exactly the pushdow... |
 | `JoinAssociate` | Apache Calcite | ✅ PROVED | PARTIAL | 34 | The encoding correctly re-associates ((A⋈B)⋈C)→(A⋈(B⋈C)) with INNER joins, faithfully splitting conditions by A-reference (PAB/PABC on to... |
 | `JoinCommute` | Apache Calcite | ✅ PROVED | PARTIAL | 39 | before() is Join(L, R, INNER, P(l, r)) and after() is Join(R, L, INNER, P(l, r)) with the references correctly remapped to positions (1, ... |
@@ -28,8 +35,18 @@ _Last updated: 2026-09-22T13:39:17.227280+00:00_
 | `UnionEliminator` | Apache Calcite | ✅ PROVED | FULL | 10 | The encoding exactly mirrors the rule's matches condition for the union variant — a set op with all=true over exactly one input (input.un... |
 | `UnionMerge` | Apache Calcite | ✅ PROVED | PARTIAL | 5 | The encoding faithfully reproduces Calcite's UnionMerge onMatch for the UNION ALL instance — top union with a nested union in the second ... |
 | `UnionToDistinct` | Apache Calcite | ✅ PROVED | PARTIAL | 7 | The encoding matches the rule's exact shape: `before()` is a UNION DISTINCT (`union(false)`) over two independent uninterpreted inputs, a... |
+| `ExpandDisjunctionForJoinInputs` | Apache Calcite | ❌ FAILED | — | 0 | agent error: [Errno 54] Connection reset by peer |
+| `AggregateCaseToFilter` | Apache Calcite | ⏭️ SKIPPED | — | 30 | The rule's correctness rests on aggregate-function algebra that QED explicitly does not model — that null-skipping aggregates (COUNT/SUM)... |
+| `AggregateFilterToFilteredAggregate` | Apache Calcite | ⏭️ SKIPPED | — | 30 | The rule's validity rests entirely on the algebraic identity `agg(input restricted to rows where P) ≡ agg FILTER (WHERE P)(full input)` —... |
+| `AggregateGroupingSetsToUnion` | Apache Calcite | ⏭️ SKIPPED | — | 30 | The rule's left-hand side is a GROUPING SETS aggregate, but QED's language has no such operator: `RelRN.Aggregate` builds only simple gro... |
+| `AggregateJoinJoinRemove` | Apache Calcite | ⏭️ SKIPPED | — | 60 | The rule's soundness hinges on the null-extension branch of the bottom left join: rows l with no matching m (¬∃m. PB(l,m)) must be shown ... |
+| `AggregateReduceFunctionsOnGroupKeys` | Apache Calcite | ⏭️ SKIPPED | — | 30 | Every reduction branch of this rule (MAX/MIN/AVG/ANY_VALUE applied to a group key becoming the key reference, or a SqlConstantValueAggFun... |
+| `AggregateRemoveDuplicateKeys` | Apache Calcite | ⏭️ SKIPPED | — | 30 | The rewrite's soundness rests on ANY_VALUE's choice semantics — its result must be the group's functionally-determined value — but QED tr... |
+| `AggregateRemoveLiteralAgg` | Apache Calcite | ⏭️ SKIPPED | — | 30 | The rule's entire correctness argument is the Calcite-internal algebraic identity that LITERAL_AGG(lit) evaluates to lit on every group p... |
 | `AggregateUnionTranspose` | Apache Calcite | ⏭️ SKIPPED | — | 30 | The rule's soundness rests on the split/merge algebra of specific aggregate functions (SUM additivity, MIN idempotence, COUNT→SUM0): it c... |
+| `FilterTableScan` | Apache Calcite | ⏭️ SKIPPED | — | 9 | FilterTableScanRule is a purely physical pushdown (Filter(TableScan) → BindableTableScan) whose before and after differ only in represent... |
 | `IntersectToDistinct` | Apache Calcite | ⏭️ SKIPPED | — | 30 | IntersectToDistinct's correctness rests on the counting algebra of COUNT(*) — that aggregating each branch by all columns makes each dist... |
+| `IntersectToExists` | Apache Calcite | ⏭️ SKIPPED | — | 30 | The porter's stated reason was merely an LLM context-length crash, but the conclusion is correct for a real reason: the EXISTS arm of the... |
 | `JoinConditionExpandIsNotDistinctFrom` | Apache Calcite | ⏭️ SKIPPED | — | 30 | The rule's correctness rests entirely on the null-aware data semantics of specific backend operators — `IS NOT DISTINCT FROM`, `COALESCE`... |
 | `JoinPushTransitivePredicates` | Apache Calcite | ⏭️ SKIPPED | — | 30 | This rule is metadata-driven predicate inference, not a structural rewrite — Calcite decomposes the join condition into equi-join equival... |
 | `MinusToFilter` | Apache Calcite | ⏭️ SKIPPED | — | 30 | The rewrite's correctness depends on `NOT Q` being the exact complement of `Q` (i.e., rows with `Q = NULL` appearing on neither side), bu... |
@@ -38,6 +55,15 @@ _Last updated: 2026-09-22T13:39:17.227280+00:00_
 | `SortRemove` | Apache Calcite | ⏭️ SKIPPED | — | 30 | SortRemove is fundamentally a row-ordering rule: its subject operator (a Sort with no offset/limit) and its defining precondition (the in... |
 
 ## Details
+
+### `AggregateExpandDistinctAggregates` — ✅ PROVED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateExpandDistinctAggregatesRule.java
+- Attempts used: 72
+- Last updated: 2026-09-22T16:57:03.593558+00:00
+- Reason / notes: The encoding faithfully mirrors the source rule's `convertMonopole` branch: `before()` is `GROUP BY k` of two distinct calls `f(DISTINCT x), g(DISTINCT x)`, and `after()` makes them non-distinct on top of an intermediate `GROUP BY k, x` (no calls) that is exactly the source's `SELECT DISTINCT`-via-aggregate ded [NOTE: response was truncated at the token limit before finishing — if this cut off mid-code-block, that's why it couldn't be parsed.]
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 114404667}, panicked=False
 
 ### `AggregateExtractProject` — ✅ PROVED
 
@@ -66,6 +92,15 @@ _Last updated: 2026-09-22T13:39:17.227280+00:00_
 - Reason / notes: The encoding correctly captures the core semantic content of AggregateJoinRemove's LEFT-join branch: a DISTINCT aggregate (group key on the preserved side only, no non-preserved column references, vacuously-satisfied all-distinct condition) over a LEFT JOIN is equivalent to the same aggregate over the left input alone. The before/after are structurally different (join present vs. absent), the proof is non-vacuous (requires reasoning about left-join row preservation combined with group-by idempotence), the join condition is properly uninterpreted, symbol sharing is correct (left appears in both sides as the same table, right only in before), and no spurious preconditions (keys, NOT NULL) are introduced. The scope line honestly and specifically enumerates every restriction (LEFT-only, one-column scans, single group key, no aggregate calls); the one-column limitation is a genuine DSL constraint (the Scan constructor always emits a single-column table), the LEFT-only choice is inherent to the single before/after format, and the no-agg-calls restriction reflects QED's inability to reason about DISTINCT aggregate algebra — so the narrowing is to a provable core rather than an avoidable omission. ```
 - QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 77373667}, panicked=False
 
+### `AggregateJoinTranspose` — ✅ PROVED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateJoinTransposeRule.java
+- Attempts used: 126
+- Last updated: 2026-09-22T18:36:14.690113+00:00
+- Reason / notes: Hand-applied by harness operator: added additive RelRN.scanMany/ScanMany multi-column scan, encoded the DEFAULT-config (no-agg-function) group-by-through-join fragment per the round-5 verifier's own concrete suggestion. 0 regressions across 27 baseline rules; LLM auditor verdict SAFE.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 27863916}, panicked=False
+
 ### `AggregateMerge` — ✅ PROVED
 
 - Source backend: Apache Calcite
@@ -84,6 +119,15 @@ _Last updated: 2026-09-22T13:39:17.227280+00:00_
 - Reason / notes: The encoding is a line-faithful instance of the source rule's `apply`: for the swap project `[x1, x0]` the interesting-field map is `{0→1}`, yielding `newGroupSet = {1}` and remapped call `f(1)`, and since the mapped key order `[1]` equals `newGroupSet.asList()` the rule emits no trailing project — exactly the `after()` given, while `before()` (Aggregate over Project over Join) differs structurally, so the proof is non-vacuous. The narrowings (two-column base as `A ⋈ B` because DSL scans are single-column, a bijective swap rather than an arbitrary input-ref project, one group key and one call with operand = key) are inherent to RuleScript's fixed-shape encodings, are accurately declared on the `// SCOPE: PARTIAL` line, and don't concretize anything that should be an uninterpreted symbol (the INNER/true join is mere base construction, absent from the real rule); symbol sharing (`f`, `A`, `B`) is correct, and the rule's input-ref precondition is satisfied by construction, so no failure mode (triviality, wrong operators, sharing error, missing precondition, dishonest scope) is present.
 - QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 91540333}, panicked=False
 
+### `AggregateProjectPullUpConstants` — ✅ PROVED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateProjectPullUpConstantsRule.java
+- Attempts used: 63
+- Last updated: 2026-09-22T17:06:18.994233+00:00
+- Reason / notes: The encoding faithfully captures the rule's core transformation: an aggregate whose leading group key is a constant column is rewritten to an aggregate with that key dropped (group set kept non-empty, matching the rule's guard against an empty GROUP BY) plus a projection re-emitting the same literal in its original position, with the uninterpreted aggregate call shared unchanged and the original output column order preserved — and before/after are structurally different plans (2-key group-by vs 1-key group-by + project), so the proof is non-vacuous. Fixing the constant as a literal emitted by a Project directly below the aggregate is the only way to express "this column is constant" in QED (a pulled-up-predicate-deduced constant would require reasoning about a literal-equality constraint that the prover treats as opaque), so the stated PARTIAL scope is an honest, specific, genuine limitation rather than an avoidable under-generalization, and the specific literal value is immaterial since QED erases all types to integers. ```
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 89852292}, panicked=False
+
 ### `AggregateRemove` — ✅ PROVED
 
 - Source backend: Apache Calcite
@@ -93,6 +137,26 @@ _Last updated: 2026-09-22T13:39:17.227280+00:00_
 - Reason / notes: `before()` (a SIMPLE group-by on column 0 with zero agg calls, i.e. SELECT DISTINCT) is structurally and semantically distinct from `after()` (the raw scan), and the rule's essential precondition — `areColumnsUnique(input, groupSet)` — is correctly modeled as the scan's declared key (`unique=true` → `key: [[0]]` in the serialized schema) rather than silently dropped, so the proof is a genuine, non-vacuous identity-over-a-key result. This is a faithful instance of the no-aggregate-calls branch of `AggregateRemoveRule` in the case where input and output field counts match (1 vs 1, so no trailing project is needed, exactly as the source rule would emit); every restriction — single-column base-table input, key on the sole group column, empty agg-call list, and the unmodeled splittable-function half (MAX(x)→x) — is precisely what the `SCOPE: PARTIAL` line states, and the input shape is forced by the DSL, which has no way to attach uniqueness guarantees to derived relations or multi-column scans. Symbol sharing and operator shapes are correct (one shared table symbol, one group column, SIMPLE group type with groupCount > 0, empty function list), so none of the triviality/wrong-operator/missing-precondition failure modes apply and the "provable" verdict is meaningful and honestly scoped.
 - QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 298167}, panicked=False
 
+### `AggregateUnionAggregate` — ✅ PROVED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateUnionAggregateRule.java
+- Attempts used: 8
+- Last updated: 2026-09-22T18:36:22.131201+00:00
+- Reason / notes: The encoding is faithful and non-vacuous: `before()` truly differs from `after()` (an extra group-by-all, no-agg-call dedup beneath the second UNION ALL arm), and the proved identity dedup(A ⊎ dedup(L)) ≡ dedup(A ⊎ L) is exactly the algebraic content of Calcite's rule — UNION ALL (`all=true` as the source requires), top aggregate `isSimple` (group by all columns, no agg calls), bottom aggregate with no agg calls, and L/A are independent scans sharing only the row type the union itself mandates, so there is no triviality, wrong operator, sharing error, or silently dropped precondition. It is an honest, specific PARTIAL special case (single-column arms, inner dedup fixed to the second arm, and the bottom aggregate group-by-all rather than Calcite's allowed subset-group-set with an inserted Project), but the restriction is genuine rather than degenerate: the rule still removes a real aggregation, and the dropped generality (multi-column rows, which the current one-column `RelRN.scan` cannot express, and first-arm placement, which follows by UNION ALL symmetry) is what it is.
+
+(This proof relies on an accepted RuleScript DSL extension made during this session — see the extended file(s) for what changed.)
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 68903375}, panicked=False
+
+### `AggregateValues` — ✅ PROVED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateValuesRule.java
+- Attempts used: 10
+- Last updated: 2026-09-22T18:24:18.199365+00:00
+- Reason / notes: The encoding faithfully captures the rule's dedup branch — a simple aggregate (group by the relation's only column, zero aggregate calls) over an uninterpreted scan is proven equivalent to its distinct-union (i.e. DISTINCT), and the two sides are structurally different, so the proof is non-vacuous. This is the genuinely provable half of the Calcite rule; the only unmodeled branch (empty-Values grand total) is correctly excluded in the PARTIAL scope because it requires aggregate-function algebra and empty-input semantics that QED does not model.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 64139500}, panicked=False
+
 ### `FilterAggregateTranspose` — ✅ PROVED
 
 - Source backend: Apache Calcite
@@ -101,6 +165,15 @@ _Last updated: 2026-09-22T13:39:17.227280+00:00_
 - Last updated: 2026-09-22T10:25:40.096368+00:00
 - Reason / notes: The encoding is a non-vacuous, faithful instance of the rule's core transformation: the conjunct P depending only on the (identity) group key moves from the filter above the SIMPLE aggregate to a filter below it, while the conjuncts over the aggregate's output stay above, and P is correctly one shared uninterpreted symbol applied to the corresponding key column on both sides (modeling the rule's identity RexInputConverter). Operator usage and preconditions match the source — Filter-over-Aggregate shape, SIMPLE grouping, non-distinct uninterpreted aggregate, groupCount>0 and canPush's key-only condition built in, and per-key filtering commutes with group-by even under null semantics — with the two-column scan-join input being the standard DSL construction for a multi-column table (scans are single-column), not a fixed join the rule constrains. The narrowings (single identity group key, one aggregate call, one pushed conjunct) are genuine shape restrictions, honestly and specifically disclosed in the PARTIAL scope line, and since the proven equivalence is the exact semantic atom the rule applies per conjunct (the extra key-referencing remaining conjunct Qa is inert to P's movement), the provable verdict is meaningful rather than coincidental. ```
 - QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 100425542}, panicked=False
+
+### `FilterJoin` — ✅ PROVED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/FilterJoinRule.java
+- Attempts used: 37
+- Last updated: 2026-09-22T17:31:17.231734+00:00
+- Reason / notes: before() and after() are structurally different (Filter above an inner join vs. the AND-composed join condition), and the symbol sharing is exactly right: the same `joinCond` and `aboveFilter` occur on both sides, they are two independent uninterpreted predicates over the join row (distinct operator names, same field list), and L/R are independent scans — so the proof is neither vacuous nor coincidentally over-constrained. For an INNER join, this merged form is bag-equivalent to what the source rule actually emits (it splits conjuncts into child filters + ON condition, which is semantically neutral under inner joins), and INNER is precisely the only join kind for which the unclassified "merge the whole filter into the condition" step is valid — matching the honest PARTIAL scope tag. The single-column scans are a DSL convention rather than a weakening, since both predicates are fully uninterpreted over the product row and the filter/join-commutation claim is width-independent. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 75058208}, panicked=False
 
 ### `FilterMerge` — ✅ PROVED
 
@@ -119,6 +192,15 @@ _Last updated: 2026-09-22T13:39:17.227280+00:00_
 - Last updated: 2026-09-22T01:14:21.521707+00:00
 - Reason / notes: The encoding faithfully captures the core mechanism of FilterProjectTranspose — pushing a predicate below a project by substituting the projection expression into the filter condition — for the single-column, single-conjunct case. Before (Filter(F(Proj(s)), Project(Proj, s))) and after (Project(Proj, Filter(F(Proj(s)), s))) are structurally distinct plan shapes that are semantically equivalent under bag semantics for all instantiations of the uninterpreted symbols F and Proj, so the proof is non-vacuous. The SCOPE tag accurately and specifically states the restriction (single column, single conjunct, condition references only that column), which is a genuine DSL limitation since the current `RelRN.project(RexRN)` API only produces single-column projects. ```
 - QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 67754459}, panicked=False
+
+### `FilterRemoveIsNotDistinctFrom` — ✅ PROVED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/FilterRemoveIsNotDistinctFromRule.java
+- Attempts used: 37
+- Last updated: 2026-09-22T17:53:11.248101+00:00
+- Reason / notes: The encoding is non-trivial and operator-correct: before() is Filter(IS_NOT_DISTINCT_FROM(x,y)) and after() is the DNF `(x IS NULL AND y IS NULL) OR IS_TRUE(x = y)`, which I verified against Calcite's RelOptUtil.isDistinctFrom(rexBuilder, x, y, true) CASE expansion across all four null/non-null combinations under three-valued logic — both sides are never NULL and agree on every branch (both-null → TRUE; one-null → FALSE; both non-null → x = y). Symbol usage is right: x and y are two independent nullable columns of a single shared uninterpreted type V (sharing the type mirrors SQL's same-type requirement for the operator, not an over-constraint), and because they live in an inner cross-product join, the proven identity is pointwise over all value pairs (a,b), which by substitution subsumes any occurrence of the operator nested inside a larger filter condition. The SCOPE:PARTIAL tag is honest and specific — the pattern matches only a top-level IS NOT DISTINCT FROM over a two-column join row, which is the strongest relational shape the DSL can express (scans are single-column and there is no uninterpreted predicate-context hole) — so the narrowing is real, degenerate, and loses no logical content. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 72516208}, panicked=False
 
 ### `FilterSetOpTranspose` — ✅ PROVED
 
@@ -237,6 +319,70 @@ _Last updated: 2026-09-22T13:39:17.227280+00:00_
 - Reason / notes: The encoding matches the rule's exact shape: `before()` is a UNION DISTINCT (`union(false)`) over two independent uninterpreted inputs, and `after()` is an Aggregate grouping by all output columns with zero aggregate calls over the same inputs with `union(true)` — precisely what Calcite's `relBuilder.distinct()` produces — with the shared "T" type being a genuine union precondition rather than an over-constraint, no uniqueness assumptions, and no triviality since the two sides are structurally different. The only restrictions are the fixed two-input arity and single-column inputs, both forced by the DSL's construction (fixed-arity `union`, single-column `Scan`) and honestly flagged in the SCOPE line as a PARTIAL special case. The result is a genuine, non-degenerate instance of the rule: the dedup-by-aggregate rewrite over arbitrary (possibly duplicate) bags of the same type, which is the rule's full semantic content at 2 inputs × 1 column. ```
 - QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 65529417}, panicked=False
 
+### `ExpandDisjunctionForJoinInputs` — ❌ FAILED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/ExpandDisjunctionForJoinInputsRule.java
+- Attempts used: 0
+- Last updated: 2026-09-22T19:42:41.694291+00:00
+- Reason / notes: agent error: [Errno 54] Connection reset by peer
+
+### `AggregateCaseToFilter` — ⏭️ SKIPPED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateCaseToFilterRule.java
+- Attempts used: 30
+- Last updated: 2026-09-22T16:22:09.045404+00:00
+- Reason / notes: The rule's correctness rests on aggregate-function algebra that QED explicitly does not model — that null-skipping aggregates (COUNT/SUM) ignore NULL inputs, that SUM0 is additive with 0/NULL as neutral, and that COUNT of a non-null constant equals counting rows — and per its own evaluation QED can only equate aggregates whose input bags are equal, whereas here the two sides aggregate different bags (CASE values over all rows, NULLs from the else branch included, versus plain values over only the rows satisfying the filter). The gap is on the prover side, not the DSL: even extending the DSL (which today also lacks a `filterArg` on `RelRN.AggCall` and any CASE/NULL literal in `RexRN`, so neither side is expressible as-is) could not make the equivalence derivable, since the null-skipping/sum identity is precisely the "bespoke internal semantics of an aggregate operator" QED cannot see through.
+
+### `AggregateFilterToFilteredAggregate` — ⏭️ SKIPPED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateFilterToFilteredAggregateRule.java
+- Attempts used: 30
+- Last updated: 2026-09-22T16:20:55.450247+00:00
+- Reason / notes: The rule's validity rests entirely on the algebraic identity `agg(input restricted to rows where P) ≡ agg FILTER (WHERE P)(full input)` — the internal semantics of a *filtered* aggregate call — and QED equates aggregate calls only by same uninterpreted operator plus bag-equality of input, knowing nothing else about aggregate algebra, so it cannot relate the two sides. The "after" side cannot even be faithfully encoded: QED's JSON model of an aggregate (`group.function`) carries only `operator/operand/distinct/ignoreNulls/type` with no `filter` field, and the DSL's `AggCall` has no filter parameter. Extending the Java-side DSL cannot close this gap because the missing semantics lives in the (off-limits) Rust prover, so the only encodable version would be a degenerate identity — UNSUPPORTED is genuinely correct (the porter's recorded HTTP-400 error is a mechanical failure, but its pre-failure analysis had already landed on this exact limitation).
+
+### `AggregateGroupingSetsToUnion` — ⏭️ SKIPPED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateGroupingSetsToUnionRule.java
+- Attempts used: 30
+- Last updated: 2026-09-22T16:30:44.135714+00:00
+- Reason / notes: The rule's left-hand side is a GROUPING SETS aggregate, but QED's language has no such operator: `RelRN.Aggregate` builds only simple group-key aggregates (`RelBuilder.groupKey` + single group set), and the JSON contract the Rust prover consumes serializes a `group` node with only one "keys" list, so the prover has no interpretation for the operator whose expansion identity is the entire content of this rule. Encoding the "before" as a simple aggregate over the full group set instead would assert a false equivalence (one aggregate vs. a UNION ALL of sub-aggregates over its subsets, not bag-equal under QED's uninterpreted-aggregate model), and `extend_dsl_file` cannot help since it only touches the Java builders/serializer, not the unmodifiable prover's semantics. (A secondary, fixable gap is that `RexRN` has no NULL-literal builder for the padding columns — but the missing grouping-sets operator is the real blocker, so a fresh attempt would only confirm non-provability.) ```
+
+### `AggregateJoinJoinRemove` — ⏭️ SKIPPED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateJoinJoinRemoveRule.java
+- Attempts used: 60
+- Last updated: 2026-09-22T17:41:52.597225+00:00
+- Reason / notes: The rule's soundness hinges on the null-extension branch of the bottom left join: rows l with no matching m (¬∃m. PB(l,m)) must be shown to survive via null-extension and then collapse under the distinct group-by, so proving the rewrite requires case-splitting on the existence of a match for an uninterpreted join condition PB — i.e. reasoning about the existential image of an uninterpreted predicate over independent symbols, which QED's bag-semantics normal-form/unification pipeline cannot do (its prover explicitly cannot reason about predicate inference/entailment between independent symbols). The porter's Probe 1 confirms this at the core: even the simplest non-trivial instance, a pure distinct group-by (no aggregate calls) over the nested left join vs. the single left join, was not provable, and no special case can remove that dichotomy without ceasing to be a left-join rule (a true-condition join still leaves the ∃m / M-empty case split over an uninterpreted table). ```
+
+### `AggregateReduceFunctionsOnGroupKeys` — ⏭️ SKIPPED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateReduceFunctionsOnGroupKeysRule.java
+- Attempts used: 30
+- Last updated: 2026-09-22T18:14:41.912969+00:00
+- Reason / notes: Every reduction branch of this rule (MAX/MIN/AVG/ANY_VALUE applied to a group key becoming the key reference, or a SqlConstantValueAggFunction becoming its declared constant, with NULL-preserving CASE) rests on the algebra of the specific aggregate function, whereas QED models every aggregate call as an uninterpreted function of its input bag — so the before/after equality fails for some instantiation of the aggregate symbol for any encoding, and the porter's probe (not provable, no timeout, complete) was the correct experiment, not a symbol-mismatch bug to diagnose further. No non-trivial special case survives: any provably-correct variant would have to omit the call elimination entirely, which is a trivial identity rather than the rule. This is a genuine QED limitation (no aggregate algebra beyond bag equality of inputs, and QED itself is unmodifiable), not a missing DSL capability, so extend_dsl_file cannot close the gap. ```
+
+### `AggregateRemoveDuplicateKeys` — ⏭️ SKIPPED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateRemoveDuplicateKeysRule.java
+- Attempts used: 30
+- Last updated: 2026-09-22T18:01:18.051427+00:00
+- Reason / notes: The rewrite's soundness rests on ANY_VALUE's choice semantics — its result must be the group's functionally-determined value — but QED treats aggregate functions as uninterpreted functions of their input bag and, per the reference, "knows nothing about a specific aggregate function's algebra beyond bag equality of its input," so it cannot prove ANY_VALUE(group-bag) = f(a). The mq.determinesSet functional-dependency premise can at best be baked into a narrower source shape, but the rule's `after` always contains an ANY_VALUE call for each removed key, so no non-degenerate instance of this exact before/after shape is provable; the only provable variant (re-deriving the removed key as f(A) in a trailing project instead of ANY_VALUE) is a different rewrite, not a special case of this rule. ```
+
+### `AggregateRemoveLiteralAgg` — ⏭️ SKIPPED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateRemoveLiteralAggRule.java
+- Attempts used: 30
+- Last updated: 2026-09-22T17:16:34.923982+00:00
+- Reason / notes: The rule's entire correctness argument is the Calcite-internal algebraic identity that LITERAL_AGG(lit) evaluates to lit on every group produced by GROUP BY (every produced group is non-empty), and QED models aggregates as uninterpreted functions whose only known behavior is bag-equality of inputs — it cannot derive that LITERAL_AGG's output equals the literal the after-side re-projects, so an SMT model with LITERAL_AGG ≠ lit is a valid counterexample to any faithful encoding. No narrowing fixes this (the dependency on LITERAL_AGG's bespoke semantics is present even in the minimal one-group-key, one-LITERAL_AGG(true) case), and the gap is not a missing DSL builder — the before/after shapes (scan, Aggregate with an AggCall over a literal operand, ProjectMany restoring fields plus a literal) are fully expressible with the current API — but a genuine limitation of QED's aggregate semantics, with no axiom/interpretation hook (table "guaranteed" constraints only constrain scan columns, and the prover itself is off-limits) that a DSL extension could supply. ```
+
 ### `AggregateUnionTranspose` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
@@ -245,6 +391,14 @@ _Last updated: 2026-09-22T13:39:17.227280+00:00_
 - Last updated: 2026-09-22T10:33:50.070619+00:00
 - Reason / notes: The rule's soundness rests on the split/merge algebra of specific aggregate functions (SUM additivity, MIN idempotence, COUNT→SUM0): it claims that re-aggregating the per-branch aggregate *results* equals aggregating the raw unioned rows. QED models every aggregate call as an uninterpreted symbol with no algebraic knowledge, and the top aggregate's input bag (the per-branch f-images) is not the same bag the original aggregate sees (the raw rows), so the two applications of the same uninterpreted function have universally different inputs and the SMT solver can build a countermodel for every candidate encoding; this limitation lives in the trusted prover's semantics, not in a missing DSL builder, so no RuleScript encoding of the transpose itself (not even a narrowed special case) is provable. ```
 
+### `FilterTableScan` — ⏭️ SKIPPED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/FilterTableScanRule.java
+- Attempts used: 9
+- Last updated: 2026-09-22T18:36:24.001981+00:00
+- Reason / notes: FilterTableScanRule is a purely physical pushdown (Filter(TableScan) → BindableTableScan) whose before and after differ only in representation — the BindableTableScan's output rows are *defined* by the backend FilterableTable/BindableTableScan contract to equal the logical Filter-over-Scan, so there is no logical algebraic identity for QED to verify. The bag-semantic core language has no physical/native-filtered-scan operator, so the after-side can only be encoded as the textually identical Filter(P,Scan) (a tautology that proves nothing about the rewrite) or as an uninterpreted operator to which the fixed QED prover has no axiom linking it back to Filter(P,Scan) — and this gap is a genuine limitation of QED's logical model, not a missing DSL builder that `extend_dsl_file` could close, since the physical operator has no distinct logical identity at all. ```
+
 ### `IntersectToDistinct` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
@@ -252,6 +406,14 @@ _Last updated: 2026-09-22T13:39:17.227280+00:00_
 - Attempts used: 30
 - Last updated: 2026-09-22T03:13:20.981500+00:00
 - Reason / notes: IntersectToDistinct's correctness rests on the counting algebra of COUNT(*) — that aggregating each branch by all columns makes each distinct row appear exactly once per branch, and that a second group-by + count over the UNION ALL then yields the number of branches containing a row, which equals n precisely for set-intersection membership. QED treats aggregate calls as uninterpreted and can only establish aggregate equivalence from bag equality of their inputs (it knows no COUNT/aggregate algebra), so it has no axioms relating the plain set-semantic INTERSECT on the before side to the nested-aggregate pipeline on the after side, regardless of encoding. The porter actually died on an infrastructure error (context-length overflow) before testing anything, but the conclusion holds; the non-pushdown variant is doubly out of reach since its `COUNT(*) FILTER (WHERE ...)` form isn't even expressible in the current AggCall API, and no DSL extension can change QED's aggregate semantics. ```
+
+### `IntersectToExists` — ⏭️ SKIPPED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/IntersectToExistsRule.java
+- Attempts used: 30
+- Last updated: 2026-09-22T18:07:09.441253+00:00
+- Reason / notes: The porter's stated reason was merely an LLM context-length crash, but the conclusion is correct for a real reason: the EXISTS arm of the rewrite depends on per-field IS NOT DISTINCT FROM comparisons (and correlated-subquery semantics), which QED treats as uninterpreted symbols with no built-in equality meaning, while the before side is a bare INTERSECT containing no such symbols — so QED would have to prove equivalence for *every* instantiation of that comparison (e.g. one that is always false, making the result just A rather than A∩B) and fail. The DSL also has no correlate/exists builder at all (only JSONSerializer's output format can carry them), but extending the DSL would not close the gap, since the blocker is QED's inability to see through the comparison operator's row-identity semantics, not a missing builder. ```
 
 ### `JoinConditionExpandIsNotDistinctFrom` — ⏭️ SKIPPED
 

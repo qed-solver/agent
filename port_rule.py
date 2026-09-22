@@ -356,6 +356,7 @@ def finalize_dsl_changes(
     pipeline: Pipeline, rulescript_root: Path, snapshot: dict[str, str],
     rule_name: str, final_code: str | None, proved: bool,
     baseline_proved: tuple[str, ...] = (), auditor_llm: LLMClient | None = None,
+    dsl_touched_by_this_rule: bool = False,
 ) -> str:
     """Whatever the porter did to RelRN.java/RexRN.java/JSONSerializer.java during
     this run, decide automatically whether to keep it — never by trusting the
@@ -378,7 +379,19 @@ def finalize_dsl_changes(
     "kept" means the extension is now permanent and the proof stands; anything
     else means the DSL is back to `snapshot` and (for "kept-audit-failed"
     specifically) the caller's proof no longer holds without it.
+
+    `dsl_touched_by_this_rule` must come from this rule's own RepoTools
+    instance (`tools_obj.dsl_extended_this_run`), not from diffing `snapshot`
+    against the file's current contents: with several rules running
+    concurrently against the same shared DSL files, a diff alone can't tell
+    "this rule's own extend_dsl_file call changed it" apart from "some other
+    concurrently-running rule (or a human operator) changed it while this one
+    was in flight" — and treating the latter as this rule's own change would
+    revert (or "helpfully" keep) someone else's independently-verified edit
+    based on this rule's unrelated outcome.
     """
+    if not dsl_touched_by_this_rule:
+        return "unchanged"
     base = rulescript_root / "src" / "main" / "java" / "org" / "qed"
     changed = {f: content for f, content in snapshot.items() if (base / f).read_text() != content}
     if not changed:
@@ -666,6 +679,7 @@ def run_one(
                 dsl_status = finalize_dsl_changes(
                     pipeline, rulescript_root, dsl_snapshot, spec.name, result.code, True,
                     baseline_proved=baseline_proved, auditor_llm=auditor_llm,
+                    dsl_touched_by_this_rule=tools_obj.dsl_extended_this_run,
                 )
                 if dsl_status == "kept-audit-failed":
                     print("   [dsl audit] the extension this proof depended on failed independent audit; "
@@ -740,7 +754,10 @@ def run_one(
         last_verifier_verdict, last_verifier_reasoning = verdict, reasoning
         if verdict in (NO_VERIFIER, "AGREE"):
             print(f"   verifier {verdict}: finalizing as SKIPPED — {reasoning}")
-            finalize_dsl_changes(pipeline, rulescript_root, dsl_snapshot, spec.name, None, False)
+            finalize_dsl_changes(
+                pipeline, rulescript_root, dsl_snapshot, spec.name, None, False,
+                dsl_touched_by_this_rule=tools_obj.dsl_extended_this_run,
+            )
             pipeline.remove_rule(spec.name)
             if result.code:
                 pipeline.stash_unprovable(spec.name, result.code, reasoning)
@@ -775,7 +792,10 @@ def run_one(
         }]
 
     print("   exhausted all verification rounds; marking FAILED for human follow-up")
-    finalize_dsl_changes(pipeline, rulescript_root, dsl_snapshot, spec.name, None, False)
+    finalize_dsl_changes(
+        pipeline, rulescript_root, dsl_snapshot, spec.name, None, False,
+        dsl_touched_by_this_rule=tools_obj.dsl_extended_this_run,
+    )
     pipeline.remove_rule(spec.name)
     last_code = result.code  # from the final round's PorterResult
     if last_code:

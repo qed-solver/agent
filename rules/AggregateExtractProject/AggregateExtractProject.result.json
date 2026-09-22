@@ -1,0 +1,36 @@
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": false,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 15504039
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 45336917
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 973083
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 1234667
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 34964209
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 45589291
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 96821708
+  }
+}

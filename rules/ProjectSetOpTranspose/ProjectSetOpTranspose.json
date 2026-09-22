@@ -1,0 +1,67 @@
+{
+  "help" : [ "LogicalProject($f0=[F($0)])\n  LogicalUnion(all=[true])\n    LogicalTableScan(table=[[L]])\n    LogicalTableScan(table=[[R]])\n", "LogicalUnion(all=[true])\n  LogicalProject($f0=[F($0)])\n    LogicalTableScan(table=[[L]])\n  LogicalProject($f0=[F($0)])\n    LogicalTableScan(table=[[R]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "L",
+    "guaranteed" : [ ],
+    "fields" : [ "col-L" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "R",
+    "guaranteed" : [ ],
+    "fields" : [ "col-R" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "project" : {
+      "source" : {
+        "union" : [ {
+          "scan" : 0
+        }, {
+          "scan" : 1
+        } ]
+      },
+      "target" : [ {
+        "type" : "INTEGER",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "F"
+      } ]
+    }
+  }, {
+    "union" : [ {
+      "project" : {
+        "source" : {
+          "scan" : 0
+        },
+        "target" : [ {
+          "type" : "INTEGER",
+          "operand" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          } ],
+          "operator" : "F"
+        } ]
+      }
+    }, {
+      "project" : {
+        "source" : {
+          "scan" : 1
+        },
+        "target" : [ {
+          "type" : "INTEGER",
+          "operand" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          } ],
+          "operator" : "F"
+        } ]
+      }
+    } ]
+  } ]
+}

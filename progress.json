@@ -443,5 +443,780 @@
     "scope": "PARTIAL",
     "scope_detail": "each join input has exactly one column, and the join condition is a single uninterpreted predicate over the join's two-column row",
     "timestamp": "2026-09-22T07:09:24.122493+00:00"
+  },
+  {
+    "rule_name": "AggregateMerge",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateMergeRule.java",
+    "status": "PROVED",
+    "attempts_used": 37,
+    "reason": "The encoding is a genuine, non-vacuous instance of the source rule: when the top aggregate has no aggregate calls, Calcite's onMatch skips the call-merging loop entirely and emits exactly the encoded after() \u2014 a single aggregate over the bottom's input, grouped by the top's (permuted) group keys, with the bottom's unreferenced calls dropped \u2014 so the proved equivalence AGG_{k1}(AGG_{k1,k2; v(x)}(S)) \u2261 AGG_{k1}(S) is the real two-level-collapse transformation with correct symbol sharing (k1 reused between bottom's first group key and the merged key, which is load-bearing; v dropped because no top call references it). The PARTIAL tag honestly and specifically lists every assumption (no top calls, exactly one bottom call, 2\u21921 group keys, one-column scan input), and excluding the call-merging half (SUM-of-SUM, etc.) is forced by QED's fundamental inability to reason about aggregate-function algebra with uninterpreted symbols, not by a missing DSL capability, so this is the maximal provable core of the rule rather than an avoidable narrowing.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 10809126
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 35054125
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 943125
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 685542
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 26776875
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 35172584
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 82287750
+      }
+    },
+    "verification_rounds_used": 4,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is a genuine, non-vacuous instance of the source rule: when the top aggregate has no aggregate calls, Calcite's onMatch skips the call-merging loop entirely and emits exactly the encoded after() \u2014 a single aggregate over the bottom's input, grouped by the top's (permuted) group keys, with the bottom's unreferenced calls dropped \u2014 so the proved equivalence AGG_{k1}(AGG_{k1,k2; v(x)}(S)) \u2261 AGG_{k1}(S) is the real two-level-collapse transformation with correct symbol sharing (k1 reused between bottom's first group key and the merged key, which is load-bearing; v dropped because no top call references it). The PARTIAL tag honestly and specifically lists every assumption (no top calls, exactly one bottom call, 2\u21921 group keys, one-column scan input), and excluding the call-merging half (SUM-of-SUM, etc.) is forced by QED's fundamental inability to reason about aggregate-function algebra with uninterpreted symbols, not by a missing DSL capability, so this is the maximal provable core of the rule rather than an avoidable narrowing.",
+    "scope": "PARTIAL",
+    "scope_detail": "the top aggregate has no aggregate calls, the bottom aggregate has exactly one aggregate call (which the merged aggregate drops), the top's single group key is exactly the bottom's first group key, the bottom has exactly two group keys, and the input is a one-column scan.",
+    "timestamp": "2026-09-22T08:20:54.996874+00:00"
+  },
+  {
+    "rule_name": "AggregateJoinRemove",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateJoinRemoveRule.java",
+    "status": "PROVED",
+    "attempts_used": 67,
+    "reason": "The encoding correctly captures the core semantic content of AggregateJoinRemove's LEFT-join branch: a DISTINCT aggregate (group key on the preserved side only, no non-preserved column references, vacuously-satisfied all-distinct condition) over a LEFT JOIN is equivalent to the same aggregate over the left input alone. The before/after are structurally different (join present vs. absent), the proof is non-vacuous (requires reasoning about left-join row preservation combined with group-by idempotence), the join condition is properly uninterpreted, symbol sharing is correct (left appears in both sides as the same table, right only in before), and no spurious preconditions (keys, NOT NULL) are introduced. The scope line honestly and specifically enumerates every restriction (LEFT-only, one-column scans, single group key, no aggregate calls); the one-column limitation is a genuine DSL constraint (the Scan constructor always emits a single-column table), the LEFT-only choice is inherent to the single before/after format, and the no-agg-calls restriction reflects QED's inability to reason about DISTINCT aggregate algebra \u2014 so the narrowing is to a provable core rather than an avoidable omission. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 11234960
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 34074333
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 1524750
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 653709
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 26591250
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 34184125
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 77373667
+      }
+    },
+    "verification_rounds_used": 3,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding correctly captures the core semantic content of AggregateJoinRemove's LEFT-join branch: a DISTINCT aggregate (group key on the preserved side only, no non-preserved column references, vacuously-satisfied all-distinct condition) over a LEFT JOIN is equivalent to the same aggregate over the left input alone. The before/after are structurally different (join present vs. absent), the proof is non-vacuous (requires reasoning about left-join row preservation combined with group-by idempotence), the join condition is properly uninterpreted, symbol sharing is correct (left appears in both sides as the same table, right only in before), and no spurious preconditions (keys, NOT NULL) are introduced. The scope line honestly and specifically enumerates every restriction (LEFT-only, one-column scans, single group key, no aggregate calls); the one-column limitation is a genuine DSL constraint (the Scan constructor always emits a single-column table), the LEFT-only choice is inherent to the single before/after format, and the no-agg-calls restriction reflects QED's inability to reason about DISTINCT aggregate algebra \u2014 so the narrowing is to a provable core rather than an avoidable omission. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "the join is a LEFT join of two one-column scans, and the aggregate over it has exactly one group key referencing the left (preserved) input's column and no aggregate calls.",
+    "timestamp": "2026-09-22T09:11:30.690550+00:00"
+  },
+  {
+    "rule_name": "JoinExtractFilter",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/JoinExtractFilterRule.java",
+    "status": "PROVED",
+    "attempts_used": 8,
+    "reason": "<1-3 sentences ...> ``` No code fences? It shows with code block? It says Reply with exactly this format (nothing else): ``` ... ``` Probably no markdown code fence? The example uses a fenced block? It shows: ``` <...> ``` or, if... ``` ... ``` The outer triple backticks in the prompt are just delimiting the format. It says exactly this format (nothing else). Usually we should output plain lines, not fenced. Need decide. The text: \"Reply with **exactly** this format (nothing else): ``` <1-3 sentences on why this is a faithful, general encoding of the source rule> ``` or, if you find a real problem: ``` <specifically what is wrong and, if you can tell, what a correct encoding should do differently> ```\" It likely expects no code fences, just the two lines. The triple backticks are showing a template. We should output exactly two lines. Ensure no extra. 1-3 sentences. Could be: The encoding uses the same shared uninterpreted condition on an INNER join versus a filter above an INNER join with true, matching Calcite's JoinExtractFilter transformation. The scans and predicate are uninterpreted symbols, so inputs and condition are general, and no missing semantic preconditions are required; the only absent guard is the source rule's non-trivial-condition firing check, which does not affect correctness. This is 2 sentences? Actually two sentences. Good. Need ensure \"FULL\" maybe. If we think the missing guard means not full, maybe we could still confirm? The prompt asks scope honesty; if narrower, reject? It says if you find a real problem. If the source rule has firing guard not always true, is that a real problem for faithful encoding? Let's examine expected standards. They want quality control. A \"provable\" result can be misleading if the encoding is not faithful. If the original rule only fires on inner joins with non-true conditions, the encoding proves equivalence for all predicates, including true. Is that a misleadingly broader claim? It is not a *narrower* special case, it's broader. But the rule as a rewrite rule: a rule's applicability is part of the rule. If it can be applied to true condition, it would be a no-op but still correct. In rewrite rule verification, proving a superset is usually okay? However if the source rule's guard is semantic (e.g. condition not null, join type inner), missing it could be bad. Here guard is just to avoid useless rewrite; not needed for soundness. The SCOPE tag says FULL. If we interpret full generality of the *transformation* (inner join with any condition), it is full. If interpret full generality including matcher guard, it's slightly over-general but not unsound. The output options only CONFIRMED or REJECTED. We likely should CONFIRMED because the core rewrite is faithful. The prompt's failure mode 5 says missing preconditions that make proof of different, easier claim. The missing `!isAlwaysTrue()` makes the claim broader, not easier? Actually if condition can be true, the after filter true over cartesian is equivalent but maybe more trivial. But the proof still has to handle all predicates; the presence of true as a possible predicate doesn't ease the overall proof. It's a broader family, but still true. If a source rule has a guard that excludes some cases for performance, encoding without guard is not misleading if the equivalence holds. But could it be considered not faithful because the original rule would not rewrite a join with condition true, so the \"after\" plan is not actually produced by the rule? In rule-based optimizers, a rule's correctness usually considered for the patterns it matches; matching guards that exclude semantically no-op cases are not part of the logical rewrite. The reference asks compare against full source and decide full vs partial. It says \"if it's narrower, is the restriction genuine and specific\". Here not narrower. It might be broader, but the tag is FULL; broader is okay? They didn't list over-generalization as failure. But \"wrong operators\" and \"missing preconditions\" could cover. I think confirm. Let's consider if the source rule actually applies to *any* join type? The class javadoc says inner, but the `Config.DEFAULT` `operand(LogicalJoin.class).anyInputs()` doesn't specify join type. If the base rule did not check inner, the rule would be unsound for outer joins? Calcite would not do that. It must check inner. Let's maybe recall exact `AbstractJoinExtractFilterRule` from Calcite: ``` public abstract class AbstractJoinExtractFilterRule extends JoinRule { protected abstract void onMatch(RelOptRuleCall call); @Override protected void onMatch(RelOptRuleCall call) { Join join = call.rels(0); if (!join.isInner()) { return; } RelBuilder builder = relBuilder(); RelNode newInput = builder.push(join.left).push(join.right) .join(JoinRelType.INNER, builder.literal(true)).build(); RelNode newFilter = builder.push(newInput).filter(join.condition).build(); call.transformTo(newFilter); } } ``` Maybe it also requires `join.getCondition() != null` and `!join.getCondition().isAlwaysTrue()`. Inner join condition can be null for cross join? `LogicalJoin` condition can be null? In Calcite, join condition is `RexNode`, may be `true` literal for cross? It may be null for cross? `RelBuilder.join(JoinRelType.INNER)` with no condition creates true. The rule likely handles condition true check. Potential issue: In before, the join condition is `joinCond` which is a `Pred` with sources all fields. In Calcite, an inner join's condition may reference only a subset of fields; uninterpreted predicate can be considered as over all fields with some ignored? In first-order logic, a predicate over all fields can represent any predicate over subset by ignoring args. So full. Potential issue: The source join may have *field names* and output row includes left then right. In RuleScript, `Join.field` overrides to `JoinField` with left/right. In after filter, using `joinCond` built from `left.joinPred(..., right)` not from the join node's fields. It refers to original left and right. Should be same. Potential issue: The after join's condition `trueLiteral()` is a `RexRN.True` with no sources. In `Join.semantics()`, it will create join condition true. Good. Potential issue: The rule's after plan in Calcite might be `Filter(Join(left, right, INNER, true), condition)` but if condition references only left or right, it might be a `LogicalFilter` with condition `RexInputRef` relative to join. Same. Potential issue: QED's equivalence class may be too weak? `complete_fragment: True`, no timeouts. Not our concern. Need maybe think about null semantics and 3-valued logic. Calcite uses SQL 3VL. For inner join, condition null => row dropped. Filter condition null => row dropped. Equivalent. If the join condition is `C` and after filter is `C`, same. No need NOT NULL. QED may model predicates as Boolean, not tri-valued, but both operations treat false/null the same for membership. If it models as total Boolean, still equivalent. If C can be null, mapping null to false preserves equivalence. So no missing NOT NULL. Potential issue: The original rule may have a condition that the join condition is *not constant false*? If constant false, original join yields empty; after filter false yields empty. Equivalent. If it doesn't fire, no issue. Potential issue: The source rule's `Config` can be configured to match any subclass of `Join`, not just `LogicalJoin`. The encoding uses the core `Join` pattern with inner type; in RuleScript that's abstract enough. It doesn't hard-code `LogicalJoin` subclass. Good. Potential issue: It uses scans for inputs; source rule's inputs can be any RelNode. As above, extensional. Could there be a more subtle issue: The original rule extracts the *join condition* as a filter, but in Calcite, if the join is an *INNER* join with condition `C`, and `C` contains *join field references*, moving it above the join is valid because the join output row includes both sides. However, if `C` contains *null* and the join is *INNER*, no issue. If the join type were `LEFT` or `RIGHT`, moving filter above changes null-extended rows; but source is inner. Good. Could there be an issue with *semi/anti* joins? Not inner. Could there be an issue with *bag duplicates*? Inner join true produces Cartesian product preserving multiplicities; filter preserves. Original inner join C produces product for satisfying pairs. Equivalent. Good. Need maybe decide if `// SCOPE: FULL` is honest. I think yes. We can mention in reasoning that uninterpreted scans and condition stand for arbitrary inputs/condition, inner join matches source, shared condition is correct. Let's consider alternative: The porter may have used `left.joinPred(\"join_cond\", right)` which creates a predicate over `joinFields(right)` (all fields). But `left.joinFields(right)` returns fields over *all fields of left plus right* using `semantics().getRowType().getFieldCount()`. For scans one column each, 2. If the source rule could apply to joins where one side has zero columns? Relational algebra maybe not. No issue. Potential issue: `joinCond` is a `RexRN.Pred` with `operator` from `genericPredicateOp(\"join_cond\", true)`. The second parameter likely `nullable`? In `RuleBuilder.genericPredicateOp(name, true)`. It may create a SqlOperator with name and nullable type. The operator is uninterpreted. Good. Potential issue: In after, `filter(joinCond)` where `joinCond` sources are `RexRN.JoinField`. But `Filter`'s input is a `Join` node, not a raw pair. The `JoinField.semantics()` pushes left and right, not the join? Let's inspect more: `RexRN.JoinField(ordinal, left, right).semantics()` does: ``` var leftCols = left.semantics().getRowType().getFieldCount(); return RuleBuilder.create().push(left.semantics()).push(right.semantics()).field(2, ordinal < leftCols ? 0 : 1, ordinal < leftCols ? ordinal : ordinal - leftCols); ``` This seems to build a `RexFieldAccess` with correlation variable? If so, using it in a filter over a join might be wrong? But QED proved, and the DSL is designed for join conditions. Let's understand `RuleBuilder.field(2, rel, index)`. It might be a method in QED's RuleBuilder to create an input ref with a \"level\" for join conditions? In Calcite, `RexInputRef` uses index, not rel. `RexFieldAccess` is for correlated references. But `field(2, 0, 0)` perhaps creates a `RexInputRef` with index 0 after pushing two rels? The `2` might be the number of operands? Hard to know. But the fact that `JSONSerializer` has special handling for `RexFieldAccess` suggests `JoinField` may serialize to `RexFieldAccess`? Let's inspect: `RexFieldAccess fieldAccess -> object(column = fieldAccess.getField().getIndex() + env.resolve(((RexCorrelVariable) fieldAccess.getReferenceExpr()).id), type...)`. For a normal join condition, `LogicalJoin` serialization uses a `Rex` visitor with base = leftCols + rightCols? Actually for join: ``` var visitor = new Rex(env.recorded(join.getVariablesSet()).rex(left.getRowType().getFieldCount() + right.getRowType().getFieldCount())); yield object(Map.of(\"join\", object(Map.of(\"kind\", ..., \"condition\", visitor.serialize(join.getCondition()), ... ``` `Rex.Env` has `base` = leftCols+rightCols? Wait `Env(int base, int delta, globals, tables)`. In `Rel.Env.rex(int delta)` returns `new Rex.Env(lvl, delta, globals, tables)`. For join, `env.recorded(...).rex(left.getFieldCount() + right.getFieldCount())`: base = left+right? Then for `RexInputRef`, `integer(inputRef.getIndex() + env.base())`. That would make column indices left+right+index, weird. For filter, base = input.getFieldCount(), so inputRef index + input field count. This seems strange. Maybe `base` is not offset but number of columns? The JSON column likely is absolute? For a filter over source with input fields 0..n-1, `base=n` would make columns n..2n-1, not right. Hmm. Maybe `env.base()` is 0 for filter? Let's check: `Rel.Env.rex(int delta)` passes `delta` as `base`? In `Rex.Env` constructor `(int base, int delta, ...)`. In `Rel.Env.rex(int delta)` returns `new Rex.Env(lvl, delta, globals, tables)`: base = lvl, delta = input field count? Wait `Rel.Env.lvl` is aggregate level, maybe 0. So `base=0`, `delta=inputFieldCount`. But `RexInputRef` uses `inputRef.getIndex() + env.base()`, so base 0. Then `delta` unused? In `RexFieldAccess`, uses `env.resolve(corrId)`. I may be misreading. `Rex.Env` has fields `base, delta`; `RexInputRef` uses `base`, not delta. For filter, base = lvl (0), so correct. For join, base = lvl (0) too, but delta = left+right. So condition input refs 0..n-1 correct. The `delta` maybe used for something else? Not important. `JoinField.semantics()` uses `RuleBuilder.create().push(left).push(right).field(2, rel, index)`. The `2` maybe number of pushed relations, then it creates a `RexFieldAccess`? If join condition uses `RexFieldAccess`, the serializer would need correlation id. But `LogicalJoin` serializer's `Rex` env has `globals` recorded from `join.getVariablesSet()`. A normal join condition doesn't have correlation variables. So likely `field(2, rel, index)` creates a `RexInputRef` with index rel*? Maybe `RuleBuilder.field` is a custom method to build field references over multiple inputs. Not a problem. But could using `joinPred` in a filter above a join create field references that are *correlated* to the original left/right rather than the filter input? If so, QED might still prove due to some equivalence? Need ensure not a symbol sharing error. In after, filter input is a join node. The condition `joinCond` was originally a join condition predicate over `left` and `right`. If its field references are somehow bound to the original left/right relations, not the join output, it might still refer to the same values because the join output contains them. In SQL semantics, a filter above a join cannot reference left/right directly, only join output. But if RuleScript's `JoinField` builds field refs with a level that might be wrong in filter context. However QED's prover accepted and proved; but could it prove a different plan? The JSON serializer would serialize the RexNode as produced by semantics. If `JoinField.semantics()` produces a `RexFieldAccess` with correlation variable, then in a filter context, the filter serializer uses `env.recorded(filter.getVariablesSet())`. If the RexNode has correlation ids not declared in filter, serializer would throw? But QED ran without panic, so it must produce valid normal input refs or the serializer handled. Since `complete_fragment` true, okay. Let's think if `left.joinPred(\"join_cond\", right)` in after is the *same* object as before. In `Filter.cond` is that object. `Filter.semantics()` calls `cond.semantics()`. The `Pred.semantics()` maps sources `RexRN::semantics`. Each `JoinField.semantics()` pushes left and right and calls `field`. This may create a new RexNode each time. But the operator name is same. QED likely canonicalizes by name and structure. Good. Potential issue: The original rule's after join condition is `true`, but if the original join condition is *null* (cross join represented by null condition), the rule may not apply? In Calcite, `Join.getCondition()` may be null for cross join? `LogicalJoin` can have null condition? I think condition is `RexNode`, can be null for cross join? In `RelBuilder.join(JoinRelType.CROSS)` maybe condition null. But for INNER cross join, condition might be `true` literal. The encoding before uses an uninterpreted predicate, not null. If source rule could apply to null condition? It likely treats null as true and extracts? Not relevant. Potential issue: The source rule may be part of `AbstractJoinExtractFilterRule` which has a config `requireInputs`? No. Let's consider if `JoinExtractFilterRule` is actually the inverse of `JoinToFilterRule`? There is `CoreRules.JOIN_EXTRACT_FILTER` and `CoreRules.JOIN_TO_FILTER`? In Calcite, `JoinToFilterRule` converts a join with a condition that is a conjunction? Wait. `JoinExtractFilterRule` extracts filter above join; `FilterIntoJoinRule` pushes filter into join? There is also `AbstractJoinExtractFilterRule` that maybe converts a *filter above a join* into a join condition? Let's verify name: \"Rule to convert an inner join to a filter on top of a cartesian inner join.\" That is clear: join -> filter(join(cartesian)). There is also `JoinPushFilterRule`? But provided class is JoinExtractFilterRule, extends AbstractJoinExtractFilterRule. The javadoc in provided source is authoritative. Good. Need maybe mention that the encoding uses a single uninterpreted predicate over both input rows, which is exactly the join condition, and the same symbol is used in filter, so no accidental independent predicate. Let's think about the proof being \"complete_fragment: true\" and `equiv_class_duration` 0. Could there be a risk that QED proved equivalence because both plans were normalized to the same Q-expression, maybe not capturing the condition? But the condition is uninterpreted; before join condition and after filter condition. If QED's equivalence normalization treats inner join with condition as filter over inner join with true automatically, then it's fine. If it erroneously drops condition, both would be equivalent but proof meaningless. But QED is trusted; we assume it correctly models. We are verifying encoding, not prover. Need maybe check if `after` uses `filter(joinCond)` where `joinCond` is over `left` and `right`, but the filter input row from the cartesian join has fields: left's one column then right's one column. In before, the join output row also has same layout. Good. Potential issue: The original rule may preserve the *output field names* of the join. In RuleScript, row layout only columns; no names. The before and after both have same two columns. Good. Potential issue: The source rule may require that the join condition is not *referencing outer relations* (correlated). A `LogicalJoin` condition cannot reference outer? It can be correlated in some contexts? In Calcite, join condition can only reference join inputs, not outer. RuleScript doesn't model correlation. Not a missing precondition. Potential issue: The source rule may be for `LogicalJoin` specifically, which is an inner join? `LogicalJoin` can be any join type. The base rule checks inner. Good. Potential issue: In RuleScript, [NOTE: response was truncated at the token limit before finishing \u2014 if this cut off mid-code-block, that's why it couldn't be parsed.]",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 821709
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 442500
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 1670000
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "<1-3 sentences ...> ``` No code fences? It shows with code block? It says Reply with exactly this format (nothing else): ``` ... ``` Probably no markdown code fence? The example uses a fenced block? It shows: ``` <...> ``` or, if... ``` ... ``` The outer triple backticks in the prompt are just delimiting the format. It says exactly this format (nothing else). Usually we should output plain lines, not fenced. Need decide. The text: \"Reply with **exactly** this format (nothing else): ``` <1-3 sentences on why this is a faithful, general encoding of the source rule> ``` or, if you find a real problem: ``` <specifically what is wrong and, if you can tell, what a correct encoding should do differently> ```\" It likely expects no code fences, just the two lines. The triple backticks are showing a template. We should output exactly two lines. Ensure no extra. 1-3 sentences. Could be: The encoding uses the same shared uninterpreted condition on an INNER join versus a filter above an INNER join with true, matching Calcite's JoinExtractFilter transformation. The scans and predicate are uninterpreted symbols, so inputs and condition are general, and no missing semantic preconditions are required; the only absent guard is the source rule's non-trivial-condition firing check, which does not affect correctness. This is 2 sentences? Actually two sentences. Good. Need ensure \"FULL\" maybe. If we think the missing guard means not full, maybe we could still confirm? The prompt asks scope honesty; if narrower, reject? It says if you find a real problem. If the source rule has firing guard not always true, is that a real problem for faithful encoding? Let's examine expected standards. They want quality control. A \"provable\" result can be misleading if the encoding is not faithful. If the original rule only fires on inner joins with non-true conditions, the encoding proves equivalence for all predicates, including true. Is that a misleadingly broader claim? It is not a *narrower* special case, it's broader. But the rule as a rewrite rule: a rule's applicability is part of the rule. If it can be applied to true condition, it would be a no-op but still correct. In rewrite rule verification, proving a superset is usually okay? However if the source rule's guard is semantic (e.g. condition not null, join type inner), missing it could be bad. Here guard is just to avoid useless rewrite; not needed for soundness. The SCOPE tag says FULL. If we interpret full generality of the *transformation* (inner join with any condition), it is full. If interpret full generality including matcher guard, it's slightly over-general but not unsound. The output options only CONFIRMED or REJECTED. We likely should CONFIRMED because the core rewrite is faithful. The prompt's failure mode 5 says missing preconditions that make proof of different, easier claim. The missing `!isAlwaysTrue()` makes the claim broader, not easier? Actually if condition can be true, the after filter true over cartesian is equivalent but maybe more trivial. But the proof still has to handle all predicates; the presence of true as a possible predicate doesn't ease the overall proof. It's a broader family, but still true. If a source rule has a guard that excludes some cases for performance, encoding without guard is not misleading if the equivalence holds. But could it be considered not faithful because the original rule would not rewrite a join with condition true, so the \"after\" plan is not actually produced by the rule? In rule-based optimizers, a rule's correctness usually considered for the patterns it matches; matching guards that exclude semantically no-op cases are not part of the logical rewrite. The reference asks compare against full source and decide full vs partial. It says \"if it's narrower, is the restriction genuine and specific\". Here not narrower. It might be broader, but the tag is FULL; broader is okay? They didn't list over-generalization as failure. But \"wrong operators\" and \"missing preconditions\" could cover. I think confirm. Let's consider if the source rule actually applies to *any* join type? The class javadoc says inner, but the `Config.DEFAULT` `operand(LogicalJoin.class).anyInputs()` doesn't specify join type. If the base rule did not check inner, the rule would be unsound for outer joins? Calcite would not do that. It must check inner. Let's maybe recall exact `AbstractJoinExtractFilterRule` from Calcite: ``` public abstract class AbstractJoinExtractFilterRule extends JoinRule { protected abstract void onMatch(RelOptRuleCall call); @Override protected void onMatch(RelOptRuleCall call) { Join join = call.rels(0); if (!join.isInner()) { return; } RelBuilder builder = relBuilder(); RelNode newInput = builder.push(join.left).push(join.right) .join(JoinRelType.INNER, builder.literal(true)).build(); RelNode newFilter = builder.push(newInput).filter(join.condition).build(); call.transformTo(newFilter); } } ``` Maybe it also requires `join.getCondition() != null` and `!join.getCondition().isAlwaysTrue()`. Inner join condition can be null for cross join? `LogicalJoin` condition can be null? In Calcite, join condition is `RexNode`, may be `true` literal for cross? It may be null for cross? `RelBuilder.join(JoinRelType.INNER)` with no condition creates true. The rule likely handles condition true check. Potential issue: In before, the join condition is `joinCond` which is a `Pred` with sources all fields. In Calcite, an inner join's condition may reference only a subset of fields; uninterpreted predicate can be considered as over all fields with some ignored? In first-order logic, a predicate over all fields can represent any predicate over subset by ignoring args. So full. Potential issue: The source join may have *field names* and output row includes left then right. In RuleScript, `Join.field` overrides to `JoinField` with left/right. In after filter, using `joinCond` built from `left.joinPred(..., right)` not from the join node's fields. It refers to original left and right. Should be same. Potential issue: The after join's condition `trueLiteral()` is a `RexRN.True` with no sources. In `Join.semantics()`, it will create join condition true. Good. Potential issue: The rule's after plan in Calcite might be `Filter(Join(left, right, INNER, true), condition)` but if condition references only left or right, it might be a `LogicalFilter` with condition `RexInputRef` relative to join. Same. Potential issue: QED's equivalence class may be too weak? `complete_fragment: True`, no timeouts. Not our concern. Need maybe think about null semantics and 3-valued logic. Calcite uses SQL 3VL. For inner join, condition null => row dropped. Filter condition null => row dropped. Equivalent. If the join condition is `C` and after filter is `C`, same. No need NOT NULL. QED may model predicates as Boolean, not tri-valued, but both operations treat false/null the same for membership. If it models as total Boolean, still equivalent. If C can be null, mapping null to false preserves equivalence. So no missing NOT NULL. Potential issue: The original rule may have a condition that the join condition is *not constant false*? If constant false, original join yields empty; after filter false yields empty. Equivalent. If it doesn't fire, no issue. Potential issue: The source rule's `Config` can be configured to match any subclass of `Join`, not just `LogicalJoin`. The encoding uses the core `Join` pattern with inner type; in RuleScript that's abstract enough. It doesn't hard-code `LogicalJoin` subclass. Good. Potential issue: It uses scans for inputs; source rule's inputs can be any RelNode. As above, extensional. Could there be a more subtle issue: The original rule extracts the *join condition* as a filter, but in Calcite, if the join is an *INNER* join with condition `C`, and `C` contains *join field references*, moving it above the join is valid because the join output row includes both sides. However, if `C` contains *null* and the join is *INNER*, no issue. If the join type were `LEFT` or `RIGHT`, moving filter above changes null-extended rows; but source is inner. Good. Could there be an issue with *semi/anti* joins? Not inner. Could there be an issue with *bag duplicates*? Inner join true produces Cartesian product preserving multiplicities; filter preserves. Original inner join C produces product for satisfying pairs. Equivalent. Good. Need maybe decide if `// SCOPE: FULL` is honest. I think yes. We can mention in reasoning that uninterpreted scans and condition stand for arbitrary inputs/condition, inner join matches source, shared condition is correct. Let's consider alternative: The porter may have used `left.joinPred(\"join_cond\", right)` which creates a predicate over `joinFields(right)` (all fields). But `left.joinFields(right)` returns fields over *all fields of left plus right* using `semantics().getRowType().getFieldCount()`. For scans one column each, 2. If the source rule could apply to joins where one side has zero columns? Relational algebra maybe not. No issue. Potential issue: `joinCond` is a `RexRN.Pred` with `operator` from `genericPredicateOp(\"join_cond\", true)`. The second parameter likely `nullable`? In `RuleBuilder.genericPredicateOp(name, true)`. It may create a SqlOperator with name and nullable type. The operator is uninterpreted. Good. Potential issue: In after, `filter(joinCond)` where `joinCond` sources are `RexRN.JoinField`. But `Filter`'s input is a `Join` node, not a raw pair. The `JoinField.semantics()` pushes left and right, not the join? Let's inspect more: `RexRN.JoinField(ordinal, left, right).semantics()` does: ``` var leftCols = left.semantics().getRowType().getFieldCount(); return RuleBuilder.create().push(left.semantics()).push(right.semantics()).field(2, ordinal < leftCols ? 0 : 1, ordinal < leftCols ? ordinal : ordinal - leftCols); ``` This seems to build a `RexFieldAccess` with correlation variable? If so, using it in a filter over a join might be wrong? But QED proved, and the DSL is designed for join conditions. Let's understand `RuleBuilder.field(2, rel, index)`. It might be a method in QED's RuleBuilder to create an input ref with a \"level\" for join conditions? In Calcite, `RexInputRef` uses index, not rel. `RexFieldAccess` is for correlated references. But `field(2, 0, 0)` perhaps creates a `RexInputRef` with index 0 after pushing two rels? The `2` might be the number of operands? Hard to know. But the fact that `JSONSerializer` has special handling for `RexFieldAccess` suggests `JoinField` may serialize to `RexFieldAccess`? Let's inspect: `RexFieldAccess fieldAccess -> object(column = fieldAccess.getField().getIndex() + env.resolve(((RexCorrelVariable) fieldAccess.getReferenceExpr()).id), type...)`. For a normal join condition, `LogicalJoin` serialization uses a `Rex` visitor with base = leftCols + rightCols? Actually for join: ``` var visitor = new Rex(env.recorded(join.getVariablesSet()).rex(left.getRowType().getFieldCount() + right.getRowType().getFieldCount())); yield object(Map.of(\"join\", object(Map.of(\"kind\", ..., \"condition\", visitor.serialize(join.getCondition()), ... ``` `Rex.Env` has `base` = leftCols+rightCols? Wait `Env(int base, int delta, globals, tables)`. In `Rel.Env.rex(int delta)` returns `new Rex.Env(lvl, delta, globals, tables)`. For join, `env.recorded(...).rex(left.getFieldCount() + right.getFieldCount())`: base = left+right? Then for `RexInputRef`, `integer(inputRef.getIndex() + env.base())`. That would make column indices left+right+index, weird. For filter, base = input.getFieldCount(), so inputRef index + input field count. This seems strange. Maybe `base` is not offset but number of columns? The JSON column likely is absolute? For a filter over source with input fields 0..n-1, `base=n` would make columns n..2n-1, not right. Hmm. Maybe `env.base()` is 0 for filter? Let's check: `Rel.Env.rex(int delta)` passes `delta` as `base`? In `Rex.Env` constructor `(int base, int delta, ...)`. In `Rel.Env.rex(int delta)` returns `new Rex.Env(lvl, delta, globals, tables)`: base = lvl, delta = input field count? Wait `Rel.Env.lvl` is aggregate level, maybe 0. So `base=0`, `delta=inputFieldCount`. But `RexInputRef` uses `inputRef.getIndex() + env.base()`, so base 0. Then `delta` unused? In `RexFieldAccess`, uses `env.resolve(corrId)`. I may be misreading. `Rex.Env` has fields `base, delta`; `RexInputRef` uses `base`, not delta. For filter, base = lvl (0), so correct. For join, base = lvl (0) too, but delta = left+right. So condition input refs 0..n-1 correct. The `delta` maybe used for something else? Not important. `JoinField.semantics()` uses `RuleBuilder.create().push(left).push(right).field(2, rel, index)`. The `2` maybe number of pushed relations, then it creates a `RexFieldAccess`? If join condition uses `RexFieldAccess`, the serializer would need correlation id. But `LogicalJoin` serializer's `Rex` env has `globals` recorded from `join.getVariablesSet()`. A normal join condition doesn't have correlation variables. So likely `field(2, rel, index)` creates a `RexInputRef` with index rel*? Maybe `RuleBuilder.field` is a custom method to build field references over multiple inputs. Not a problem. But could using `joinPred` in a filter above a join create field references that are *correlated* to the original left/right rather than the filter input? If so, QED might still prove due to some equivalence? Need ensure not a symbol sharing error. In after, filter input is a join node. The condition `joinCond` was originally a join condition predicate over `left` and `right`. If its field references are somehow bound to the original left/right relations, not the join output, it might still refer to the same values because the join output contains them. In SQL semantics, a filter above a join cannot reference left/right directly, only join output. But if RuleScript's `JoinField` builds field refs with a level that might be wrong in filter context. However QED's prover accepted and proved; but could it prove a different plan? The JSON serializer would serialize the RexNode as produced by semantics. If `JoinField.semantics()` produces a `RexFieldAccess` with correlation variable, then in a filter context, the filter serializer uses `env.recorded(filter.getVariablesSet())`. If the RexNode has correlation ids not declared in filter, serializer would throw? But QED ran without panic, so it must produce valid normal input refs or the serializer handled. Since `complete_fragment` true, okay. Let's think if `left.joinPred(\"join_cond\", right)` in after is the *same* object as before. In `Filter.cond` is that object. `Filter.semantics()` calls `cond.semantics()`. The `Pred.semantics()` maps sources `RexRN::semantics`. Each `JoinField.semantics()` pushes left and right and calls `field`. This may create a new RexNode each time. But the operator name is same. QED likely canonicalizes by name and structure. Good. Potential issue: The original rule's after join condition is `true`, but if the original join condition is *null* (cross join represented by null condition), the rule may not apply? In Calcite, `Join.getCondition()` may be null for cross join? `LogicalJoin` can have null condition? I think condition is `RexNode`, can be null for cross join? In `RelBuilder.join(JoinRelType.CROSS)` maybe condition null. But for INNER cross join, condition might be `true` literal. The encoding before uses an uninterpreted predicate, not null. If source rule could apply to null condition? It likely treats null as true and extracts? Not relevant. Potential issue: The source rule may be part of `AbstractJoinExtractFilterRule` which has a config `requireInputs`? No. Let's consider if `JoinExtractFilterRule` is actually the inverse of `JoinToFilterRule`? There is `CoreRules.JOIN_EXTRACT_FILTER` and `CoreRules.JOIN_TO_FILTER`? In Calcite, `JoinToFilterRule` converts a join with a condition that is a conjunction? Wait. `JoinExtractFilterRule` extracts filter above join; `FilterIntoJoinRule` pushes filter into join? There is also `AbstractJoinExtractFilterRule` that maybe converts a *filter above a join* into a join condition? Let's verify name: \"Rule to convert an inner join to a filter on top of a cartesian inner join.\" That is clear: join -> filter(join(cartesian)). There is also `JoinPushFilterRule`? But provided class is JoinExtractFilterRule, extends AbstractJoinExtractFilterRule. The javadoc in provided source is authoritative. Good. Need maybe mention that the encoding uses a single uninterpreted predicate over both input rows, which is exactly the join condition, and the same symbol is used in filter, so no accidental independent predicate. Let's think about the proof being \"complete_fragment: true\" and `equiv_class_duration` 0. Could there be a risk that QED proved equivalence because both plans were normalized to the same Q-expression, maybe not capturing the condition? But the condition is uninterpreted; before join condition and after filter condition. If QED's equivalence normalization treats inner join with condition as filter over inner join with true automatically, then it's fine. If it erroneously drops condition, both would be equivalent but proof meaningless. But QED is trusted; we assume it correctly models. We are verifying encoding, not prover. Need maybe check if `after` uses `filter(joinCond)` where `joinCond` is over `left` and `right`, but the filter input row from the cartesian join has fields: left's one column then right's one column. In before, the join output row also has same layout. Good. Potential issue: The original rule may preserve the *output field names* of the join. In RuleScript, row layout only columns; no names. The before and after both have same two columns. Good. Potential issue: The source rule may require that the join condition is not *referencing outer relations* (correlated). A `LogicalJoin` condition cannot reference outer? It can be correlated in some contexts? In Calcite, join condition can only reference join inputs, not outer. RuleScript doesn't model correlation. Not a missing precondition. Potential issue: The source rule may be for `LogicalJoin` specifically, which is an inner join? `LogicalJoin` can be any join type. The base rule checks inner. Good. Potential issue: In RuleScript, [NOTE: response was truncated at the token limit before finishing \u2014 if this cut off mid-code-block, that's why it couldn't be parsed.]",
+    "scope": "FULL",
+    "scope_detail": "public record JoinExtractFilter() implements RRule {",
+    "timestamp": "2026-09-22T09:20:16.505380+00:00"
+  },
+  {
+    "rule_name": "AggregateProjectMerge",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateProjectMergeRule.java",
+    "status": "PROVED",
+    "attempts_used": 68,
+    "reason": "The encoding is a line-faithful instance of the source rule's `apply`: for the swap project `[x1, x0]` the interesting-field map is `{0\u21921}`, yielding `newGroupSet = {1}` and remapped call `f(1)`, and since the mapped key order `[1]` equals `newGroupSet.asList()` the rule emits no trailing project \u2014 exactly the `after()` given, while `before()` (Aggregate over Project over Join) differs structurally, so the proof is non-vacuous. The narrowings (two-column base as `A \u22c8 B` because DSL scans are single-column, a bijective swap rather than an arbitrary input-ref project, one group key and one call with operand = key) are inherent to RuleScript's fixed-shape encodings, are accurately declared on the `// SCOPE: PARTIAL` line, and don't concretize anything that should be an uninterpreted symbol (the INNER/true join is mere base construction, absent from the real rule); symbol sharing (`f`, `A`, `B`) is correct, and the rule's input-ref precondition is satisfied by construction, so no failure mode (triviality, wrong operators, sharing error, missing precondition, dishonest scope) is present.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 13184332
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 44871709
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 966083
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 960125
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 30221209
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 45085167
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 91540333
+      }
+    },
+    "verification_rounds_used": 3,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is a line-faithful instance of the source rule's `apply`: for the swap project `[x1, x0]` the interesting-field map is `{0\u21921}`, yielding `newGroupSet = {1}` and remapped call `f(1)`, and since the mapped key order `[1]` equals `newGroupSet.asList()` the rule emits no trailing project \u2014 exactly the `after()` given, while `before()` (Aggregate over Project over Join) differs structurally, so the proof is non-vacuous. The narrowings (two-column base as `A \u22c8 B` because DSL scans are single-column, a bijective swap rather than an arbitrary input-ref project, one group key and one call with operand = key) are inherent to RuleScript's fixed-shape encodings, are accurately declared on the `// SCOPE: PARTIAL` line, and don't concretize anything that should be an uninterpreted symbol (the INNER/true join is mere base construction, absent from the real rule); symbol sharing (`f`, `A`, `B`) is correct, and the rule's input-ref precondition is satisfied by construction, so no failure mode (triviality, wrong operators, sharing error, missing precondition, dishonest scope) is present.",
+    "scope": "PARTIAL",
+    "scope_detail": "the aggregate's input is a two-column relation (two one-column scans inner-joined with a true condition), the project below the aggregate is the pure column swap, and the aggregate has one group key and one aggregate call, both over the same plain field reference",
+    "timestamp": "2026-09-22T09:57:40.682439+00:00"
+  },
+  {
+    "rule_name": "AggregateFilterTranspose",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateFilterTransposeRule.java",
+    "status": "PROVED",
+    "attempts_used": 9,
+    "reason": "The encoding faithfully captures Case 1 of the source rule: the uninterpreted predicate depends only on the group key (i.e. all filter columns are in the group set), the aggregate is a simple group-by with the same group set and agg call on both sides, and the filter genuinely moves from below to above the aggregate, so the proof is non-vacuous and matches the rule's transformation exactly. The symbols are shared correctly \u2014 the same `p` and `f` occur in both patterns, and the after-side filter references the aggregate's group-key output column, which is precisely what the rule's column mapping does when the group set is unchanged; the source rule's uniqueness check is a termination/rule-firing guard, not a semantic precondition, so its absence doesn't weaken the equivalence claim. The stated PARTIAL scope (one group key, two-column input, one non-distinct call) is honest, specific, and non-degenerate: fixed-shape patterns with uninterpreted symbols are all this DSL can express, and the essential semantic condition (predicate over group keys only) is captured, so the narrower arity is an inherent language limitation rather than a hard-coded concrete value.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 13136166
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 46110209
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 973542
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 1012917
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 30353917
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 46360250
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 93033833
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding faithfully captures Case 1 of the source rule: the uninterpreted predicate depends only on the group key (i.e. all filter columns are in the group set), the aggregate is a simple group-by with the same group set and agg call on both sides, and the filter genuinely moves from below to above the aggregate, so the proof is non-vacuous and matches the rule's transformation exactly. The symbols are shared correctly \u2014 the same `p` and `f` occur in both patterns, and the after-side filter references the aggregate's group-key output column, which is precisely what the rule's column mapping does when the group set is unchanged; the source rule's uniqueness check is a termination/rule-firing guard, not a semantic precondition, so its absence doesn't weaken the equivalence claim. The stated PARTIAL scope (one group key, two-column input, one non-distinct call) is honest, specific, and non-degenerate: fixed-shape patterns with uninterpreted symbols are all this DSL can express, and the essential semantic condition (predicate over group keys only) is captured, so the narrower arity is an inherent language limitation rather than a hard-coded concrete value.",
+    "scope": "PARTIAL",
+    "scope_detail": "Case 1 of the rule (Group.SIMPLE, filter columns all in the group set): the aggregate has exactly one group key which is a plain field of a two-column input, one non-distinct aggregate call over the other field, and the filter predicate depends only on the group key.",
+    "timestamp": "2026-09-22T10:12:35.906990+00:00"
+  },
+  {
+    "rule_name": "ProjectJoinRemove",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/ProjectJoinRemoveRule.java",
+    "status": "SKIPPED",
+    "attempts_used": 90,
+    "reason": "The rule's correctness rests on the join condition being an equality on the non-preserved side's key columns, which lets the key constraint bound join fanout to \u22641; RuleScript's core language has no equality operator, so any join condition is an uninterpreted predicate, and with an uninterpreted condition the equivalence is actually false (a left row can match multiple distinct rows of the keyed table, duplicating it), and QED cannot infer an entailment between an independent predicate symbol and the table's key constraint. Thus no encoding \u2014 including one that correctly sets the scan's `unique` flag and shares symbols \u2014 is provable; the porter's LLM context-length error merely masked a conclusion its transcript was already converging on (QED never even reached SMT, rejecting structurally).",
+    "prover_stats": {},
+    "verification_rounds_used": 3,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's correctness rests on the join condition being an equality on the non-preserved side's key columns, which lets the key constraint bound join fanout to \u22641; RuleScript's core language has no equality operator, so any join condition is an uninterpreted predicate, and with an uninterpreted condition the equivalence is actually false (a left row can match multiple distinct rows of the keyed table, duplicating it), and QED cannot infer an entailment between an independent predicate symbol and the table's key constraint. Thus no encoding \u2014 including one that correctly sets the scan's `unique` flag and shares symbols \u2014 is provable; the porter's LLM context-length error merely masked a conclusion its transcript was already converging on (QED never even reached SMT, rejecting structurally).",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-22T10:13:01.588724+00:00"
+  },
+  {
+    "rule_name": "UnionToDistinct",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/UnionToDistinctRule.java",
+    "status": "PROVED",
+    "attempts_used": 7,
+    "reason": "The encoding matches the rule's exact shape: `before()` is a UNION DISTINCT (`union(false)`) over two independent uninterpreted inputs, and `after()` is an Aggregate grouping by all output columns with zero aggregate calls over the same inputs with `union(true)` \u2014 precisely what Calcite's `relBuilder.distinct()` produces \u2014 with the shared \"T\" type being a genuine union precondition rather than an over-constraint, no uniqueness assumptions, and no triviality since the two sides are structurally different. The only restrictions are the fixed two-input arity and single-column inputs, both forced by the DSL's construction (fixed-arity `union`, single-column `Scan`) and honestly flagged in the SCOPE line as a PARTIAL special case. The result is a genuine, non-degenerate instance of the rule: the dedup-by-aggregate rewrite over arbitrary (possibly duplicate) bags of the same type, which is the rule's full semantic content at 2 inputs \u00d7 1 column. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 10166456
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 24998375
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 946250
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 445625
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 24930791
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 25081375
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 65529417
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding matches the rule's exact shape: `before()` is a UNION DISTINCT (`union(false)`) over two independent uninterpreted inputs, and `after()` is an Aggregate grouping by all output columns with zero aggregate calls over the same inputs with `union(true)` \u2014 precisely what Calcite's `relBuilder.distinct()` produces \u2014 with the shared \"T\" type being a genuine union precondition rather than an over-constraint, no uniqueness assumptions, and no triviality since the two sides are structurally different. The only restrictions are the fixed two-input arity and single-column inputs, both forced by the DSL's construction (fixed-arity `union`, single-column `Scan`) and honestly flagged in the SCOPE line as a PARTIAL special case. The result is a genuine, non-degenerate instance of the rule: the dedup-by-aggregate rewrite over arbitrary (possibly duplicate) bags of the same type, which is the rule's full semantic content at 2 inputs \u00d7 1 column. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "the union has exactly two inputs (Calcite's rule fires on any number of inputs); both inputs are one-column relations of the same type, as required by Calcite's union type-checking.",
+    "timestamp": "2026-09-22T10:16:12.700531+00:00"
+  },
+  {
+    "rule_name": "FilterAggregateTranspose",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/FilterAggregateTransposeRule.java",
+    "status": "PROVED",
+    "attempts_used": 13,
+    "reason": "The encoding is a non-vacuous, faithful instance of the rule's core transformation: the conjunct P depending only on the (identity) group key moves from the filter above the SIMPLE aggregate to a filter below it, while the conjuncts over the aggregate's output stay above, and P is correctly one shared uninterpreted symbol applied to the corresponding key column on both sides (modeling the rule's identity RexInputConverter). Operator usage and preconditions match the source \u2014 Filter-over-Aggregate shape, SIMPLE grouping, non-distinct uninterpreted aggregate, groupCount>0 and canPush's key-only condition built in, and per-key filtering commutes with group-by even under null semantics \u2014 with the two-column scan-join input being the standard DSL construction for a multi-column table (scans are single-column), not a fixed join the rule constrains. The narrowings (single identity group key, one aggregate call, one pushed conjunct) are genuine shape restrictions, honestly and specifically disclosed in the PARTIAL scope line, and since the proven equivalence is the exact semantic atom the rule applies per conjunct (the extra key-referencing remaining conjunct Qa is inert to P's movement), the provable verdict is meaningful rather than coincidental. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 13193667
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 53267500
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 980750
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 1013875
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 30671375
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 53538416
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 100425542
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is a non-vacuous, faithful instance of the rule's core transformation: the conjunct P depending only on the (identity) group key moves from the filter above the SIMPLE aggregate to a filter below it, while the conjuncts over the aggregate's output stay above, and P is correctly one shared uninterpreted symbol applied to the corresponding key column on both sides (modeling the rule's identity RexInputConverter). Operator usage and preconditions match the source \u2014 Filter-over-Aggregate shape, SIMPLE grouping, non-distinct uninterpreted aggregate, groupCount>0 and canPush's key-only condition built in, and per-key filtering commutes with group-by even under null semantics \u2014 with the two-column scan-join input being the standard DSL construction for a multi-column table (scans are single-column), not a fixed join the rule constrains. The narrowings (single identity group key, one aggregate call, one pushed conjunct) are genuine shape restrictions, honestly and specifically disclosed in the PARTIAL scope line, and since the proven equivalence is the exact semantic atom the rule applies per conjunct (the extra key-referencing remaining conjunct Qa is inert to P's movement), the provable verdict is meaningful rather than coincidental. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "Group.SIMPLE, a single identity group key over a two-column input, one non-distinct aggregate call, one pushed conjunct depending only on the group key, one remaining conjunct over the aggregate output.",
+    "timestamp": "2026-09-22T10:25:40.096368+00:00"
+  },
+  {
+    "rule_name": "AggregateExtractProject",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateExtractProjectRule.java",
+    "status": "PROVED",
+    "attempts_used": 14,
+    "reason": "The encoding faithfully mirrors the source rule's actual computation: it computes the used columns (group col 0, agg arg col 1), projects them in ascending order below the aggregate, remaps the group key and agg operand to the projected columns (0\u21920, 1\u21921), and shares the same uninterpreted aggregate operator `f` and types across both sides, while before() and after() are structurally different (the projection genuinely drops the unused third column), so the proof is non-vacuous. The fixed 3-column / one-group-key / one-non-distinct-agg shape and the wide base modeled as a cross-join of three one-column scans are inherent to the DSL (scans are single-column and Aggregate's group/agg Seqs have fixed length), are honestly and specifically disclosed in the SCOPE: PARTIAL line, and the cross-join base exploits no accidental algebra since the equivalence holds for any base relation by per-group multiset preservation under projection. No missing semantic preconditions (the source rule's \"input is not a Project\" clause is a cycle-prevention matching constraint, not a semantic side condition), no spurious symbol sharing, and the remapping matches the original rule's inverse-surjection mapping exactly. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 15504039
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 45336917
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 973083
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 1234667
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 34964209
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 45589291
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 96821708
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding faithfully mirrors the source rule's actual computation: it computes the used columns (group col 0, agg arg col 1), projects them in ascending order below the aggregate, remaps the group key and agg operand to the projected columns (0\u21920, 1\u21921), and shares the same uninterpreted aggregate operator `f` and types across both sides, while before() and after() are structurally different (the projection genuinely drops the unused third column), so the proof is non-vacuous. The fixed 3-column / one-group-key / one-non-distinct-agg shape and the wide base modeled as a cross-join of three one-column scans are inherent to the DSL (scans are single-column and Aggregate's group/agg Seqs have fixed length), are honestly and specifically disclosed in the SCOPE: PARTIAL line, and the cross-join base exploits no accidental algebra since the equivalence holds for any base relation by per-group multiset preservation under projection. No missing semantic preconditions (the source rule's \"input is not a Project\" clause is a cycle-prevention matching constraint, not a semantic side condition), no spurious symbol sharing, and the remapping matches the original rule's inverse-surjection mapping exactly. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "the aggregate's input is a three-column relation (three one-column scans inner-joined with true conditions), it has one plain-field group key and one plain non-distinct aggregate call over a second plain field, and a third column is unused (neither a group key nor an aggregate argument) so the extracted projection drops it.",
+    "timestamp": "2026-09-22T10:27:58.038083+00:00"
+  },
+  {
+    "rule_name": "AggregateUnionTranspose",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateUnionTransposeRule.java",
+    "status": "SKIPPED",
+    "attempts_used": 30,
+    "reason": "The rule's soundness rests on the split/merge algebra of specific aggregate functions (SUM additivity, MIN idempotence, COUNT\u2192SUM0): it claims that re-aggregating the per-branch aggregate *results* equals aggregating the raw unioned rows. QED models every aggregate call as an uninterpreted symbol with no algebraic knowledge, and the top aggregate's input bag (the per-branch f-images) is not the same bag the original aggregate sees (the raw rows), so the two applications of the same uninterpreted function have universally different inputs and the SMT solver can build a countermodel for every candidate encoding; this limitation lives in the trusted prover's semantics, not in a missing DSL builder, so no RuleScript encoding of the transpose itself (not even a narrowed special case) is provable. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 1,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's soundness rests on the split/merge algebra of specific aggregate functions (SUM additivity, MIN idempotence, COUNT\u2192SUM0): it claims that re-aggregating the per-branch aggregate *results* equals aggregating the raw unioned rows. QED models every aggregate call as an uninterpreted symbol with no algebraic knowledge, and the top aggregate's input bag (the per-branch f-images) is not the same bag the original aggregate sees (the raw rows), so the two applications of the same uninterpreted function have universally different inputs and the SMT solver can build a countermodel for every candidate encoding; this limitation lives in the trusted prover's semantics, not in a missing DSL builder, so no RuleScript encoding of the transpose itself (not even a narrowed special case) is provable. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-22T10:33:50.070619+00:00"
+  },
+  {
+    "rule_name": "ProjectJoinJoinRemove",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/ProjectJoinJoinRemoveRule.java",
+    "status": "SKIPPED",
+    "attempts_used": 60,
+    "reason": "The rule is valid only because the bottom join's condition is an equi-join on Y's unique key, guaranteeing at most one Y row per X row \u2014 but QED models join conditions as uninterpreted predicates and cannot infer that selectivity from the unique-key constraint (predicate inference/entailment it explicitly cannot do). A constant-true join predicate is a counterexample that doubles the output multiplicity, so no correct encoding (even one reusing the same predicate symbol and building the top-join condition over only the non-Y columns) is provable; this is a genuine QED limitation, not a missing DSL shape the porter failed to find. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule is valid only because the bottom join's condition is an equi-join on Y's unique key, guaranteeing at most one Y row per X row \u2014 but QED models join conditions as uninterpreted predicates and cannot infer that selectivity from the unique-key constraint (predicate inference/entailment it explicitly cannot do). A constant-true join predicate is a counterexample that doubles the output multiplicity, so no correct encoding (even one reusing the same predicate symbol and building the top-join condition over only the non-Y columns) is provable; this is a genuine QED limitation, not a missing DSL shape the porter failed to find. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-22T11:03:48.203341+00:00"
+  },
+  {
+    "rule_name": "JoinConditionExpandIsNotDistinctFrom",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/JoinConditionExpandIsNotDistinctFromRule.java",
+    "status": "SKIPPED",
+    "attempts_used": 30,
+    "reason": "The rule's correctness rests entirely on the null-aware data semantics of specific backend operators \u2014 `IS NOT DISTINCT FROM`, `COALESCE`, and `IS_NULL` (i.e., that `x IS NOT DISTINCT FROM y` iff `COALESCE(x,0)=COALESCE(y,0) AND (x IS NULL)=(y IS NULL)`). QED operates on uninterpreted symbols and \"can't reason about predicate inference/entailment between independent symbols or a backend operator's bespoke internal semantics,\" so with these operators modeled as opaque generic ops the left and right sides are unrelated SMT symbols and no universal proof exists; QED only knows the Boolean `AND`-composition layer, not the operator-null algebra this rewrite depends on. Adding DSL builders for these operators via `extend_dsl_file` cannot close the gap, since a builder only introduces another uninterpreted name and cannot inject SMT semantics into the Rust prover (the unchangeable arbiter) \u2014 so even a narrowed special case (e.g., non-null operands) is unprovable. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 1,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's correctness rests entirely on the null-aware data semantics of specific backend operators \u2014 `IS NOT DISTINCT FROM`, `COALESCE`, and `IS_NULL` (i.e., that `x IS NOT DISTINCT FROM y` iff `COALESCE(x,0)=COALESCE(y,0) AND (x IS NULL)=(y IS NULL)`). QED operates on uninterpreted symbols and \"can't reason about predicate inference/entailment between independent symbols or a backend operator's bespoke internal semantics,\" so with these operators modeled as opaque generic ops the left and right sides are unrelated SMT symbols and no universal proof exists; QED only knows the Boolean `AND`-composition layer, not the operator-null algebra this rewrite depends on. Adding DSL builders for these operators via `extend_dsl_file` cannot close the gap, since a builder only introduces another uninterpreted name and cannot inject SMT semantics into the Rust prover (the unchangeable arbiter) \u2014 so even a narrowed special case (e.g., non-null operands) is unprovable. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-22T11:29:39.053881+00:00"
+  },
+  {
+    "rule_name": "ProjectJoinTranspose",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/ProjectJoinTransposeRule.java",
+    "status": "PROVED",
+    "attempts_used": 10,
+    "reason": "The encoding is a faithful, non-vacuous special case: `before()` (inner join of raw scans with condition C(TL(l),TR(r)) and top projection G(TL(l),TR(r))) and `after()` (the same C and G rewired onto pushed per-side projections \u03c0_TL, \u03c0_TR below the join) are structurally distinct plans, all symbols are uninterpreted, and the symbol sharing matches exactly what the rule's decomposition requires \u2014 no hard-coded predicate, no spurious coupling, and no missing precondition for the inner-join case (no uniqueness/NOT NULL assumptions are needed for this bag identity). The narrowing to inner joins, single-column sides, and condition/projection factoring through the same shared per-side expressions is a genuine, specific, and explicitly disclosed special case (the SCOPE line says so, and single-column sides are in any case forced by the DSL's one-column scans, so the full multi-column/all-join-kind rule is not expressible regardless); the proved universal equivalence is precisely the core transformation of ProjectJoinTranspose, so the result is useful and not misleading.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 7096792
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 35027667
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 864958
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 575458
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 19694500
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 35131250
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 70527875
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is a faithful, non-vacuous special case: `before()` (inner join of raw scans with condition C(TL(l),TR(r)) and top projection G(TL(l),TR(r))) and `after()` (the same C and G rewired onto pushed per-side projections \u03c0_TL, \u03c0_TR below the join) are structurally distinct plans, all symbols are uninterpreted, and the symbol sharing matches exactly what the rule's decomposition requires \u2014 no hard-coded predicate, no spurious coupling, and no missing precondition for the inner-join case (no uniqueness/NOT NULL assumptions are needed for this bag identity). The narrowing to inner joins, single-column sides, and condition/projection factoring through the same shared per-side expressions is a genuine, specific, and explicitly disclosed special case (the SCOPE line says so, and single-column sides are in any case forced by the DSL's one-column scans, so the full multi-column/all-join-kind rule is not expressible regardless); the proved universal equivalence is precisely the core transformation of ProjectJoinTranspose, so the result is useful and not misleading.",
+    "scope": "PARTIAL",
+    "scope_detail": "inner join over single-column sides, where the join condition and the top projection are expressed via shared uninterpreted per-side expressions (the decomposition the rule itself performs)",
+    "timestamp": "2026-09-22T11:48:04.948714+00:00"
+  },
+  {
+    "rule_name": "JoinPushExpressions",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/JoinPushExpressionsRule.java",
+    "status": "PROVED",
+    "attempts_used": 37,
+    "reason": "before() and after() are genuinely structurally different and differ in exactly the way the real rule rewrites \u2014 a bare inner join versus a join over child projects that carry FL/FR, with the condition rewritten to reference the projected expression columns and a final projection restoring the original (L.c0, R.c0) row type \u2014 and FL, FR, EQ, and RES are shared across both sides while remaining mutually independent, so the SMT equivalence is non-vacuous and not a product of over-constrained symbol reuse. The scope line is honest and specific: the encoding is a real, non-degenerate special case (inner join, one equal conjunct, one residual predicate), and \"single-column join inputs\" is an artifact of the DSL's one-column scan representation rather than a semantic weakening, since FL/FR/RES are already uninterpreted functions/predicates over the whole row, which is all the rule's correctness depends on. No preconditions (keys, nullness) are required by the source rule's transformation and none are silently omitted, so the proved claim is a faithful instance of JoinPushExpressions.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 7634458
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 36024292
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 856667
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 542209
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 19657208
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 36137375
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 71744041
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "before() and after() are genuinely structurally different and differ in exactly the way the real rule rewrites \u2014 a bare inner join versus a join over child projects that carry FL/FR, with the condition rewritten to reference the projected expression columns and a final projection restoring the original (L.c0, R.c0) row type \u2014 and FL, FR, EQ, and RES are shared across both sides while remaining mutually independent, so the SMT equivalence is non-vacuous and not a product of over-constrained symbol reuse. The scope line is honest and specific: the encoding is a real, non-degenerate special case (inner join, one equal conjunct, one residual predicate), and \"single-column join inputs\" is an artifact of the DSL's one-column scan representation rather than a semantic weakening, since FL/FR/RES are already uninterpreted functions/predicates over the whole row, which is all the rule's correctness depends on. No preconditions (keys, nullness) are required by the source rule's transformation and none are silently omitted, so the proved claim is a faithful instance of JoinPushExpressions.",
+    "scope": "PARTIAL",
+    "scope_detail": "single-column join inputs, one pushed expression per side, one residual predicate, inner join",
+    "timestamp": "2026-09-22T12:05:35.016770+00:00"
+  },
+  {
+    "rule_name": "ProjectSetOpTranspose",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/ProjectSetOpTransposeRule.java",
+    "status": "PROVED",
+    "attempts_used": 68,
+    "reason": "The encoding faithfully captures the core semantics of ProjectSetOpTranspose: a top-level uninterpreted projection F is pushed below a UNION ALL (correctly using `union(true, \u2026)` to match the rule's `setOp.all` precondition), so before() = Project(F(x), UnionAll(L, R)) and after() = UnionAll(Project(F(x), L), Project(F(x), R)) \u2014 structurally distinct and non-vacuous. The symbol sharing is correct (one shared F, independent L and R), no preconditions are missing, and the SCOPE: PARTIAL line honestly and specifically names every restriction (2-input, single-column, single uninterpreted expression) relative to the original's arbitrary-arity/multi-expression/OVER-branch generality, making the proof a meaningful universal statement rather than a degenerate or coincidentally-provable artifact. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 856250
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 488084
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 1702916
+      }
+    },
+    "verification_rounds_used": 3,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding faithfully captures the core semantics of ProjectSetOpTranspose: a top-level uninterpreted projection F is pushed below a UNION ALL (correctly using `union(true, \u2026)` to match the rule's `setOp.all` precondition), so before() = Project(F(x), UnionAll(L, R)) and after() = UnionAll(Project(F(x), L), Project(F(x), R)) \u2014 structurally distinct and non-vacuous. The symbol sharing is correct (one shared F, independent L and R), no preconditions are missing, and the SCOPE: PARTIAL line honestly and specifically names every restriction (2-input, single-column, single uninterpreted expression) relative to the original's arbitrary-arity/multi-expression/OVER-branch generality, making the proof a meaningful universal statement rather than a degenerate or coincidentally-provable artifact. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "a 2-input UNION ALL over single-column, same-type inputs with the top projection being a single shared uninterpreted function F, whereas Calcite's rule is arbitrary-arity, any referenced-column subset, multiple projection expressions, and also the OVER branch (window semantics are out of QED's reach)",
+    "timestamp": "2026-09-22T12:40:02.027113+00:00"
+  },
+  {
+    "rule_name": "FilterSetOpTranspose",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/FilterSetOpTransposeRule.java",
+    "status": "PROVED",
+    "attempts_used": 6,
+    "reason": "before() = Filter(P, UnionAll(L, R)) and after() = UnionAll(Filter(P, L), Filter(P, R)) are structurally distinct and exactly the pushdown the source rule performs, with the details faithful: \"P\" is one uninterpreted predicate symbol shared across all three occurrences (matching the source rule reusing the same condition over each input after identity column remapping), `union(true, ...)` is a legitimate SetOp instance with the correct ALL flag, and the source rule has no hidden preconditions (keys, nullability) that the encoding silently drops. The PARTIAL tag is honest and specific \u2014 2-input UNION ALL is one instance of the rule, where other arities/kinds need separate encodings and bag INTERSECT/MINUS are genuinely outside QED's set-only semantics \u2014 and the proven special case remains a useful, non-degenerate rewrite.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 803875
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 443167
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 1623125
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "before() = Filter(P, UnionAll(L, R)) and after() = UnionAll(Filter(P, L), Filter(P, R)) are structurally distinct and exactly the pushdown the source rule performs, with the details faithful: \"P\" is one uninterpreted predicate symbol shared across all three occurrences (matching the source rule reusing the same condition over each input after identity column remapping), `union(true, ...)` is a legitimate SetOp instance with the correct ALL flag, and the source rule has no hidden preconditions (keys, nullability) that the encoding silently drops. The PARTIAL tag is honest and specific \u2014 2-input UNION ALL is one instance of the rule, where other arities/kinds need separate encodings and bag INTERSECT/MINUS are genuinely outside QED's set-only semantics \u2014 and the proven special case remains a useful, non-degenerate rewrite.",
+    "scope": "PARTIAL",
+    "scope_detail": "the 2-input UNION ALL instance with both inputs sharing one column type, whereas Calcite's rule applies to any set-op kind (UNION/INTERSECT/MINUS, ALL or DISTINCT) of any arity.",
+    "timestamp": "2026-09-22T12:49:48.031901+00:00"
+  },
+  {
+    "rule_name": "JoinAssociate",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/JoinAssociateRule.java",
+    "status": "PROVED",
+    "attempts_used": 34,
+    "reason": "The encoding correctly re-associates ((A\u22c8B)\u22c8C)\u2192(A\u22c8(B\u22c8C)) with INNER joins, faithfully splitting conditions by A-reference (PAB/PABC on top, PB/PBC/PC moved to the new bottom B\u22c8C), with all five uninterpreted predicate symbols consistently shared and correctly re-indexed across both trees; the PARTIAL scope is honest and specific\u2014the fixed conjunct split and single-column scans reflect a genuine DSL limitation (column-reference-based decomposition can't be quantified in bag semantics), and the instance is non-degenerate, exercising conjuncts moving from both levels.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 8420459
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 34995958
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 845042
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 564500
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 21865625
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 35121958
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 72733875
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding correctly re-associates ((A\u22c8B)\u22c8C)\u2192(A\u22c8(B\u22c8C)) with INNER joins, faithfully splitting conditions by A-reference (PAB/PABC on top, PB/PBC/PC moved to the new bottom B\u22c8C), with all five uninterpreted predicate symbols consistently shared and correctly re-indexed across both trees; the PARTIAL scope is honest and specific\u2014the fixed conjunct split and single-column scans reflect a genuine DSL limitation (column-reference-based decomposition can't be quantified in bag semantics), and the instance is non-degenerate, exercising conjuncts moving from both levels.",
+    "scope": "PARTIAL",
+    "scope_detail": "the join condition is a fixed representative split into uninterpreted conjuncts over the single-column scans, not an arbitrary condition decomposition",
+    "timestamp": "2026-09-22T13:09:21.850562+00:00"
+  },
+  {
+    "rule_name": "JoinPushThroughJoin",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/JoinPushThroughJoinRule.java",
+    "status": "PROVED",
+    "attempts_used": 7,
+    "reason": "The encoding faithfully captures the RIGHT instance of JoinPushThroughJoin: before is (A \u22c8_{SA\u2227SB} B) \u22c8_{ST\u2227TC} C with layout (A,B,C), and after is (A \u22c8_{SA\u2227TC} C) \u22c8_{ST\u2227SB} B followed by a project restoring (A,B,C) \u2014 exactly the conjunct redistribution Calcite's onMatchRight performs (SA/TC to the new A\u22c8C bottom, ST/SB to the new top), with both joins INNER as the rule requires, correct JoinField ordinals on every side, and consistent predicate-argument types so QED unifies the moved symbols correctly. The equivalence is a genuine, non-vacuous inner-join re-association identity (conjunction commutes over the a/b/c row variables), so before() and after() are structurally different yet truly bag-equivalent, and no symbol is shared where two independent predicates are needed. The PARTIAL scope is honest and specific \u2014 single-column scans (forced by the current `RelRN.scan`, which always yields one column) and a fixed representative conjunction split by B-reference rather than an arbitrary decomposition (which QED cannot express, since it has no notion of an uninterpreted condition partitioned by column reference) \u2014 so the narrowing is a real QED/DSL limitation, not an avoidable under-generalization, and the result remains a meaningful, non-degenerate instance of the rule. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 8595790
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 39586333
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 923542
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 600042
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 22185083
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 39703417
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 101742000
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding faithfully captures the RIGHT instance of JoinPushThroughJoin: before is (A \u22c8_{SA\u2227SB} B) \u22c8_{ST\u2227TC} C with layout (A,B,C), and after is (A \u22c8_{SA\u2227TC} C) \u22c8_{ST\u2227SB} B followed by a project restoring (A,B,C) \u2014 exactly the conjunct redistribution Calcite's onMatchRight performs (SA/TC to the new A\u22c8C bottom, ST/SB to the new top), with both joins INNER as the rule requires, correct JoinField ordinals on every side, and consistent predicate-argument types so QED unifies the moved symbols correctly. The equivalence is a genuine, non-vacuous inner-join re-association identity (conjunction commutes over the a/b/c row variables), so before() and after() are structurally different yet truly bag-equivalent, and no symbol is shared where two independent predicates are needed. The PARTIAL scope is honest and specific \u2014 single-column scans (forced by the current `RelRN.scan`, which always yields one column) and a fixed representative conjunction split by B-reference rather than an arbitrary decomposition (which QED cannot express, since it has no notion of an uninterpreted condition partitioned by column reference) \u2014 so the narrowing is a real QED/DSL limitation, not an avoidable under-generalization, and the result remains a meaningful, non-degenerate instance of the rule. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "single-column table inputs, and both join conditions are a fixed representative conjunction of uninterpreted conjuncts (SA, SB, ST, TC) split by B-reference, not an arbitrary condition decomposition",
+    "timestamp": "2026-09-22T13:25:26.366430+00:00"
+  },
+  {
+    "rule_name": "MinusToFilter",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/MinusToFilterRule.java",
+    "status": "SKIPPED",
+    "attempts_used": 30,
+    "reason": "The rewrite's correctness depends on `NOT Q` being the exact complement of `Q` (i.e., rows with `Q = NULL` appearing on neither side), but QED models uninterpreted predicates as 3-valued SQL predicates and universally quantifies over all instantiations, including null-returning ones \u2014 so rows with `Q = NULL` remain in the set-minus input but are dropped by `Filter(NOT Q)`, a counterexample no re-encoding can avoid. This is confirmed by the porter's discriminating test (the single-filter variant `MINUS(base, Filter(Q,base))` \u27f9 `Distinct(Filter(NOT Q,base))` failed), and it cannot be fixed via `extend_dsl_file`: predicate nullability is not even serialized into the prover's JSON (operator types lose nullability in `JSONSerializer.type()`), so no RuleScript encoding can declare a predicate total, and the QED prover itself is off-limits.",
+    "prover_stats": {},
+    "verification_rounds_used": 1,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rewrite's correctness depends on `NOT Q` being the exact complement of `Q` (i.e., rows with `Q = NULL` appearing on neither side), but QED models uninterpreted predicates as 3-valued SQL predicates and universally quantifies over all instantiations, including null-returning ones \u2014 so rows with `Q = NULL` remain in the set-minus input but are dropped by `Filter(NOT Q)`, a counterexample no re-encoding can avoid. This is confirmed by the porter's discriminating test (the single-filter variant `MINUS(base, Filter(Q,base))` \u27f9 `Distinct(Filter(NOT Q,base))` failed), and it cannot be fixed via `extend_dsl_file`: predicate nullability is not even serialized into the prover's JSON (operator types lose nullability in `JSONSerializer.type()`), so no RuleScript encoding can declare a predicate total, and the QED prover itself is off-limits.",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-22T13:39:17.224120+00:00"
   }
 ]

@@ -273,6 +273,23 @@ def transcript_tail(conversation: list[dict], n: int = 6) -> str:
 NO_VERIFIER = "NO_VERIFIER"
 
 
+def _looks_like_reasoning_dump(reply: str) -> bool:
+    """Heuristic for a verifier reply that's really an unfinished scratchpad
+    rather than a considered final answer — seen from this session's
+    reasoning model as either literally echoing the prompt's own
+    `<placeholder>` text before it had worked through the problem, or
+    rambling at stream-of-consciousness length (the requested format is 1-3
+    sentences). A `VERDICT:` line can still be *present* in such a reply
+    (e.g. a throwaway first guess typed before the real reasoning even
+    starts) while being a poor signal of what the model actually concluded
+    by the end — so this is checked in addition to, not instead of,
+    parseability."""
+    lowered = reply.lower()
+    if "<what you think" in lowered or "<1-3 sentence" in lowered or "<one-sentence" in lowered:
+        return True
+    return len(reply) > 4000
+
+
 def run_verifier(
     verifier_llm: LLMClient | None, repo_dir: Path, spec: RuleSpec, kind: str,
     debug_dir: Path | None = None, **kwargs,
@@ -294,28 +311,39 @@ def run_verifier(
     if debug_dir is not None:
         dump_transcript_entry(debug_dir, spec.name, 0, f"verifier_{kind}_1", reply)
 
-    if verdict is None:
-        messages.append({"role": "assistant", "content": reply})
-        messages.append({
-            "role": "user",
-            "content": (
+    if verdict is None or _looks_like_reasoning_dump(reply):
+        if verdict is None:
+            nudge = (
                 "Your reply didn't start with a parseable `VERDICT: <TOKEN>` line. "
                 "Reply again with **only** the exact two-line format requested "
                 "(`VERDICT: ...` then `REASONING: ...`), nothing else."
-            ),
-        })
+            )
+        else:
+            print(f"   [verifier] reply parsed to {verdict} but looks like an unfinished "
+                  f"scratchpad ({len(reply)} chars) rather than a considered answer; retrying")
+            nudge = (
+                "That read like unfinished scratch thinking rather than your actual final "
+                "answer — it's much longer than the 1-3 sentences requested, and/or echoes "
+                "the format instructions themselves instead of filling them in. Work through "
+                "your reasoning fully first, THEN reply again with **only** the exact "
+                "two-line format (`VERDICT: ...` then `REASONING: ...` in 1-3 sentences), "
+                "reflecting your actual final conclusion, not a first guess."
+            )
+        messages.append({"role": "assistant", "content": reply})
+        messages.append({"role": "user", "content": nudge})
         reply2 = verifier_llm.complete(system, messages)
-        verdict, reasoning = verifier_prompts.parse_verdict(reply2)
+        verdict2, reasoning2 = verifier_prompts.parse_verdict(reply2)
         if debug_dir is not None:
             dump_transcript_entry(debug_dir, spec.name, 0, f"verifier_{kind}_2", reply2)
-        if verdict is None:
+        if verdict2 is None or _looks_like_reasoning_dump(reply2):
             conservative = "REJECTED" if kind == "proved" else "DISAGREE"
-            print(f"   [verifier] reply unparseable twice, defaulting conservatively to {conservative}")
+            print(f"   [verifier] reply unusable twice, defaulting conservatively to {conservative}")
             return conservative, (
-                f"(verifier's response could not be parsed after a retry, so this was "
-                f"conservatively treated as {conservative} rather than silently accepted; "
-                f"raw reply started with: {reply2.strip()[:300]!r})"
+                f"(verifier's response could not be parsed into a considered answer after a "
+                f"retry, so this was conservatively treated as {conservative} rather than "
+                f"silently accepted; raw reply started with: {reply2.strip()[:300]!r})"
             )
+        verdict, reasoning = verdict2, reasoning2
     return verdict, reasoning
 
 
@@ -431,57 +459,95 @@ def finalize_dsl_changes(
     return "kept"
 
 
-SUMMARIZER_SYSTEM_PROMPT = """You are a careful technical note-taker. A separate agent (the "porter") just
-spent a round exploring a codebase and trying to encode a formal query-plan
-rewrite rule in a DSL, and hit its own context limit — it can't keep going
-in that same conversation. You're being given a fresh, empty context
-specifically to read through everything it did this round (below, as a
-plain turn-by-turn log of its tool calls and their results) and extract
-what's worth handing back to it for its next attempt. You have no other
-context about the task beyond what's given below — work only from that,
-and don't guess at anything the log doesn't actually show."""
+SUMMARIZER_ROLE_PREAMBLE = """You are a careful technical note-taker working alongside a separate agent (the
+"porter") that is trying to encode a formal query-plan rewrite rule in the
+DSL described below. The porter just spent a round exploring and hit its
+own context limit — it can't keep going in that same conversation. You're
+being given a fresh, empty context specifically to read through everything
+it did this round and extract what's worth handing back to it for its next
+attempt. Below this preamble is the same DSL/task reference material the
+porter itself was given, so you can judge what's actually new/useful
+versus what it already knew going in — use it as background, but don't
+guess at anything the round's own log (given after it) doesn't show."""
 
-SUMMARY_REQUEST = """Above is the full log of one round: every tool call the porter made and the
-(possibly truncated) result it got back, plus anything it said along the
-way. The porter will NOT see this log again — only the summary you write
-now — so capture anything worth it not having to re-derive from scratch.
+SUMMARY_REQUEST = """Below is the full log of the round that just ended: every tool call the porter
+made and the (possibly truncated) result it got back, plus anything it
+said along the way. If a summary from an earlier round is included above,
+merge forward from it — carry over anything still true and useful, drop
+anything this round's log has since superseded or corrected, and fold in
+what's new. The porter will NOT see the raw log again — only the merged
+summary you write now — so the result should be a single, self-contained,
+up-to-date set of notes, not just an account of this one round in
+isolation.
+
 Reply with **only** a concise markdown summary (well under 500 words), no
 other commentary:
 
-- The exact DSL API it confirmed by reading the files (method signatures,
-  record shapes) — only things actually shown in the log, not guesses.
-- Every encoding it tried and exactly why it failed (compile error text,
-  "not provable" + the hint given, a truncated/invalid extend_dsl_file
-  edit, a context-length crash, etc.) — specific enough that it won't
-  blindly repeat the same mistake.
-- Its most promising direction based on the log, if one is apparent.
+- The exact DSL API confirmed by reading the files (method signatures,
+  record shapes) — only things actually shown in the log(s), not guesses.
+- Every encoding tried so far and exactly why each failed (compile error
+  text, "not provable" + the hint given, a truncated/invalid
+  extend_dsl_file edit, a context-length crash, etc.) — specific enough
+  that the porter won't blindly repeat a mistake it already made.
+- The most promising direction based on everything so far, if one is
+  apparent.
 
-Do not restate the rule's description or the DSL reference — the next
-attempt already has those. Do NOT restate or quote any reviewer/verifier
-feedback that appears in the log either — only the single most recent
-round's reviewer feedback is ever carried forward by the harness, added
-back in separately, so repeating it here would just make it accumulate
-across rounds. Write only what the log actually shows was found."""
+Do not restate the rule's description or the DSL reference material above —
+the next attempt already has those. If the independent reviewer's verdict
+on this round's output is included below, use it to make sure your
+"most promising direction" doesn't just point back at something the
+reviewer already rejected — but do NOT quote or restate the reviewer's
+wording itself in your summary; it's added back separately by the harness,
+so repeating it here would just make it accumulate across rounds. The same
+goes for anything the log shows an *earlier* round's reviewer already said
+— summarize what it means for what to try next, don't reproduce the text."""
+
+
+def latest_existing_summary(debug_dir: Path, rule_name: str) -> str:
+    d = debug_dir / rule_name
+    if not d.exists():
+        return ""
+    files = sorted(d.glob("round_*_summary.md"))
+    return files[-1].read_text() if files else ""
 
 
 def summarize_round(
-    llm: LLMClient | None, round_log: list[str], debug_dir: Path,
+    llm: LLMClient | None, system: str, round_log: list[str], verifier_feedback: str, debug_dir: Path,
     rule_name: str, round_num: int,
 ) -> str:
     """Have a genuinely fresh, separate agent read this round's compact
-    activity log and write scratch notes for the next attempt — deliberately
+    activity log (plus the DSL reference material the porter itself started
+    with, the previous round's summary if one exists, and — critically —
+    what the independent reviewer said about this round's own output) and
+    write updated scratch notes for the next attempt. Without the verifier's
+    verdict, the log alone can look like a success story (e.g. a `try_rule`
+    call that returned provable=true) even though the reviewer went on to
+    reject it, and a summarizer blind to that would happily recommend
+    reusing the very thing that was just turned down. This is deliberately
     NOT a continuation of the porter's own (possibly near-context-limit)
-    conversation, so this call always gets the model's full context budget
-    to work with regardless of how much the round itself already used, and
-    so a failure here is independent of whatever caused the round to end.
+    conversation, so it always gets the model's full context budget to work
+    with regardless of how much the round itself already used, and a
+    failure here is independent of whatever caused the round to end.
     Best-effort: any failure just means the next round explores from
     scratch, same as if no summary had been attempted."""
     if llm is None or not round_log:
         return ""
     try:
+        summarizer_system = SUMMARIZER_ROLE_PREAMBLE + "\n\n" + system
+        prev_summary = latest_existing_summary(debug_dir, rule_name)
+        parts = []
+        if prev_summary:
+            parts.append(f"### Summary carried over from an earlier round\n\n{prev_summary}")
         log_text = "\n\n".join(round_log)
-        prompt = f"{log_text}\n\n{SUMMARY_REQUEST}"
-        summary = llm.complete(SUMMARIZER_SYSTEM_PROMPT, [{"role": "user", "content": prompt}])
+        parts.append(f"### This round's activity log\n\n{log_text}")
+        if verifier_feedback:
+            parts.append(
+                "### The independent reviewer's verdict on this round's output\n\n"
+                f"{verifier_feedback}"
+            )
+        parts.append(SUMMARY_REQUEST)
+        prompt = "\n\n".join(parts)
+        summary = llm.complete(summarizer_system, [{"role": "user", "content": prompt}])
     except LLMError as e:
         print(f"   [summary] couldn't summarize round {round_num}: {e}")
         return ""
@@ -604,7 +670,15 @@ def run_one(
                 if dsl_status == "kept-audit-failed":
                     print("   [dsl audit] the extension this proof depended on failed independent audit; "
                           "rule is no longer proved without it")
-                    self_summary = summarize_round(llm, result.round_log, debug_dir, spec.name, round_num)
+                    audit_failure_note = (
+                        "The proof itself was confirmed faithful, but it depended on a DSL extension "
+                        "that failed an independent audit afterward (broke a previously-proved rule on "
+                        "a fresh re-check, or was judged unsafe/non-additive) and has been reverted. "
+                        "The rule is NOT proved — this candidate does not currently work."
+                    )
+                    self_summary = summarize_round(
+                        llm, system, result.round_log, audit_failure_note, debug_dir, spec.name, round_num
+                    )
                     conversation = [{
                         "role": "user",
                         "content": round_continuation_prompt(
@@ -634,7 +708,7 @@ def run_one(
                 )
                 print(f"   verifier {verdict}: wrote verified rule to {final_path} [SCOPE: {scope}]")
                 print(f"   published for inspection under rules/{spec.name}/")
-                clear_reply_transcripts(debug_dir, spec.name)
+                clear_all_transcripts(debug_dir, spec.name)
                 return RuleAttempt(
                     spec.name, spec.backend, spec.description, "PROVED", total_turns,
                     reason=final_reasoning, prover_stats=result.prover_json,
@@ -643,7 +717,11 @@ def run_one(
                 )
             print(f"   verifier {verdict}: {reasoning}")
             pipeline.remove_rule(spec.name)
-            self_summary = summarize_round(llm, result.round_log, debug_dir, spec.name, round_num)
+            self_summary = summarize_round(
+                llm, system, result.round_log,
+                f"REJECTED — the proof was not accepted as faithful: {reasoning}",
+                debug_dir, spec.name, round_num,
+            )
             conversation = [{
                 "role": "user",
                 "content": round_continuation_prompt(
@@ -673,7 +751,7 @@ def run_one(
                 verifier_reasoning=reasoning, attempts_used=total_turns, rounds_used=round_num,
             )
             print(f"   published (reasoning{'' if result.code else ' only, no candidate code'}) under rules/{spec.name}/")
-            clear_reply_transcripts(debug_dir, spec.name)
+            clear_all_transcripts(debug_dir, spec.name)
             return RuleAttempt(
                 spec.name, spec.backend, spec.description, "SKIPPED", total_turns,
                 reason=reasoning, prover_stats=last_stats,
@@ -681,7 +759,12 @@ def run_one(
                 verifier_reasoning=reasoning,
             )
         print(f"   verifier {verdict}: {reasoning}")
-        self_summary = summarize_round(llm, result.round_log, debug_dir, spec.name, round_num)
+        self_summary = summarize_round(
+            llm, system, result.round_log,
+            f"DISAGREE — the reviewer believes this rule IS expressible and the round's own "
+            f"conclusion was wrong: {reasoning}",
+            debug_dir, spec.name, round_num,
+        )
         conversation = [{
             "role": "user",
             "content": round_continuation_prompt(

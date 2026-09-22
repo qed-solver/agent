@@ -1,0 +1,67 @@
+{
+  "help" : [ "LogicalFilter(condition=[P($0)])\n  LogicalUnion(all=[true])\n    LogicalTableScan(table=[[L]])\n    LogicalTableScan(table=[[R]])\n", "LogicalUnion(all=[true])\n  LogicalFilter(condition=[P($0)])\n    LogicalTableScan(table=[[L]])\n  LogicalFilter(condition=[P($0)])\n    LogicalTableScan(table=[[R]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "L",
+    "guaranteed" : [ ],
+    "fields" : [ "col-L" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "R",
+    "guaranteed" : [ ],
+    "fields" : [ "col-R" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "filter" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "P"
+      },
+      "source" : {
+        "union" : [ {
+          "scan" : 0
+        }, {
+          "scan" : 1
+        } ]
+      }
+    }
+  }, {
+    "union" : [ {
+      "filter" : {
+        "condition" : {
+          "type" : "BOOLEAN",
+          "operand" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          } ],
+          "operator" : "P"
+        },
+        "source" : {
+          "scan" : 0
+        }
+      }
+    }, {
+      "filter" : {
+        "condition" : {
+          "type" : "BOOLEAN",
+          "operand" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          } ],
+          "operator" : "P"
+        },
+        "source" : {
+          "scan" : 1
+        }
+      }
+    } ]
+  } ]
+}

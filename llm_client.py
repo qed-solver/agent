@@ -1,0 +1,311 @@
+"""Minimal, dependency-free HTTP client for calling an LLM.
+
+Supports two wire formats so the agent can be pointed at whatever the user
+hands us:
+  - "anthropic": Anthropic Messages API (api.anthropic.com/v1/messages, or a
+    compatible endpoint).
+  - "openai": OpenAI-style chat completions API (works for OpenAI itself and
+    for most "OpenAI-compatible" self-hosted / third-party endpoints).
+
+Only the Python standard library is used (urllib) so the agent has zero
+install-time dependencies.
+"""
+from __future__ import annotations
+
+import json
+import os
+import urllib.error
+import urllib.request
+from dataclasses import dataclass, field
+from typing import Literal
+
+
+@dataclass
+class ToolCall:
+    id: str
+    name: str
+    arguments: dict
+
+
+@dataclass
+class AgentTurn:
+    content: str
+    tool_calls: list[ToolCall]
+
+
+def format_assistant_message(provider: str, turn: AgentTurn) -> dict:
+    """Build the provider-native shape for an assistant turn (with or without
+    tool calls) to append to conversation history. Provider-parameterized
+    (rather than an instance method) so offline/no-LLM testing can still
+    build valid history without a live client."""
+    if provider == "openai":
+        msg = {"role": "assistant", "content": turn.content or None}
+        if turn.tool_calls:
+            msg["tool_calls"] = [
+                {"id": tc.id, "type": "function",
+                 "function": {"name": tc.name, "arguments": json.dumps(tc.arguments)}}
+                for tc in turn.tool_calls
+            ]
+        return msg
+    # anthropic
+    content = []
+    if turn.content:
+        content.append({"type": "text", "text": turn.content})
+    for tc in turn.tool_calls:
+        content.append({"type": "tool_use", "id": tc.id, "name": tc.name, "input": tc.arguments})
+    return {"role": "assistant", "content": content}
+
+
+def format_tool_results_message(provider: str, results: list[tuple[ToolCall, dict]]) -> dict:
+    if provider == "openai":
+        # OpenAI wants one "tool" message per call; the caller appends this
+        # list directly (see note in port_rule.py's agent loop).
+        return {
+            "role": "__multi_tool__",
+            "messages": [
+                {"role": "tool", "tool_call_id": tc.id, "content": json.dumps(result)}
+                for tc, result in results
+            ],
+        }
+    return {
+        "role": "user",
+        "content": [
+            {"type": "tool_result", "tool_use_id": tc.id, "content": json.dumps(result)}
+            for tc, result in results
+        ],
+    }
+
+Provider = Literal["anthropic", "openai"]
+
+DEFAULT_ENDPOINTS = {
+    "anthropic": "https://api.anthropic.com/v1/messages",
+    "openai": "https://api.openai.com/v1/chat/completions",
+}
+
+DEFAULT_MODELS = {
+    "anthropic": "claude-sonnet-5",
+    "openai": "gpt-4o",
+}
+
+ENV_KEYS = {
+    "anthropic": ["RULESCRIPT_AGENT_API_KEY", "ANTHROPIC_API_KEY"],
+    "openai": ["RULESCRIPT_AGENT_API_KEY", "OPENAI_API_KEY"],
+}
+
+
+class LLMError(RuntimeError):
+    pass
+
+
+@dataclass
+class LLMClient:
+    provider: Provider = "anthropic"
+    model: str | None = None
+    api_key: str | None = None
+    endpoint: str | None = None
+    max_tokens: int = 8192
+    timeout: float = 600.0
+    extra_headers: dict = field(default_factory=dict)
+
+    def __post_init__(self):
+        if self.model is None:
+            self.model = DEFAULT_MODELS[self.provider]
+        if self.endpoint is None:
+            self.endpoint = DEFAULT_ENDPOINTS[self.provider]
+        if self.api_key is None:
+            for env_name in ENV_KEYS[self.provider]:
+                if os.environ.get(env_name):
+                    self.api_key = os.environ[env_name]
+                    break
+        if not self.api_key:
+            if self.endpoint != DEFAULT_ENDPOINTS[self.provider]:
+                # Custom / self-hosted endpoints (vLLM etc.) commonly don't check the
+                # key at all; use a harmless placeholder rather than hard-failing.
+                self.api_key = "EMPTY"
+            else:
+                raise LLMError(
+                    f"No API key found for provider={self.provider!r}. Pass --api-key "
+                    f"or set one of {ENV_KEYS[self.provider]}."
+                )
+
+    def complete(self, system: str, messages: list[dict]) -> str:
+        """messages: [{"role": "user"|"assistant", "content": str}, ...]"""
+        original_max_tokens = self.max_tokens
+        try:
+            while True:
+                try:
+                    if self.provider == "anthropic":
+                        return self._complete_anthropic(system, messages)
+                    elif self.provider == "openai":
+                        return self._complete_openai(system, messages)
+                    raise LLMError(f"Unknown provider {self.provider!r}")
+                except LLMError as e:
+                    # Small/self-hosted models often have a modest total context window;
+                    # a long source-rule paste can blow past it once our max_tokens output
+                    # budget is added on top. Rather than failing the whole rule, shrink
+                    # the output budget and retry — most replies (a single Java file) fit
+                    # comfortably in far fewer tokens than our generous default.
+                    if "maximum context length" in str(e).lower() and self.max_tokens > 1024:
+                        self.max_tokens = max(1024, self.max_tokens // 2)
+                        print(f"   [llm] context length exceeded, retrying with max_tokens={self.max_tokens}")
+                        continue
+                    raise
+        finally:
+            self.max_tokens = original_max_tokens
+
+    # -- tool-calling agent loop support --------------------------------
+
+    def step(self, system: str, messages: list[dict], tools: list[dict]) -> AgentTurn:
+        """One turn of a tool-using conversation. `messages` holds this
+        provider's *native* message shapes (as produced by `assistant_message`/
+        `tool_results_message` below) — callers should not try to share a
+        conversation list across providers."""
+        original_max_tokens = self.max_tokens
+        try:
+            while True:
+                try:
+                    if self.provider == "anthropic":
+                        return self._step_anthropic(system, messages, tools)
+                    elif self.provider == "openai":
+                        return self._step_openai(system, messages, tools)
+                    raise LLMError(f"Unknown provider {self.provider!r}")
+                except LLMError as e:
+                    if "maximum context length" in str(e).lower() and self.max_tokens > 1024:
+                        self.max_tokens = max(1024, self.max_tokens // 2)
+                        print(f"   [llm] context length exceeded, retrying with max_tokens={self.max_tokens}")
+                        continue
+                    raise
+        finally:
+            self.max_tokens = original_max_tokens
+
+    def assistant_message(self, turn: AgentTurn) -> dict:
+        return format_assistant_message(self.provider, turn)
+
+    def tool_results_message(self, results: list[tuple[ToolCall, dict]]) -> dict:
+        return format_tool_results_message(self.provider, results)
+
+    def _step_anthropic(self, system: str, messages: list[dict], tools: list[dict]) -> AgentTurn:
+        headers = {
+            "content-type": "application/json",
+            "x-api-key": self.api_key,
+            "anthropic-version": "2023-06-01",
+            **self.extra_headers,
+        }
+        anthropic_tools = [
+            {"name": t["name"], "description": t["description"], "input_schema": t["parameters"]}
+            for t in tools
+        ]
+        body = {
+            "model": self.model, "max_tokens": self.max_tokens, "system": system,
+            "messages": messages, "tools": anthropic_tools,
+        }
+        resp = self._post(headers, body)
+        if "content" not in resp:
+            raise LLMError(f"Unexpected Anthropic response: {resp}")
+        text = "".join(b.get("text", "") for b in resp["content"] if b.get("type") == "text")
+        tool_calls = [
+            ToolCall(id=b["id"], name=b["name"], arguments=b.get("input", {}))
+            for b in resp["content"] if b.get("type") == "tool_use"
+        ]
+        return AgentTurn(content=text, tool_calls=tool_calls)
+
+    def _step_openai(self, system: str, messages: list[dict], tools: list[dict]) -> AgentTurn:
+        headers = {
+            "content-type": "application/json",
+            "Authorization": f"Bearer {self.api_key}",
+            **self.extra_headers,
+        }
+        openai_tools = [{"type": "function", "function": t} for t in tools]
+        body = {
+            "model": self.model, "max_tokens": self.max_tokens,
+            "messages": [{"role": "system", "content": system}, *messages],
+            "tools": openai_tools,
+        }
+        resp = self._post(headers, body)
+        try:
+            choice = resp["choices"][0]
+            message = choice["message"]
+        except (KeyError, IndexError) as e:
+            raise LLMError(f"Unexpected OpenAI-style response: {resp}") from e
+        raw_calls = message.get("tool_calls") or []
+        tool_calls = []
+        for tc in raw_calls:
+            try:
+                args = json.loads(tc["function"]["arguments"])
+            except (KeyError, json.JSONDecodeError):
+                args = {}
+            tool_calls.append(ToolCall(id=tc["id"], name=tc["function"]["name"], arguments=args))
+        content = message.get("content") or ""
+        if not content and not tool_calls:
+            # Reasoning models put their real answer in "reasoning"/"reasoning_content"
+            # only when there's truly nothing else (e.g. cut off before finishing) —
+            # when a tool call is present, "content: null" is the normal shape and the
+            # reasoning is scratch work we do NOT want bloating conversation history on
+            # every single turn (it's resent in full on every subsequent request).
+            content = message.get("reasoning_content") or message.get("reasoning") or ""
+        if choice.get("finish_reason") == "length" and not tool_calls:
+            content += "\n\n[NOTE: response was truncated at the token limit before finishing.]"
+        return AgentTurn(content=content, tool_calls=tool_calls)
+
+    def _post(self, headers: dict, body: dict) -> dict:
+        data = json.dumps(body).encode("utf-8")
+        req = urllib.request.Request(self.endpoint, data=data, headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode("utf-8", errors="replace")
+            raise LLMError(f"HTTP {e.code} from {self.endpoint}: {detail}") from e
+        except urllib.error.URLError as e:
+            raise LLMError(f"Failed to reach {self.endpoint}: {e}") from e
+
+    def _complete_anthropic(self, system: str, messages: list[dict]) -> str:
+        headers = {
+            "content-type": "application/json",
+            "x-api-key": self.api_key,
+            "anthropic-version": "2023-06-01",
+            **self.extra_headers,
+        }
+        body = {
+            "model": self.model,
+            "max_tokens": self.max_tokens,
+            "system": system,
+            "messages": messages,
+        }
+        resp = self._post(headers, body)
+        if "content" not in resp:
+            raise LLMError(f"Unexpected Anthropic response: {resp}")
+        return "".join(
+            block.get("text", "") for block in resp["content"] if block.get("type") == "text"
+        )
+
+    def _complete_openai(self, system: str, messages: list[dict]) -> str:
+        headers = {
+            "content-type": "application/json",
+            "Authorization": f"Bearer {self.api_key}",
+            **self.extra_headers,
+        }
+        body = {
+            "model": self.model,
+            "max_tokens": self.max_tokens,
+            "messages": [{"role": "system", "content": system}, *messages],
+        }
+        resp = self._post(headers, body)
+        try:
+            choice = resp["choices"][0]
+            message = choice["message"]
+        except (KeyError, IndexError) as e:
+            raise LLMError(f"Unexpected OpenAI-style response: {resp}") from e
+        content = message.get("content")
+        # Reasoning models (e.g. Qwen3 in "thinking" mode) can put the actual
+        # answer in a separate "reasoning"/"reasoning_content" field and leave
+        # "content" null, especially if cut off before finishing the thinking
+        # step. Fall back rather than returning nothing.
+        if not content:
+            content = message.get("reasoning_content") or message.get("reasoning") or ""
+        if choice.get("finish_reason") == "length":
+            content += (
+                "\n\n[NOTE: response was truncated at the token limit before finishing — "
+                "if this cut off mid-code-block, that's why it couldn't be parsed.]"
+            )
+        return content

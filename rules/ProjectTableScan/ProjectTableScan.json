@@ -1,0 +1,52 @@
+{
+  "help" : [ "LogicalProject($f0=[F($0, $2)], col-T-2=[$2])\n  LogicalTableScan(table=[[T]])\n", "LogicalProject($f0=[F($0, $2)], col-T-2=[$2])\n  LogicalTableScan(table=[[T]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER", "INTEGER", "INTEGER" ],
+    "nullable" : [ true, true, true ],
+    "name" : "T",
+    "guaranteed" : [ ],
+    "fields" : [ "col-T-0", "col-T-1", "col-T-2" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "project" : {
+      "source" : {
+        "scan" : 0
+      },
+      "target" : [ {
+        "type" : "INTEGER",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 2,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "F"
+      }, {
+        "column" : 2,
+        "type" : "INTEGER"
+      } ]
+    }
+  }, {
+    "project" : {
+      "source" : {
+        "scan" : 0
+      },
+      "target" : [ {
+        "type" : "INTEGER",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 2,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "F"
+      }, {
+        "column" : 2,
+        "type" : "INTEGER"
+      } ]
+    }
+  } ]
+}

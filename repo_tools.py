@@ -35,9 +35,6 @@ from pipeline import Pipeline
 MAX_READ_LINES = 400
 MAX_SEARCH_RESULTS = 60
 
-# The only files a DSL extension may touch — the core pattern language and its
-# JSON mapping. Never the QED prover (a separate Rust project, not even on
-# this checkout's filesystem from the agent's point of view).
 EXTENDABLE_DSL_FILES = ("RelRN.java", "RexRN.java", "JSONSerializer.java")
 
 
@@ -61,20 +58,8 @@ class RepoTools:
     pipeline: Pipeline
     rule_name: str
     json_out_dir: Path
-    # Names (no .java) of rules already PROVED before this session touched
-    # anything — the regression baseline `extend_dsl_file` re-verifies after
-    # any DSL edit. Computed once by the caller (see port_rule.py) as a
-    # snapshot of RRuleInstances/ at startup, so the rule currently being
-    # worked on is never included (it isn't proved yet).
+    docs_root: Path | None = None
     baseline_proved_rules: tuple[str, ...] = ()
-    # Every *kept* extend_dsl_file edit this rule's own porter loop made,
-    # recorded as the exact (file, old_snippet, new_snippet, reason) that was
-    # applied. In isolated-workspace mode this rule is working in its own
-    # private copy of the DSL files, so this list is exactly what needs to be
-    # replayed onto the shared main repo at merge time — replaying the same
-    # snippet-match edit (rather than diffing two independently-evolving
-    # files) is what lets the merge fail cleanly if the main repo has moved
-    # on in a conflicting way, instead of silently doing the wrong thing.
     dsl_edits: list = field(default_factory=list)
 
     def _root(self, root: str) -> Path:
@@ -82,9 +67,10 @@ class RepoTools:
             return self.rulescript_root
         if root == "calcite":
             return self.calcite_root
-        raise ToolError(f"unknown root {root!r}, must be 'rulescript' or 'calcite'")
+        if root == "docs" and self.docs_root is not None:
+            return self.docs_root
+        raise ToolError(f"unknown root {root!r}, must be 'rulescript', 'calcite', or 'docs'")
 
-    # -- tool implementations ------------------------------------------------
 
     def list_directory(self, root: str, path: str = ".") -> dict:
         base = self._root(root)
@@ -107,7 +93,6 @@ class RepoTools:
         lines = result.stdout.splitlines()
         truncated = len(lines) > MAX_SEARCH_RESULTS
         lines = lines[:MAX_SEARCH_RESULTS]
-        # Report paths relative to the root so the agent can pass them straight to read_file.
         rel_lines = [line.replace(str(base) + "/", "", 1) for line in lines]
         return {
             "matches": rel_lines,
@@ -137,6 +122,41 @@ class RepoTools:
         if not target.exists() or not target.is_file():
             return {"error": f"{path} is not a readable file under {root}"}
         lines = target.read_text(errors="replace").splitlines()
+        total = len(lines)
+        start = max(1, start_line or 1)
+        end = min(total, end_line or (start + MAX_READ_LINES - 1))
+        if end - start + 1 > MAX_READ_LINES:
+            end = start + MAX_READ_LINES - 1
+        numbered = "\n".join(f"{i}\t{lines[i - 1]}" for i in range(start, end + 1))
+        return {
+            "path": path, "total_lines": total, "start_line": start, "end_line": end,
+            "content": numbered,
+            "note": "" if end >= total else f"file continues past line {end}; call again with a later start_line",
+        }
+
+    def read_pdf(self, path: str, start_line: int | None = None, end_line: int | None = None) -> dict:
+        """Extract text from a PDF under the 'docs' root via `pdftotext` (poppler)
+        and page through it exactly like read_file. Kept as a separate tool
+        (rather than folded into read_file) since PDF extraction is slow
+        enough to be worth calling out explicitly, and fails in its own way
+        (missing `pdftotext` binary) that read_file never has to handle."""
+        if self.docs_root is None:
+            return {"error": "docs root not configured"}
+        target = _resolve(self.docs_root, path)
+        if not target.exists() or not target.is_file():
+            return {"error": f"{path} is not a readable file under docs"}
+        if target.suffix.lower() != ".pdf":
+            return {"error": f"{path} is not a .pdf file; use read_file for plain text"}
+        try:
+            result = subprocess.run(
+                ["pdftotext", "-layout", str(target), "-"],
+                capture_output=True, text=True, timeout=60,
+            )
+        except FileNotFoundError:
+            return {"error": "pdftotext (poppler) is not installed on this host; cannot extract PDF text"}
+        if result.returncode != 0:
+            return {"error": f"pdftotext failed: {result.stderr[:1000]}"}
+        lines = result.stdout.splitlines()
         total = len(lines)
         start = max(1, start_line or 1)
         end = min(total, end_line or (start + MAX_READ_LINES - 1))
@@ -261,7 +281,6 @@ class RepoTools:
                     "against the extended DSL.",
         }
 
-    # -- OpenAI/Anthropic-agnostic tool specs --------------------------------
 
     def specs(self) -> list[dict]:
         def fn(name, description, properties, required):
@@ -271,10 +290,13 @@ class RepoTools:
                 "parameters": {"type": "object", "properties": properties, "required": required},
             }
 
-        root_enum = {"type": "string", "enum": ["rulescript", "calcite"]}
+        roots = ["rulescript", "calcite"] + (["docs"] if self.docs_root is not None else [])
+        root_enum = {"type": "string", "enum": roots}
         return [
             fn("list_directory",
-               "List files and subdirectories at a path under one of the two source roots.",
+               "List files and subdirectories at a path under one of the source roots "
+               "('docs' is the reference-paper folder — rulescript.pdf, qed.pdf; read those "
+               "with read_pdf, not read_file).",
                {"root": root_enum, "path": {"type": "string", "description": "Path relative to the root, e.g. 'src/main/java/org/qed' or 'core/src/main/java/org/apache/calcite/rel/rules'."}},
                ["root", "path"]),
             fn("search_code",
@@ -286,11 +308,23 @@ class RepoTools:
                {"root": root_enum, "symbol": {"type": "string"}},
                ["root", "symbol"]),
             fn("read_file",
-               f"Read a file (or a line range of it — max {MAX_READ_LINES} lines per call) under a root.",
+               f"Read a plain-text file (or a line range of it — max {MAX_READ_LINES} lines "
+               "per call) under a root. For PDFs under 'docs', use read_pdf instead.",
                {"root": root_enum, "path": {"type": "string"},
                 "start_line": {"type": "integer", "description": "1-based, optional"},
                 "end_line": {"type": "integer", "description": "1-based, optional"}},
                ["root", "path"]),
+        ] + ([
+            fn("read_pdf",
+               f"Extract and page through text from a PDF under the 'docs' root (rulescript.pdf, "
+               f"qed.pdf) via pdftotext — max {MAX_READ_LINES} lines per call, same pagination as "
+               "read_file. The DSL reference already in your system prompt covers routine lookups; "
+               "reach for this only when you need detail the papers cover that isn't in that reference.",
+               {"path": {"type": "string", "description": "Path relative to the docs root, e.g. 'rulescript.pdf'."},
+                "start_line": {"type": "integer", "description": "1-based, optional"},
+                "end_line": {"type": "integer", "description": "1-based, optional"}},
+               ["path"]),
+        ] if self.docs_root is not None else []) + [
             fn("try_rule",
                "Write your current candidate RuleScript file, compile the project, "
                "serialize the rule to QED's JSON format, and run the real qed-prover "

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-# Relative to a RuleScript repo checkout's src/main/java/org/qed/ directory.
 DSL_FILES = [
     "RelRN.java",
     "RexRN.java",

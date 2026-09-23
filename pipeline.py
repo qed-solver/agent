@@ -62,7 +62,6 @@ class Pipeline:
         self.rules_out_dir = rules_out_dir or (AGENT_DIR / "rules")
         CACHE_DIR.mkdir(exist_ok=True)
 
-    # -- file management -------------------------------------------------
 
     def rule_path(self, rule_name: str) -> Path:
         return self.rules_dir / f"{rule_name}.java"
@@ -90,7 +89,6 @@ class Pipeline:
         path.write_text(header + java_source)
         return path
 
-    # -- user-visible publication (top-level rules/ folder) --------------
 
     def publish(
         self,
@@ -150,17 +148,11 @@ class Pipeline:
         (out / "REPORT.md").write_text("\n".join(report))
         return out
 
-    # -- maven -------------------------------------------------------------
 
     def compile(self) -> CommandResult:
         return _run(["./mvnw", "-q", "compile"], cwd=self.repo_dir, timeout=300)
 
     def _classpath_cache_file(self) -> Path:
-        # Keyed by repo_dir: the cached string bakes in
-        # f"{self.repo_dir}/target/classes", so two Pipelines pointed at two
-        # different checkouts (e.g. isolated per-rule workspaces) must never
-        # share one cache file — that would silently hand one workspace
-        # another workspace's target/classes path.
         import hashlib
         key = hashlib.sha1(str(self.repo_dir.resolve()).encode()).hexdigest()[:12]
         return CACHE_DIR / f"classpath-{key}.txt"
@@ -169,9 +161,6 @@ class Pipeline:
         cache = self._classpath_cache_file()
         if not force and cache.exists():
             return cache.read_text().strip()
-        # The raw dependency-jar list (third-party libs only, no repo_dir
-        # baked in) genuinely is identical across every copy of this same
-        # pom.xml, so it's safe — and worth it — to share/reuse this one.
         out_file = CACHE_DIR / "cp_raw.txt"
         if out_file.exists():
             cp = f"{self.repo_dir / 'target/classes'}:{out_file.read_text().strip()}"
@@ -231,7 +220,6 @@ class Pipeline:
         )
         return result, out_dir / f"{rule_name}.json"
 
-    # -- qed-prover ----------------------------------------------------------
 
     def run_prover(self, json_path: Path, timeout: float = 90.0) -> tuple[CommandResult, dict | None]:
         result = _run([str(self.qed_prover_bin), str(json_path)], cwd=json_path.parent, timeout=timeout)

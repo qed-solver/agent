@@ -1,0 +1,192 @@
+{
+  "help" : [ "LogicalProject($f0=[T1($0, $1)], $f1=[T2($0, $1)])\n  LogicalFilter(condition=[TCond($0, $1)])\n    LogicalProject($f0=[B1($0, $1)], $f1=[B2($0, $1)])\n      LogicalFilter(condition=[BCond($0, $1)])\n        LogicalTableScan(table=[[S]])\n", "LogicalProject($f0=[T1(B1($0, $1), B2($0, $1))], $f1=[T2(B1($0, $1), B2($0, $1))])\n  LogicalFilter(condition=[AND(BCond($0, $1), TCond(B1($0, $1), B2($0, $1)))])\n    LogicalTableScan(table=[[S]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER", "INTEGER" ],
+    "nullable" : [ true, true ],
+    "name" : "S",
+    "guaranteed" : [ ],
+    "fields" : [ "col-S-0", "col-S-1" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "project" : {
+      "source" : {
+        "filter" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            }, {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "TCond"
+          },
+          "source" : {
+            "project" : {
+              "source" : {
+                "filter" : {
+                  "condition" : {
+                    "type" : "BOOLEAN",
+                    "operand" : [ {
+                      "column" : 0,
+                      "type" : "INTEGER"
+                    }, {
+                      "column" : 1,
+                      "type" : "INTEGER"
+                    } ],
+                    "operator" : "BCond"
+                  },
+                  "source" : {
+                    "scan" : 0
+                  }
+                }
+              },
+              "target" : [ {
+                "type" : "INTEGER",
+                "operand" : [ {
+                  "column" : 0,
+                  "type" : "INTEGER"
+                }, {
+                  "column" : 1,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "B1"
+              }, {
+                "type" : "INTEGER",
+                "operand" : [ {
+                  "column" : 0,
+                  "type" : "INTEGER"
+                }, {
+                  "column" : 1,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "B2"
+              } ]
+            }
+          }
+        }
+      },
+      "target" : [ {
+        "type" : "INTEGER",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "T1"
+      }, {
+        "type" : "INTEGER",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "T2"
+      } ]
+    }
+  }, {
+    "project" : {
+      "source" : {
+        "filter" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "type" : "BOOLEAN",
+              "operand" : [ {
+                "column" : 0,
+                "type" : "INTEGER"
+              }, {
+                "column" : 1,
+                "type" : "INTEGER"
+              } ],
+              "operator" : "BCond"
+            }, {
+              "type" : "BOOLEAN",
+              "operand" : [ {
+                "type" : "INTEGER",
+                "operand" : [ {
+                  "column" : 0,
+                  "type" : "INTEGER"
+                }, {
+                  "column" : 1,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "B1"
+              }, {
+                "type" : "INTEGER",
+                "operand" : [ {
+                  "column" : 0,
+                  "type" : "INTEGER"
+                }, {
+                  "column" : 1,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "B2"
+              } ],
+              "operator" : "TCond"
+            } ],
+            "operator" : "AND"
+          },
+          "source" : {
+            "scan" : 0
+          }
+        }
+      },
+      "target" : [ {
+        "type" : "INTEGER",
+        "operand" : [ {
+          "type" : "INTEGER",
+          "operand" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          }, {
+            "column" : 1,
+            "type" : "INTEGER"
+          } ],
+          "operator" : "B1"
+        }, {
+          "type" : "INTEGER",
+          "operand" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          }, {
+            "column" : 1,
+            "type" : "INTEGER"
+          } ],
+          "operator" : "B2"
+        } ],
+        "operator" : "T1"
+      }, {
+        "type" : "INTEGER",
+        "operand" : [ {
+          "type" : "INTEGER",
+          "operand" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          }, {
+            "column" : 1,
+            "type" : "INTEGER"
+          } ],
+          "operator" : "B1"
+        }, {
+          "type" : "INTEGER",
+          "operand" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          }, {
+            "column" : 1,
+            "type" : "INTEGER"
+          } ],
+          "operator" : "B2"
+        } ],
+        "operator" : "T2"
+      } ]
+    }
+  } ]
+}

@@ -1,0 +1,27 @@
+{
+  "help" : [ "LogicalFilter(condition=[p($0)])\n  LogicalValues(tuples=[[]])\n", "LogicalValues(tuples=[[]])\n" ],
+  "schemas" : [ ],
+  "queries" : [ {
+    "filter" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "p"
+      },
+      "source" : {
+        "values" : {
+          "schema" : [ "INTEGER" ],
+          "content" : [ ]
+        }
+      }
+    }
+  }, {
+    "values" : {
+      "schema" : [ "INTEGER" ],
+      "content" : [ ]
+    }
+  } ]
+}

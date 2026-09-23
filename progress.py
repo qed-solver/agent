@@ -15,14 +15,14 @@ class RuleAttempt:
     rule_name: str
     source_backend: str
     source_description: str
-    status: str  # PROVED | FAILED | SKIPPED
+    status: str
     attempts_used: int
     reason: str = ""
     prover_stats: dict = field(default_factory=dict)
     verification_rounds_used: int = 0
-    verifier_verdict: str = ""  # CONFIRMED | AGREE | REJECTED-then-fixed | ...
+    verifier_verdict: str = ""
     verifier_reasoning: str = ""
-    scope: str = ""  # FULL | PARTIAL | UNSPECIFIED | "" (n/a for non-PROVED)
+    scope: str = ""
     scope_detail: str = ""
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
@@ -36,18 +36,11 @@ class ProgressLog:
             self.entries = json.loads(json_path.read_text())
 
     def record(self, attempt: RuleAttempt) -> None:
-        # Re-read from disk right before merging, not just once at construction —
-        # a long-running process (e.g. many verification rounds on a hard rule)
-        # can otherwise overwrite entries a concurrently-running process on a
-        # different rule already saved in the meantime, silently losing them.
-        # This narrows the race to the moment between this read and the write
-        # below, rather than the entire lifetime of the process.
         if self.json_path.exists():
             try:
                 self.entries = json.loads(self.json_path.read_text())
             except json.JSONDecodeError:
-                pass  # keep in-memory entries if the file is mid-write elsewhere
-        # Replace any prior entry for the same rule name (a rule may be re-run).
+                pass
         self.entries = [e for e in self.entries if e["rule_name"] != attempt.rule_name]
         self.entries.append(asdict(attempt))
         self._save()

@@ -1,0 +1,103 @@
+{
+  "help" : [ "LogicalJoin(condition=[join_cond($0, $1, $2, $3)], joinType=[semi])\n  LogicalFilter(condition=[filter($0, $1)])\n    LogicalTableScan(table=[[X]])\n  LogicalTableScan(table=[[Y]])\n", "LogicalFilter(condition=[filter($0, $1)])\n  LogicalJoin(condition=[join_cond($0, $1, $2, $3)], joinType=[semi])\n    LogicalTableScan(table=[[X]])\n    LogicalTableScan(table=[[Y]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER", "INTEGER" ],
+    "nullable" : [ true, true ],
+    "name" : "X",
+    "guaranteed" : [ ],
+    "fields" : [ "col-X-0", "col-X-1" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER", "INTEGER" ],
+    "nullable" : [ true, true ],
+    "name" : "Y",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Y-0", "col-Y-1" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        }, {
+          "column" : 2,
+          "type" : "INTEGER"
+        }, {
+          "column" : 3,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "join_cond"
+      },
+      "left" : {
+        "filter" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            }, {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "filter"
+          },
+          "source" : {
+            "scan" : 0
+          }
+        }
+      },
+      "kind" : "SEMI",
+      "right" : {
+        "scan" : 1
+      }
+    }
+  }, {
+    "filter" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "filter"
+      },
+      "source" : {
+        "join" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            }, {
+              "column" : 1,
+              "type" : "INTEGER"
+            }, {
+              "column" : 2,
+              "type" : "INTEGER"
+            }, {
+              "column" : 3,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "join_cond"
+          },
+          "left" : {
+            "scan" : 0
+          },
+          "kind" : "SEMI",
+          "right" : {
+            "scan" : 1
+          }
+        }
+      }
+    }
+  } ]
+}

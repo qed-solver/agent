@@ -1,0 +1,80 @@
+{
+  "help" : [ "LogicalJoin(condition=[cond($0, $1)], joinType=[inner])\n  LogicalTableScan(table=[[X]])\n  LogicalTableScan(table=[[Y]])\n", "LogicalJoin(condition=[cond($0, $1)], joinType=[inner])\n  LogicalJoin(condition=[cond($0, $1)], joinType=[semi])\n    LogicalTableScan(table=[[X]])\n    LogicalTableScan(table=[[Y]])\n  LogicalTableScan(table=[[Y]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "X",
+    "guaranteed" : [ ],
+    "fields" : [ "col-X" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Y",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Y" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "cond"
+      },
+      "left" : {
+        "scan" : 0
+      },
+      "kind" : "INNER",
+      "right" : {
+        "scan" : 1
+      }
+    }
+  }, {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "cond"
+      },
+      "left" : {
+        "join" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            }, {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "cond"
+          },
+          "left" : {
+            "scan" : 0
+          },
+          "kind" : "SEMI",
+          "right" : {
+            "scan" : 1
+          }
+        }
+      },
+      "kind" : "INNER",
+      "right" : {
+        "scan" : 1
+      }
+    }
+  } ]
+}

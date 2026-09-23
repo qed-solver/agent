@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """RuleScript porting agent.
 
 Two agent roles collaborate on each rule:
@@ -64,39 +63,34 @@ ROOT_DIR = Path(__file__).resolve().parent
 
 sys.path.insert(0, str(ROOT_DIR))
 
-import dsl_audit  # noqa: E402
-import dsl_auditor_prompts  # noqa: E402
-import prompts  # noqa: E402
-import verifier_prompts  # noqa: E402
-import workspace  # noqa: E402
-from llm_client import (  # noqa: E402
+import dsl_audit
+import dsl_auditor_prompts
+import prompts
+import verifier_prompts
+import workspace
+from llm_client import (
     AgentTurn, LLMClient, LLMError, ToolCall,
     format_assistant_message, format_tool_results_message,
 )
 
-OFFLINE_PROVIDER = "openai"  # message-format used for --offline-code testing (no real LLMClient exists yet)
-from pipeline import Pipeline, extract_scope  # noqa: E402
-from progress import ProgressLog, RuleAttempt  # noqa: E402
-from repo_tools import EXTENDABLE_DSL_FILES, RepoTools  # noqa: E402
-from spec import RuleSpec, parse_spec_file  # noqa: E402
+OFFLINE_PROVIDER = "openai"
+from pipeline import Pipeline, extract_scope
+from progress import ProgressLog, RuleAttempt
+from repo_tools import EXTENDABLE_DSL_FILES, RepoTools
+from spec import RuleSpec, parse_spec_file
 
 
 class PorterResult:
     def __init__(self, outcome: str, turns_used: int, code: str | None = None,
                  prover_json: dict | None = None, json_path: Path | None = None,
                  reason: str = "", transcript_tail: str = "", round_log: list[str] | None = None):
-        self.outcome = outcome  # "PROVED" | "UNSUPPORTED" | "EXHAUSTED"
+        self.outcome = outcome
         self.turns_used = turns_used
         self.code = code
         self.prover_json = prover_json
         self.json_path = json_path
         self.reason = reason
         self.transcript_tail = transcript_tail
-        # Compact, turn-by-turn log of this round's tool activity (call + a
-        # bounded excerpt of its result) — kept separately from the live
-        # conversation so a later summarization pass can be handed just this,
-        # fresh, instead of reusing (and inheriting the size of) the porter's
-        # own possibly near-context-limit conversation.
         self.round_log = round_log or []
 
 
@@ -165,8 +159,6 @@ def porter_agent_loop(
                 if result.get("ok") and result.get("provable") is True:
                     scope, _ = extract_scope(last_tried_code)
                     if scope == "UNSPECIFIED":
-                        # Don't accept a proof missing the required scope tag — make the
-                        # model add it and resubmit, rather than relying on it remembering.
                         result["provable"] = "true, but rejected pending fix"
                         result["error"] = (
                             "QED proved this, but the file is missing the required first "
@@ -269,8 +261,6 @@ def transcript_tail(conversation: list[dict], n: int = 6) -> str:
     return "\n\n".join(render(m) for m in conversation[-n:])
 
 
-# Sentinel distinct from any real verdict token (CONFIRMED/REJECTED/AGREE/DISAGREE):
-# means "no verifier was configured at all", which the caller treats as pass-through.
 NO_VERIFIER = "NO_VERIFIER"
 
 
@@ -665,11 +655,6 @@ def run_one(
     ]
     source_text = read_source_text(calcite_root, spec.source_path)
 
-    # This rule gets its own private copy of the whole Maven project to work
-    # in. Nothing it does — including a DSL extension — touches (or is
-    # visible to) the shared main repo, or any other concurrently-running
-    # rule, until it has a real, QED-confirmed proof and merge_rule_to_main
-    # successfully lands it. See workspace.py for why.
     isolated = workspaces_dir is not None
     if isolated:
         workspace_root = workspace.make_workspace(rulescript_root, workspaces_dir, spec.name)
@@ -683,6 +668,7 @@ def run_one(
     )
     tools_obj = RepoTools(
         workspace_root, calcite_root, worker_pipeline, spec.name, ROOT_DIR / ".cache" / "tmp-rules",
+        docs_root=ROOT_DIR / "docs",
         baseline_proved_rules=baseline_proved,
     )
     dsl_snapshot = snapshot_dsl_files(workspace_root)
@@ -719,8 +705,6 @@ def run_one(
                         auditor_llm, progress_json_path, merge_lock_path,
                     )
                 else:
-                    # Legacy non-isolated path: pipeline IS the main repo, so
-                    # "merging" is just writing the rule in place.
                     pipeline.write_rule(spec.name, result.code)
                     merge_status, merge_detail = "merged", "ok"
                 if merge_status != "merged":
@@ -780,9 +764,6 @@ def run_one(
         last_verifier_verdict, last_verifier_reasoning = verdict, reasoning
         if verdict in (NO_VERIFIER, "AGREE"):
             print(f"   verifier {verdict}: finalizing as SKIPPED — {reasoning}")
-            # Nothing to merge: this rule's own DSL edits (if it made any)
-            # simply vanish along with its isolated workspace below — never
-            # touching the shared repo, so there's no revert to perform.
             worker_pipeline.remove_rule(spec.name)
             if result.code:
                 pipeline.stash_unprovable(spec.name, result.code, reasoning)
@@ -819,7 +800,7 @@ def run_one(
 
     print("   exhausted all verification rounds; marking FAILED for human follow-up")
     worker_pipeline.remove_rule(spec.name)
-    last_code = result.code  # from the final round's PorterResult
+    last_code = result.code
     if last_code:
         pipeline.stash_unprovable(spec.name, last_code, last_reason)
     pipeline.publish(
@@ -994,7 +975,7 @@ def main():
             )
         except LLMError as e:
             attempt = RuleAttempt(spec.name, spec.backend, spec.description, "FAILED", 0, f"LLM error: {e}")
-        except Exception as e:  # noqa: BLE001 - keep batch runs going
+        except Exception as e:
             attempt = RuleAttempt(spec.name, spec.backend, spec.description, "FAILED", 0, f"agent error: {e}")
         elapsed = time.time() - start
         print(f"   -> {attempt.status} ({elapsed:.1f}s, {attempt.verification_rounds_used} round(s))")

@@ -21,11 +21,13 @@ Source file to read (root `"calcite"`): `{source_path}`
 You have these tools:
 - `list_directory(root, path)` / `search_code(root, query, path=None)` /
   `find_symbol(root, symbol)` / `read_file(root, path, start_line=None, end_line=None)`
-  — explore either root: `"calcite"` (the source backend, rooted at
-  `core/src/main/java/org/apache/calcite/`) or `"rulescript"` (the DSL,
+  — explore any of the source roots: `"calcite"` (the source backend, rooted at
+  `core/src/main/java/org/apache/calcite/`), `"rulescript"` (the DSL,
   rooted at `src/main/java/org/qed/` — read `RelRN.java`/`RexRN.java`/
   `RRule.java`/`RelType.java` there if you need the exact API beyond what's
-  in the reference doc; don't guess at a method signature).
+  in the reference doc; don't guess at a method signature), or `"docs"`
+  (the RuleScript/QED reference papers — use `read_pdf(path, start_line=None,
+  end_line=None)` to read those, not `read_file`).
 - `try_rule(java_source)` — compile your candidate, serialize it, and run
   the real QED prover on it. Returns exactly what failed (compile error /
   JSON-generation error / QED's provable result with stats) so you can

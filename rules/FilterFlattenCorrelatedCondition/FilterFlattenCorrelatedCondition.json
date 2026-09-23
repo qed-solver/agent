@@ -1,0 +1,112 @@
+{
+  "help" : [ "LogicalFilter(condition=[Cmp($0, Expr($1))])\n  LogicalJoin(condition=[true], joinType=[inner])\n    LogicalTableScan(table=[[Outer]])\n    LogicalTableScan(table=[[Inner]])\n", "LogicalProject(col-Outer=[$0], col-Inner=[$1])\n  LogicalFilter(condition=[Cmp($0, $2)])\n    LogicalProject(col-Outer=[$0], col-Inner=[$1], $f2=[Expr($1)])\n      LogicalJoin(condition=[true], joinType=[inner])\n        LogicalTableScan(table=[[Outer]])\n        LogicalTableScan(table=[[Inner]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Outer",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Outer" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Inner",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Inner" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "filter" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "type" : "INTEGER",
+          "operand" : [ {
+            "column" : 1,
+            "type" : "INTEGER"
+          } ],
+          "operator" : "Expr"
+        } ],
+        "operator" : "Cmp"
+      },
+      "source" : {
+        "join" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ ],
+            "operator" : "true"
+          },
+          "left" : {
+            "scan" : 0
+          },
+          "kind" : "INNER",
+          "right" : {
+            "scan" : 1
+          }
+        }
+      }
+    }
+  }, {
+    "project" : {
+      "source" : {
+        "filter" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            }, {
+              "column" : 2,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "Cmp"
+          },
+          "source" : {
+            "project" : {
+              "source" : {
+                "join" : {
+                  "condition" : {
+                    "type" : "BOOLEAN",
+                    "operand" : [ ],
+                    "operator" : "true"
+                  },
+                  "left" : {
+                    "scan" : 0
+                  },
+                  "kind" : "INNER",
+                  "right" : {
+                    "scan" : 1
+                  }
+                }
+              },
+              "target" : [ {
+                "column" : 0,
+                "type" : "INTEGER"
+              }, {
+                "column" : 1,
+                "type" : "INTEGER"
+              }, {
+                "type" : "INTEGER",
+                "operand" : [ {
+                  "column" : 1,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "Expr"
+              } ]
+            }
+          }
+        }
+      },
+      "target" : [ {
+        "column" : 0,
+        "type" : "INTEGER"
+      }, {
+        "column" : 1,
+        "type" : "INTEGER"
+      } ]
+    }
+  } ]
+}

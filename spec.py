@@ -30,8 +30,8 @@ HEADER_RE = re.compile(r"^#\s*(Name|Backend|Source)\s*:\s*(.+)$", re.IGNORECASE)
 class RuleSpec:
     name: str
     backend: str
-    source_path: str  # relative to the calcite tool root; "" if not applicable
-    hint: str  # short optional freeform notes; NOT the rule's source code
+    source_path: str
+    hint: str
 
     @property
     def description(self) -> str:

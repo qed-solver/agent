@@ -47,7 +47,6 @@ def format_assistant_message(provider: str, turn: AgentTurn) -> dict:
                 for tc in turn.tool_calls
             ]
         return msg
-    # anthropic
     content = []
     if turn.content:
         content.append({"type": "text", "text": turn.content})
@@ -58,8 +57,6 @@ def format_assistant_message(provider: str, turn: AgentTurn) -> dict:
 
 def format_tool_results_message(provider: str, results: list[tuple[ToolCall, dict]]) -> dict:
     if provider == "openai":
-        # OpenAI wants one "tool" message per call; the caller appends this
-        # list directly (see note in port_rule.py's agent loop).
         return {
             "role": "__multi_tool__",
             "messages": [
@@ -119,8 +116,6 @@ class LLMClient:
                     break
         if not self.api_key:
             if self.endpoint != DEFAULT_ENDPOINTS[self.provider]:
-                # Custom / self-hosted endpoints (vLLM etc.) commonly don't check the
-                # key at all; use a harmless placeholder rather than hard-failing.
                 self.api_key = "EMPTY"
             else:
                 raise LLMError(
@@ -140,11 +135,6 @@ class LLMClient:
                         return self._complete_openai(system, messages)
                     raise LLMError(f"Unknown provider {self.provider!r}")
                 except LLMError as e:
-                    # Small/self-hosted models often have a modest total context window;
-                    # a long source-rule paste can blow past it once our max_tokens output
-                    # budget is added on top. Rather than failing the whole rule, shrink
-                    # the output budget and retry — most replies (a single Java file) fit
-                    # comfortably in far fewer tokens than our generous default.
                     if "maximum context length" in str(e).lower() and self.max_tokens > 1024:
                         self.max_tokens = max(1024, self.max_tokens // 2)
                         print(f"   [llm] context length exceeded, retrying with max_tokens={self.max_tokens}")
@@ -153,7 +143,6 @@ class LLMClient:
         finally:
             self.max_tokens = original_max_tokens
 
-    # -- tool-calling agent loop support --------------------------------
 
     def step(self, system: str, messages: list[dict], tools: list[dict]) -> AgentTurn:
         """One turn of a tool-using conversation. `messages` holds this
@@ -237,11 +226,6 @@ class LLMClient:
             tool_calls.append(ToolCall(id=tc["id"], name=tc["function"]["name"], arguments=args))
         content = message.get("content") or ""
         if not content and not tool_calls:
-            # Reasoning models put their real answer in "reasoning"/"reasoning_content"
-            # only when there's truly nothing else (e.g. cut off before finishing) —
-            # when a tool call is present, "content: null" is the normal shape and the
-            # reasoning is scratch work we do NOT want bloating conversation history on
-            # every single turn (it's resent in full on every subsequent request).
             content = message.get("reasoning_content") or message.get("reasoning") or ""
         if choice.get("finish_reason") == "length" and not tool_calls:
             content += "\n\n[NOTE: response was truncated at the token limit before finishing.]"
@@ -297,10 +281,6 @@ class LLMClient:
         except (KeyError, IndexError) as e:
             raise LLMError(f"Unexpected OpenAI-style response: {resp}") from e
         content = message.get("content")
-        # Reasoning models (e.g. Qwen3 in "thinking" mode) can put the actual
-        # answer in a separate "reasoning"/"reasoning_content" field and leave
-        # "content" null, especially if cut off before finishing the thinking
-        # step. Fall back rather than returning nothing.
         if not content:
             content = message.get("reasoning_content") or message.get("reasoning") or ""
         if choice.get("finish_reason") == "length":

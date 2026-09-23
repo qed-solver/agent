@@ -31,9 +31,6 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 
-# Nothing under these ever needs to travel into a workspace copy: `target/`
-# is a build output (can be large, and is actively being written by whichever
-# workspace last compiled), `.git/` isn't needed to run `mvnw compile`.
 WORKSPACE_COPY_IGNORE = shutil.ignore_patterns("target", ".git")
 
 

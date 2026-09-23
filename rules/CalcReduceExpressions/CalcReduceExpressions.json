@@ -1,0 +1,37 @@
+{
+  "help" : [ "LogicalProject($f0=[E1($0, $1)], $f1=[E2($0)])\n  LogicalValues(tuples=[[]])\n", "LogicalValues(tuples=[[]])\n" ],
+  "schemas" : [ ],
+  "queries" : [ {
+    "project" : {
+      "source" : {
+        "values" : {
+          "schema" : [ "INTEGER", "INTEGER" ],
+          "content" : [ ]
+        }
+      },
+      "target" : [ {
+        "type" : "INTEGER",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "E1"
+      }, {
+        "type" : "INTEGER",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "E2"
+      } ]
+    }
+  }, {
+    "values" : {
+      "schema" : [ "INTEGER", "INTEGER" ],
+      "content" : [ ]
+    }
+  } ]
+}

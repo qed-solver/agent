@@ -1,0 +1,137 @@
+{
+  "help" : [ "LogicalJoin(condition=[C($0, $1, $2, $3)], joinType=[semi])\n  LogicalProject($f0=[P0($0, $1)], $f1=[P1($0, $1)])\n    LogicalTableScan(table=[[X]])\n  LogicalTableScan(table=[[Y]])\n", "LogicalProject($f0=[P0($0, $1)], $f1=[P1($0, $1)])\n  LogicalJoin(condition=[C(P0($0, $1), P1($0, $1), $2, $3)], joinType=[semi])\n    LogicalTableScan(table=[[X]])\n    LogicalTableScan(table=[[Y]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER", "INTEGER" ],
+    "nullable" : [ true, true ],
+    "name" : "X",
+    "guaranteed" : [ ],
+    "fields" : [ "col-X-0", "col-X-1" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER", "INTEGER" ],
+    "nullable" : [ true, true ],
+    "name" : "Y",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Y-0", "col-Y-1" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        }, {
+          "column" : 2,
+          "type" : "INTEGER"
+        }, {
+          "column" : 3,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "C"
+      },
+      "left" : {
+        "project" : {
+          "source" : {
+            "scan" : 0
+          },
+          "target" : [ {
+            "type" : "INTEGER",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            }, {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "P0"
+          }, {
+            "type" : "INTEGER",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            }, {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "P1"
+          } ]
+        }
+      },
+      "kind" : "SEMI",
+      "right" : {
+        "scan" : 1
+      }
+    }
+  }, {
+    "project" : {
+      "source" : {
+        "join" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "type" : "INTEGER",
+              "operand" : [ {
+                "column" : 0,
+                "type" : "INTEGER"
+              }, {
+                "column" : 1,
+                "type" : "INTEGER"
+              } ],
+              "operator" : "P0"
+            }, {
+              "type" : "INTEGER",
+              "operand" : [ {
+                "column" : 0,
+                "type" : "INTEGER"
+              }, {
+                "column" : 1,
+                "type" : "INTEGER"
+              } ],
+              "operator" : "P1"
+            }, {
+              "column" : 2,
+              "type" : "INTEGER"
+            }, {
+              "column" : 3,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "C"
+          },
+          "left" : {
+            "scan" : 0
+          },
+          "kind" : "SEMI",
+          "right" : {
+            "scan" : 1
+          }
+        }
+      },
+      "target" : [ {
+        "type" : "INTEGER",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "P0"
+      }, {
+        "type" : "INTEGER",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "P1"
+      } ]
+    }
+  } ]
+}

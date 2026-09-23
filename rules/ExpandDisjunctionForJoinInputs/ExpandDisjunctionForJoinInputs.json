@@ -1,0 +1,161 @@
+{
+  "help" : [ "LogicalJoin(condition=[OR(AND(pl($0), pr($2)), AND(rl($1), sr($3)))], joinType=[inner])\n  LogicalTableScan(table=[[L]])\n  LogicalTableScan(table=[[R]])\n", "LogicalJoin(condition=[AND(OR(AND(pl($0), pr($2)), AND(rl($1), sr($3))), OR(pl($0), rl($1)), OR(pr($2), sr($3)))], joinType=[inner])\n  LogicalTableScan(table=[[L]])\n  LogicalTableScan(table=[[R]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER", "INTEGER" ],
+    "nullable" : [ true, true ],
+    "name" : "L",
+    "guaranteed" : [ ],
+    "fields" : [ "col-L-0", "col-L-1" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER", "INTEGER" ],
+    "nullable" : [ true, true ],
+    "name" : "R",
+    "guaranteed" : [ ],
+    "fields" : [ "col-R-0", "col-R-1" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "type" : "BOOLEAN",
+          "operand" : [ {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "pl"
+          }, {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 2,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "pr"
+          } ],
+          "operator" : "AND"
+        }, {
+          "type" : "BOOLEAN",
+          "operand" : [ {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "rl"
+          }, {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 3,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "sr"
+          } ],
+          "operator" : "AND"
+        } ],
+        "operator" : "OR"
+      },
+      "left" : {
+        "scan" : 0
+      },
+      "kind" : "INNER",
+      "right" : {
+        "scan" : 1
+      }
+    }
+  }, {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "type" : "BOOLEAN",
+          "operand" : [ {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "type" : "BOOLEAN",
+              "operand" : [ {
+                "column" : 0,
+                "type" : "INTEGER"
+              } ],
+              "operator" : "pl"
+            }, {
+              "type" : "BOOLEAN",
+              "operand" : [ {
+                "column" : 2,
+                "type" : "INTEGER"
+              } ],
+              "operator" : "pr"
+            } ],
+            "operator" : "AND"
+          }, {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "type" : "BOOLEAN",
+              "operand" : [ {
+                "column" : 1,
+                "type" : "INTEGER"
+              } ],
+              "operator" : "rl"
+            }, {
+              "type" : "BOOLEAN",
+              "operand" : [ {
+                "column" : 3,
+                "type" : "INTEGER"
+              } ],
+              "operator" : "sr"
+            } ],
+            "operator" : "AND"
+          } ],
+          "operator" : "OR"
+        }, {
+          "type" : "BOOLEAN",
+          "operand" : [ {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "pl"
+          }, {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "rl"
+          } ],
+          "operator" : "OR"
+        }, {
+          "type" : "BOOLEAN",
+          "operand" : [ {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 2,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "pr"
+          }, {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 3,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "sr"
+          } ],
+          "operator" : "OR"
+        } ],
+        "operator" : "AND"
+      },
+      "left" : {
+        "scan" : 0
+      },
+      "kind" : "INNER",
+      "right" : {
+        "scan" : 1
+      }
+    }
+  } ]
+}

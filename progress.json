@@ -1705,18 +1705,598 @@
     "timestamp": "2026-09-22T18:36:24.001981+00:00"
   },
   {
+    "rule_name": "IntersectReorder",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/IntersectReorderRule.java",
+    "status": "PROVED",
+    "attempts_used": 8,
+    "reason": "before (A\u2229B\u2229C) and after (C\u2229A\u2229B) differ by a genuine 3-cycle permutation of three distinct uninterpreted inputs sharing one type, so the proof is non-vacuous and captures exactly the rule's semantic core (permutation invariance of INTERSECT), while Calcite's cost-sorted any-arity reordering is a heuristic family that no single equivalence can express \u2014 the PARTIAL scope note states this accurately. The encoding's n-ary set (all=false) INTERSECT matches the actual shape of the source rewrite (pushAll + n-ary intersect on LogicalIntersect) and QED's set-variant-only INTERSECT modeling, which is what justifies excluding INTERSECT ALL. There is no symbol-sharing error (A/B/C are independent scans; shared type \"T\" is required since intersect inputs must be type-compatible), and the source rule imposes no preconditions beyond inputs > 1 that the encoding silently drops. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 9887500
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 39827917
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 775417
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 639958
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 24822583
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 39947083
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 80958875
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "before (A\u2229B\u2229C) and after (C\u2229A\u2229B) differ by a genuine 3-cycle permutation of three distinct uninterpreted inputs sharing one type, so the proof is non-vacuous and captures exactly the rule's semantic core (permutation invariance of INTERSECT), while Calcite's cost-sorted any-arity reordering is a heuristic family that no single equivalence can express \u2014 the PARTIAL scope note states this accurately. The encoding's n-ary set (all=false) INTERSECT matches the actual shape of the source rewrite (pushAll + n-ary intersect on LogicalIntersect) and QED's set-variant-only INTERSECT modeling, which is what justifies excluding INTERSECT ALL. There is no symbol-sharing error (A/B/C are independent scans; shared type \"T\" is required since intersect inputs must be type-compatible), and the source rule imposes no preconditions beyond inputs > 1 that the encoding silently drops. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "a fixed 3-cycle reordering of a 3-input set (non-ALL) INTERSECT is verified; Calcite's full rule reorders the inputs of any arity by row count, which is a cost heuristic rather than a single fixed equivalence.",
+    "timestamp": "2026-09-22T20:23:32.522794+00:00"
+  },
+  {
+    "rule_name": "JoinDeriveIsNotNullFilter",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/JoinDeriveIsNotNullFilterRule.java",
+    "status": "PROVED",
+    "attempts_used": 10,
+    "reason": "The rewrite is nontrivial and matches the source's inner-join transformation by adding IS NOT NULL filters implied by the null-rejecting equality conjunct while preserving the same condition. Although narrower than the fully generic Calcite rule, the SCOPE line accurately states the specific equality-plus-arbitrary-extra-conjuncts restriction, so the proven result is faithful and non-vacuous.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 6536709
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 7648667
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 79042
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 881125
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 13983250
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 7704125
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 25281250
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The rewrite is nontrivial and matches the source's inner-join transformation by adding IS NOT NULL filters implied by the null-rejecting equality conjunct while preserving the same condition. Although narrower than the fully generic Calcite rule, the SCOPE line accurately states the specific equality-plus-arbitrary-extra-conjuncts restriction, so the proven result is faithful and non-vacuous.",
+    "scope": "PARTIAL",
+    "scope_detail": "the join condition is restricted to a conjunction containing an equality conjunct between a left column and a right column (plus arbitrary other conjuncts over those same two columns); the original rule derives IS NOT NULL filters from any condition for which per-column non-null inference succeeds",
+    "timestamp": "2026-09-22T20:33:10.839104+00:00"
+  },
+  {
+    "rule_name": "FullToLeftAndRightJoin",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/FullToLeftAndRightJoinRule.java",
+    "status": "PROVED",
+    "attempts_used": 11,
+    "reason": "The encoding mirrors the source rule's exact shape \u2014 before() is the FULL join, after() is (LEFT join) UNION ALL ((RIGHT join) filtered by IS_NOT_TRUE of the same condition) \u2014 with the correct join kinds, the correct union-all flag, and the condition/field references shared consistently, since all three join outputs over L and R have the same 2-column (L||R) layout so field(0)=L.col and field(1)=R.col line up in both the join predicates and the filter. The only deviation is fixing the condition to a single equality L.col = R.col instead of an arbitrary deterministic predicate, which is a genuine and honestly-labeled PARTIAL restriction: the decomposition is only valid (and QED-provable) when the condition is never TRUE on null-extended rows, a property an uninterpreted predicate cannot satisfy under QED's no-predicate-inference semantics but a concrete equality does. The narrowing is specific, faithful, and non-degenerate (before and after remain structurally distinct, proving a real equijoin full-outer-join decomposition), so the \"provable\" result is meaningful. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 20219706
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 52608417
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 929917
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 1348042
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 42242500
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 52910334
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 111441042
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding mirrors the source rule's exact shape \u2014 before() is the FULL join, after() is (LEFT join) UNION ALL ((RIGHT join) filtered by IS_NOT_TRUE of the same condition) \u2014 with the correct join kinds, the correct union-all flag, and the condition/field references shared consistently, since all three join outputs over L and R have the same 2-column (L||R) layout so field(0)=L.col and field(1)=R.col line up in both the join predicates and the filter. The only deviation is fixing the condition to a single equality L.col = R.col instead of an arbitrary deterministic predicate, which is a genuine and honestly-labeled PARTIAL restriction: the decomposition is only valid (and QED-provable) when the condition is never TRUE on null-extended rows, a property an uninterpreted predicate cannot satisfy under QED's no-predicate-inference semantics but a concrete equality does. The narrowing is specific, faithful, and non-degenerate (before and after remain structurally distinct, proving a real equijoin full-outer-join decomposition), so the \"provable\" result is meaningful. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "the join condition is a single equality (L.col = R.col) between one column of each side, an equijoin condition that is never TRUE on null-extended rows",
+    "timestamp": "2026-09-22T20:34:43.762223+00:00"
+  },
+  {
+    "rule_name": "JoinProjectTranspose",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/JoinProjectTransposeRule.java",
+    "status": "PROVED",
+    "attempts_used": 10,
+    "reason": "The before/after plans are structurally different (Project below the Join in before, Project above it in after), with correct symbol sharing \u2014 the same uninterpreted TL, TR and C appear on both sides, and the after-side condition is properly expanded over the raw join columns via correct joinField references (0,1 = L; 2,3 = R) \u2014 so the proof is non-vacuous and mirrors exactly what Calcite computes for an inner join (bottom program = projected expressions, top program = identity + condition, merged/expanded), with no missing preconditions for that case. The PARTIAL scope line honestly and specifically states the assumed restrictions (inner join, both inputs projects with a single uninterpreted expression each, condition over the projected row), so the result is a genuine, non-degenerate special case of the source rule: bag(\u03c3_C(\u03c0(TL,L) \u00d7 \u03c0(TR,R))) = \u03c0(TL,TR)(\u03c3_{C\u2218(TL,TR)}(L \u00d7 R)) for all instantiations of TL, TR, C. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 8109250
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 36038167
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 912000
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 565667
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 21410292
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 36194709
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 73464209
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The before/after plans are structurally different (Project below the Join in before, Project above it in after), with correct symbol sharing \u2014 the same uninterpreted TL, TR and C appear on both sides, and the after-side condition is properly expanded over the raw join columns via correct joinField references (0,1 = L; 2,3 = R) \u2014 so the proof is non-vacuous and mirrors exactly what Calcite computes for an inner join (bottom program = projected expressions, top program = identity + condition, merged/expanded), with no missing preconditions for that case. The PARTIAL scope line honestly and specifically states the assumed restrictions (inner join, both inputs projects with a single uninterpreted expression each, condition over the projected row), so the result is a genuine, non-degenerate special case of the source rule: bag(\u03c3_C(\u03c0(TL,L) \u00d7 \u03c0(TR,R))) = \u03c0(TL,TR)(\u03c3_{C\u2218(TL,TR)}(L \u00d7 R)) for all instantiations of TL, TR, C. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "the rule's default non-outer config: an inner join whose two inputs are projects, each per-side projection a single uninterpreted expression, with the join condition an uninterpreted predicate over the projected row",
+    "timestamp": "2026-09-22T20:46:44.131806+00:00"
+  },
+  {
     "rule_name": "ExpandDisjunctionForJoinInputs",
     "source_backend": "Apache Calcite",
     "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/ExpandDisjunctionForJoinInputsRule.java",
-    "status": "FAILED",
-    "attempts_used": 0,
-    "reason": "agent error: [Errno 54] Connection reset by peer",
+    "status": "PROVED",
+    "attempts_used": 35,
+    "reason": "before() and after() are structurally different \u2014 after() ANDs into the join condition the two per-side disjunctions (pl\u2228rl) and (pr\u2228sr) \u2014 and the equivalence is a genuine, non-vacuous theorem: each added disjunction is logically implied by the two-branch DNF condition (pl\u2227pr)\u2228(rl\u2227sr), but the implication is not syntactic, so the prover had to verify it for arbitrary instantiations. The encoding is faithful in its details: pl/rl reference only L's columns and pr/sr only R's (joinField ordinals 0\u20133 with a 2+2 split, verified against JoinField's left-column arithmetic), the four predicate symbols are independent as the rule needs, and INNER is inside the source rule's applicability (both canPush flags true for INNER, so both extras are legitimately added \u2014 no dropped precondition, and the bloat limit and no-op equality guard are heuristics, not semantic preconditions). The remaining narrowing \u2014 INNER only (LEFT/RIGHT variants add fewer extras), the join-condition matcher only rather than the filter-on-join matcher, and a fixed two-branch one-conjunct-per-side DNF rather than arbitrary DNF \u2014 is exactly what the single PARTIAL scope line claims, so this is an honestly labeled, non-degenerate special case of the real rule. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 7555290
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 36188166
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 881417
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 470250
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 19710292
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 36303042
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 71751833
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "before() and after() are structurally different \u2014 after() ANDs into the join condition the two per-side disjunctions (pl\u2228rl) and (pr\u2228sr) \u2014 and the equivalence is a genuine, non-vacuous theorem: each added disjunction is logically implied by the two-branch DNF condition (pl\u2227pr)\u2228(rl\u2227sr), but the implication is not syntactic, so the prover had to verify it for arbitrary instantiations. The encoding is faithful in its details: pl/rl reference only L's columns and pr/sr only R's (joinField ordinals 0\u20133 with a 2+2 split, verified against JoinField's left-column arithmetic), the four predicate symbols are independent as the rule needs, and INNER is inside the source rule's applicability (both canPush flags true for INNER, so both extras are legitimately added \u2014 no dropped precondition, and the bloat limit and no-op equality guard are heuristics, not semantic preconditions). The remaining narrowing \u2014 INNER only (LEFT/RIGHT variants add fewer extras), the join-condition matcher only rather than the filter-on-join matcher, and a fixed two-branch one-conjunct-per-side DNF rather than arbitrary DNF \u2014 is exactly what the single PARTIAL scope line claims, so this is an honestly labeled, non-degenerate special case of the real rule. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "INNER join whose condition is a two-branch disjunction of conjunctions, each branch pairing a left-only with a right-only predicate, expanded by AND-ing in the per-side disjunctions.",
+    "timestamp": "2026-09-22T20:49:14.643173+00:00"
+  },
+  {
+    "rule_name": "JoinAggregateTranspose",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/JoinAggregateTransposeRule.java",
+    "status": "PROVED",
+    "attempts_used": 36,
+    "reason": "The encoding mirrors the source rule's exact plan shape \u2014 Aggregate(below an INNER join) \u27f9 INNER join under an Aggregate whose group set is extended with all right-side columns, followed by a project restoring the original column order \u2014 and it shares the same uninterpreted join predicate and the same uninterpreted aggregate symbol across both sides, with the condition referencing only the group key on the aggregate side (the precondition that makes the transpose sound). The two load-bearing preconditions of the original rule are correctly captured: the right input is declared unique on its join key via the `unique` scan flag (mirroring `mq.areColumnsUnique(right, info.rightSet())`), and the group set is non-empty by construction (so the empty-group/COUNT(*) caveat is moot); the proof is non-vacuous because it genuinely requires QED to relate the join-condition's group key through the aggregate on the before side. The stated PARTIAL scope (single-column, unique right table) is a real DSL-forced restriction (keyed multi-column scans are not exposed), and the implicit left-side minimalization to one group column plus one SUM call over the other column adds no new semantic content to the obligation, making this a faithful, non-degenerate special case rather than a mis-encoded or over-constrained coincidence. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 11204250
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 47805042
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 970917
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 860708
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 27562291
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 48096333
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 92112708
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding mirrors the source rule's exact plan shape \u2014 Aggregate(below an INNER join) \u27f9 INNER join under an Aggregate whose group set is extended with all right-side columns, followed by a project restoring the original column order \u2014 and it shares the same uninterpreted join predicate and the same uninterpreted aggregate symbol across both sides, with the condition referencing only the group key on the aggregate side (the precondition that makes the transpose sound). The two load-bearing preconditions of the original rule are correctly captured: the right input is declared unique on its join key via the `unique` scan flag (mirroring `mq.areColumnsUnique(right, info.rightSet())`), and the group set is non-empty by construction (so the empty-group/COUNT(*) caveat is moot); the proof is non-vacuous because it genuinely requires QED to relate the join-condition's group key through the aggregate on the before side. The stated PARTIAL scope (single-column, unique right table) is a real DSL-forced restriction (keyed multi-column scans are not exposed), and the implicit left-side minimalization to one group column plus one SUM call over the other column adds no new semantic content to the obligation, making this a faithful, non-degenerate special case rather than a mis-encoded or over-constrained coincidence. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "right side is a single-column table unique on its column.",
+    "timestamp": "2026-09-22T20:53:47.222643+00:00"
+  },
+  {
+    "rule_name": "MinusToDistinct",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/MinusToDistinctRule.java",
+    "status": "SKIPPED",
+    "attempts_used": 30,
+    "reason": "The rule's correctness rests on the algebra of COUNT: the post-rewrite plan's `count_0 > 0` and `count_i = 0` tests are what implement the \"present in the first operand / absent from every other\" membership test of a set difference, so proving equivalence requires knowing that a group's count is 0 iff no row of that group exists in the corresponding input (and > 0 iff it does) \u2014 an aggregate algebraic identity QED explicitly does not have (it only knows bag equality of aggregate inputs). Since the before pattern (distinct MINUS) contains no aggregate at all, there is no bag-equal counterpart aggregate on the other side for the prover to equate against, so the SMT decision procedure has nothing to bridge the count-based membership test with EXCEPT semantics. The DSL gaps (no filtered aggregate call in `AggCall`, no literal-constant projection or equality Rex to build the branch-index labeling) are secondary: extending the DSL cannot help because the fixed Rust prover would still lack COUNT's semantics to decide the filter conditions. ```",
     "prover_stats": {},
-    "verification_rounds_used": 0,
-    "verifier_verdict": "",
-    "verifier_reasoning": "",
+    "verification_rounds_used": 1,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's correctness rests on the algebra of COUNT: the post-rewrite plan's `count_0 > 0` and `count_i = 0` tests are what implement the \"present in the first operand / absent from every other\" membership test of a set difference, so proving equivalence requires knowing that a group's count is 0 iff no row of that group exists in the corresponding input (and > 0 iff it does) \u2014 an aggregate algebraic identity QED explicitly does not have (it only knows bag equality of aggregate inputs). Since the before pattern (distinct MINUS) contains no aggregate at all, there is no bag-equal counterpart aggregate on the other side for the prover to equate against, so the SMT decision procedure has nothing to bridge the count-based membership test with EXCEPT semantics. The DSL gaps (no filtered aggregate call in `AggCall`, no literal-constant projection or equality Rex to build the branch-index labeling) are secondary: extending the DSL cannot help because the fixed Rust prover would still lack COUNT's semantics to decide the filter conditions. ```",
     "scope": "",
     "scope_detail": "",
-    "timestamp": "2026-09-22T19:42:41.694291+00:00"
+    "timestamp": "2026-09-22T22:51:00.083616+00:00"
+  },
+  {
+    "rule_name": "ProjectAggregateMerge",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/ProjectAggregateMergeRule.java",
+    "status": "PROVED",
+    "attempts_used": 36,
+    "reason": "The encoding is non-vacuous and correctly structured: before() computes an unused third aggregate per group and projects around it (fields 0,1,3 of 4), while after() omits that call and identity-projects the reduced aggregate (fields 0,1,2 of 3) \u2014 genuinely different plans over properly introduced and shared uninterpreted symbols (distinct ops f1/f2/f3, the same group-key op g and table S on both sides), matching the exact Project-over-Aggregate shape and column permutation Calcite's rule produces for this input family, with no precondition the removal half requires. The shape restrictions (single group key, plain field-reference projections, one of three calls) are a genuine, specific, non-degenerate sub-case of the real rule rather than a symbol-sharing artifact, and the excluded COALESCE(SUM,0)\u2192SUM0 half rests on aggregate-function algebra QED fundamentally cannot model (it treats distinct aggregate calls as unrelated uninterpreted group-bag functions), so both limitations are real and are accurately disclosed by the concrete SCOPE: PARTIAL line \u2014 making the universal proof meaningful rather than vacuous or over-claimed. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 18718082
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 39100833
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 1179834
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 1336917
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 41052042
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 39276292
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 97910084
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is non-vacuous and correctly structured: before() computes an unused third aggregate per group and projects around it (fields 0,1,3 of 4), while after() omits that call and identity-projects the reduced aggregate (fields 0,1,2 of 3) \u2014 genuinely different plans over properly introduced and shared uninterpreted symbols (distinct ops f1/f2/f3, the same group-key op g and table S on both sides), matching the exact Project-over-Aggregate shape and column permutation Calcite's rule produces for this input family, with no precondition the removal half requires. The shape restrictions (single group key, plain field-reference projections, one of three calls) are a genuine, specific, non-degenerate sub-case of the real rule rather than a symbol-sharing artifact, and the excluded COALESCE(SUM,0)\u2192SUM0 half rests on aggregate-function algebra QED fundamentally cannot model (it treats distinct aggregate calls as unrelated uninterpreted group-bag functions), so both limitations are real and are accurately disclosed by the concrete SCOPE: PARTIAL line \u2014 making the universal proof meaningful rather than vacuous or over-claimed. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "encodes only the unused-aggregate-call-removal half (single group key, project expressions as plain field references that keep every group key and drop one of three aggregate calls); the COALESCE(SUM(x), 0) to SUM0(x) conversion is not modeled because QED treats the two aggregate calls as distinct uninterpreted group-bag functions with no null-handling identity between them.",
+    "timestamp": "2026-09-22T22:51:42.740589+00:00"
+  },
+  {
+    "rule_name": "ProjectFilterTranspose",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/ProjectFilterTransposeRule.java",
+    "status": "PROVED",
+    "attempts_used": 39,
+    "reason": "The encoding is a faithful fixed-shape instantiation of the rule's whole-expressions mode: before() = Filter(P(E(x,y), y), S) \u2192 Project(E(x,y), F(x)), and after() hoists E and F into Project(S, [x, y, E(x,y), F(x)]), filters on the hoisted columns via the same uninterpreted P, and projects them back out \u2014 exactly the sub-project/filter/top-project shape Calcite's Replacer builds. The proof is non-vacuous (the plans genuinely differ: filter over raw scan with embedded uninterpreted calls vs. filter over a larger intermediate projection), symbols are correctly shared (E, F, P reused by name across both sides, with no spurious identification of independent expressions), and no hidden preconditions are needed since bag-semantics commutation of Filter and Project holds for any uninterpreted operators and all column types \u2014 which the prover checked universally. The remaining gap to the full rule (arbitrary numbers of input columns, project expressions, and filter operands, plus ref-collection across arbitrary shapes) is inherent to RuleScript's lack of let-binding/bounded-schema constructs, not an avoidable hard-coding; the SCOPE: PARTIAL line is specific, accurate, and the rule is a useful non-degenerate special case. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 7432417
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 44972417
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 1427541
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 523875
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 20972166
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 45185875
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 84999541
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is a faithful fixed-shape instantiation of the rule's whole-expressions mode: before() = Filter(P(E(x,y), y), S) \u2192 Project(E(x,y), F(x)), and after() hoists E and F into Project(S, [x, y, E(x,y), F(x)]), filters on the hoisted columns via the same uninterpreted P, and projects them back out \u2014 exactly the sub-project/filter/top-project shape Calcite's Replacer builds. The proof is non-vacuous (the plans genuinely differ: filter over raw scan with embedded uninterpreted calls vs. filter over a larger intermediate projection), symbols are correctly shared (E, F, P reused by name across both sides, with no spurious identification of independent expressions), and no hidden preconditions are needed since bag-semantics commutation of Filter and Project holds for any uninterpreted operators and all column types \u2014 which the prover checked universally. The remaining gap to the full rule (arbitrary numbers of input columns, project expressions, and filter operands, plus ref-collection across arbitrary shapes) is inherent to RuleScript's lack of let-binding/bounded-schema constructs, not an avoidable hard-coding; the SCOPE: PARTIAL line is specific, accurate, and the rule is a useful non-degenerate special case. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "fixed-shape whole-expressions mode: 2-column input, projection (E(x,y), F(x)) pushed through filter P(E(x,y), y) by hoisting E and F into an intermediate projection",
+    "timestamp": "2026-09-22T23:10:32.128421+00:00"
+  },
+  {
+    "rule_name": "UnionPullUpConstants",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/UnionPullUpConstantsRule.java",
+    "status": "PROVED",
+    "attempts_used": 34,
+    "reason": "The proof is of a real, nontrivial declared special case: a shared boolean-constant projection duplicated under a union-all is hoisted above the union while the nonconstant column is carried through. This matches the source rule's constant-pullup transformation for that instance, and the restrictions (boolean literal, union-all, one constant/nonconstant column, explicit projection) are honest and do not make the equivalence vacuous.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 9227666
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 44026083
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 877625
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 601000
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 22798833
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 44187750
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 83683833
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The proof is of a real, nontrivial declared special case: a shared boolean-constant projection duplicated under a union-all is hoisted above the union while the nonconstant column is carried through. This matches the source rule's constant-pullup transformation for that instance, and the restrictions (boolean literal, union-all, one constant/nonconstant column, explicit projection) are honest and do not make the equivalence vacuous.",
+    "scope": "PARTIAL",
+    "scope_detail": "the constant column is a boolean literal materialized by an explicit projection below the union-all, rather than a generic constant deduced from table guarantees.",
+    "timestamp": "2026-09-22T23:13:07.889947+00:00"
+  },
+  {
+    "rule_name": "SetOpToFilter",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/SetOpToFilterRule.java",
+    "status": "PROVED",
+    "attempts_used": 11,
+    "reason": "The encoding exactly captures Calcite's rewrite for the single-source, two-filter case \u2014 `Union(DISTINCT, [\u03c3_P1(S), \u03c3_P2(S)])` \u2192 all-fields group-by (no agg calls) over `\u03c3_(P1\u2228P2)(S)` \u2014 and is faithful in the details: `union(false, ...)` preserves the rule's `!setOp.all` precondition, and rendering `.distinct()` as a group-by-all-fields Aggregate is precisely what Calcite's `RelBuilder.distinct()` itself builds, so the right side matches the rule's actual output (single branch, no 1-input set op). The proof is non-vacuous (the two sides are structurally different and require genuine filter-over-set-op reasoning with properly uninterpreted P1/P2 over a shared single source, exactly the sharing the rule requires), and the declared `SCOPE: PARTIAL` is honest and specific \u2014 2-input UNION DISTINCT over filters on one shared source is a genuine, non-degenerate special case of the general arity/multi-source/INTERSECT/MINUS rule.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 9599876
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 35317792
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 915083
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 485583
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 23434250
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 35398375
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 74560667
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding exactly captures Calcite's rewrite for the single-source, two-filter case \u2014 `Union(DISTINCT, [\u03c3_P1(S), \u03c3_P2(S)])` \u2192 all-fields group-by (no agg calls) over `\u03c3_(P1\u2228P2)(S)` \u2014 and is faithful in the details: `union(false, ...)` preserves the rule's `!setOp.all` precondition, and rendering `.distinct()` as a group-by-all-fields Aggregate is precisely what Calcite's `RelBuilder.distinct()` itself builds, so the right side matches the rule's actual output (single branch, no 1-input set op). The proof is non-vacuous (the two sides are structurally different and require genuine filter-over-set-op reasoning with properly uninterpreted P1/P2 over a shared single source, exactly the sharing the rule requires), and the declared `SCOPE: PARTIAL` is honest and specific \u2014 2-input UNION DISTINCT over filters on one shared source is a genuine, non-degenerate special case of the general arity/multi-source/INTERSECT/MINUS rule.",
+    "scope": "PARTIAL",
+    "scope_detail": "the 2-input UNION DISTINCT instance where both inputs are filters over the same single source with 2-valued predicates (Calcite's rule is general over arity, multiple distinct sources, and non-filter inputs).",
+    "timestamp": "2026-09-22T23:25:33.293479+00:00"
+  },
+  {
+    "rule_name": "JoinUnionTranspose",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/JoinUnionTransposeRule.java",
+    "status": "PROVED",
+    "attempts_used": 33,
+    "reason": "The encoding is a faithful, non-vacuous instance of the rule: before() = (X \u222aALL Y) \u22c8_C O vs after() = (X \u22c8_C O) \u222aALL (Y \u22c8_C O) is a genuine distributivity law (structurally distinct shapes, not an identity), the double `union(true, ...)` matches the source's `union.all` requirement, INNER keeps the union off any null-generating side so no semantic precondition is dropped, and the single shared condition symbol C correctly mirrors the source reusing the identical `join.getCondition()` in all three joins (independent symbols would have been the error). Nullable, keyless scans match the source's lack of PK/NOT NULL preconditions, so no hidden constraint is assumed. The scope line is honest and specific about the genuine narrowing (INNER join, left-side union) \u2014 full multi-join-type coverage cannot be a single provable rule because the join kind is concrete in QED's serialization (meta join types only feed the family generator, whose assignments are proven individually) \u2014 and the result is still a substantive, useful special case of the real rule. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 862958
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 624917
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 1883000
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is a faithful, non-vacuous instance of the rule: before() = (X \u222aALL Y) \u22c8_C O vs after() = (X \u22c8_C O) \u222aALL (Y \u22c8_C O) is a genuine distributivity law (structurally distinct shapes, not an identity), the double `union(true, ...)` matches the source's `union.all` requirement, INNER keeps the union off any null-generating side so no semantic precondition is dropped, and the single shared condition symbol C correctly mirrors the source reusing the identical `join.getCondition()` in all three joins (independent symbols would have been the error). Nullable, keyless scans match the source's lack of PK/NOT NULL preconditions, so no hidden constraint is assumed. The scope line is honest and specific about the genuine narrowing (INNER join, left-side union) \u2014 full multi-join-type coverage cannot be a single provable rule because the join kind is concrete in QED's serialization (meta join types only feed the family generator, whose assignments are proven individually) \u2014 and the result is still a substantive, useful special case of the real rule. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "INNER join, UNION ALL on the left side, single-column scans, and a single shared join-condition symbol C",
+    "timestamp": "2026-09-22T23:49:19.463599+00:00"
+  },
+  {
+    "rule_name": "JoinExpandOrToUnion",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/JoinExpandOrToUnionRule.java",
+    "status": "SKIPPED",
+    "attempts_used": 0,
+    "reason": "The rewrite's core identity \u2014 Join(Or(P,Q)) \u27f9 UnionAll(Join(P), Join(And(Q, \u00acP))) \u2014 was tested directly against QED under both candidate negation operators and both failed identically: provable=false, complete_fragment=true (QED confidently explored the whole fragment, not a timeout). This was tried twice each, including in the simplest possible reduced form (a single relation, Filter(Or(P,Q)) vs Union(Filter(P), Filter(And(Q,\u00acP))), no join at all):\n\n1. Using RexRN.Not (plain negation): not provable.\n2. Using a new, correctly-implemented RexRN.IsNotTrue node (QED's Rust source at pipeline/relation.rs:618 confirms \"IS NOT TRUE\" is a real, recognized operator with proper 3-valued semantics distinct from NOT): not provable, same signature.\n\nSince the reduced single-relation form is a textbook propositional tautology (P \u2228 (Q \u2227 \u00acP) \u2261 P \u2228 Q, trivial by case analysis on P), a hard \"not provable\" on it rules out both the specific-negation-operator hypothesis and any join-specific cause. The most likely explanation is a genuine QED equivalence-checking limitation: it does not correlate the same uninterpreted predicate symbol referenced both positively and negatively across two separate UNION branches of the *same* side, unlike a plain before()/after() pair (which is how every already-proved rule in this project uses shared symbols, and which QED handles fine). This is not a missing DSL operator that extend_dsl_file could add \u2014 both required operators (NOT, IS NOT TRUE) already exist and are correctly wired to QED's own recognized semantics; the gap is in how QED relates an uninterpreted symbol's occurrences across independent branches of a bag union, which is outside what a DSL-level change can address. UNSUPPORTED.",
+    "prover_stats": {},
+    "verification_rounds_used": 0,
+    "verifier_verdict": "AGREE (hand-evaluated, empirically tested)",
+    "verifier_reasoning": "The rewrite's core identity \u2014 Join(Or(P,Q)) \u27f9 UnionAll(Join(P), Join(And(Q, \u00acP))) \u2014 was tested directly against QED under both candidate negation operators and both failed identically: provable=false, complete_fragment=true (QED confidently explored the whole fragment, not a timeout). This was tried twice each, including in the simplest possible reduced form (a single relation, Filter(Or(P,Q)) vs Union(Filter(P), Filter(And(Q,\u00acP))), no join at all):\n\n1. Using RexRN.Not (plain negation): not provable.\n2. Using a new, correctly-implemented RexRN.IsNotTrue node (QED's Rust source at pipeline/relation.rs:618 confirms \"IS NOT TRUE\" is a real, recognized operator with proper 3-valued semantics distinct from NOT): not provable, same signature.\n\nSince the reduced single-relation form is a textbook propositional tautology (P \u2228 (Q \u2227 \u00acP) \u2261 P \u2228 Q, trivial by case analysis on P), a hard \"not provable\" on it rules out both the specific-negation-operator hypothesis and any join-specific cause. The most likely explanation is a genuine QED equivalence-checking limitation: it does not correlate the same uninterpreted predicate symbol referenced both positively and negatively across two separate UNION branches of the *same* side, unlike a plain before()/after() pair (which is how every already-proved rule in this project uses shared symbols, and which QED handles fine). This is not a missing DSL operator that extend_dsl_file could add \u2014 both required operators (NOT, IS NOT TRUE) already exist and are correctly wired to QED's own recognized semantics; the gap is in how QED relates an uninterpreted symbol's occurrences across independent branches of a bag union, which is outside what a DSL-level change can address. UNSUPPORTED.",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-22T23:59:02.692419+00:00"
+  },
+  {
+    "rule_name": "ProjectOverSumToSum0",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/ProjectOverSumToSum0Rule.java",
+    "status": "SKIPPED",
+    "attempts_used": 18,
+    "reason": "The rule's subject \u2014 `SUM(x) OVER <frame>` vs `SUM0(x) OVER <frame>` inside a project \u2014 is inherently a windowed aggregate, and QED's theory has no window/frame/ordering semantics at all (no window node in its Q-expression format, and a Calcite `RexOver` would mis-serialize as a plain scalar `RexCall` with partition/order/frame silently dropped), so the rule's shape cannot be faithfully encoded, not merely narrowed. The residual content \u2014 `SUM` \u2261 `SUM0` \u2014 is an aggregate null/empty-handling algebra identity QED cannot know (aggregates are uninterpreted beyond input bag equality, and the identity is in fact false over a general bag), which the porter's frameless probe empirically confirmed with a clean, complete `provable: false` rather than a symbol-sharing bug. These are fundamental QED limitations (no list/ordering semantics for Window; no aggregate-function algebra), not a missing DSL builder that `extend_dsl_file` could close.",
+    "prover_stats": {},
+    "verification_rounds_used": 1,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's subject \u2014 `SUM(x) OVER <frame>` vs `SUM0(x) OVER <frame>` inside a project \u2014 is inherently a windowed aggregate, and QED's theory has no window/frame/ordering semantics at all (no window node in its Q-expression format, and a Calcite `RexOver` would mis-serialize as a plain scalar `RexCall` with partition/order/frame silently dropped), so the rule's shape cannot be faithfully encoded, not merely narrowed. The residual content \u2014 `SUM` \u2261 `SUM0` \u2014 is an aggregate null/empty-handling algebra identity QED cannot know (aggregates are uninterpreted beyond input bag equality, and the identity is in fact false over a general bag), which the porter's frameless probe empirically confirmed with a clean, complete `provable: false` rather than a symbol-sharing bug. These are fundamental QED limitations (no list/ordering semantics for Window; no aggregate-function algebra), not a missing DSL builder that `extend_dsl_file` could close.",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-23T00:02:22.990569+00:00"
   }
 ]

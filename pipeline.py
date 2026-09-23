@@ -156,13 +156,27 @@ class Pipeline:
         return _run(["./mvnw", "-q", "compile"], cwd=self.repo_dir, timeout=300)
 
     def _classpath_cache_file(self) -> Path:
-        return CACHE_DIR / "classpath.txt"
+        # Keyed by repo_dir: the cached string bakes in
+        # f"{self.repo_dir}/target/classes", so two Pipelines pointed at two
+        # different checkouts (e.g. isolated per-rule workspaces) must never
+        # share one cache file — that would silently hand one workspace
+        # another workspace's target/classes path.
+        import hashlib
+        key = hashlib.sha1(str(self.repo_dir.resolve()).encode()).hexdigest()[:12]
+        return CACHE_DIR / f"classpath-{key}.txt"
 
     def ensure_classpath(self, force: bool = False) -> str:
         cache = self._classpath_cache_file()
         if not force and cache.exists():
             return cache.read_text().strip()
+        # The raw dependency-jar list (third-party libs only, no repo_dir
+        # baked in) genuinely is identical across every copy of this same
+        # pom.xml, so it's safe — and worth it — to share/reuse this one.
         out_file = CACHE_DIR / "cp_raw.txt"
+        if out_file.exists():
+            cp = f"{self.repo_dir / 'target/classes'}:{out_file.read_text().strip()}"
+            cache.write_text(cp)
+            return cp
         result = _run(
             [
                 "./mvnw",

@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from pipeline import Pipeline
@@ -67,15 +67,15 @@ class RepoTools:
     # snapshot of RRuleInstances/ at startup, so the rule currently being
     # worked on is never included (it isn't proved yet).
     baseline_proved_rules: tuple[str, ...] = ()
-    # Set True the moment *this* rule's own extend_dsl_file call actually
-    # keeps an edit. finalize_dsl_changes uses this — not a snapshot diff —
-    # to decide whether the DSL was touched by this rule specifically, since
-    # a snapshot diff alone can't tell "I changed it" apart from "another
-    # concurrently-running process changed it while I was running", and
-    # wrongly reverting the latter back to a stale per-rule snapshot would
-    # silently destroy a concurrent process's (or a human operator's)
-    # legitimate, independently-verified DSL change.
-    dsl_extended_this_run: bool = False
+    # Every *kept* extend_dsl_file edit this rule's own porter loop made,
+    # recorded as the exact (file, old_snippet, new_snippet, reason) that was
+    # applied. In isolated-workspace mode this rule is working in its own
+    # private copy of the DSL files, so this list is exactly what needs to be
+    # replayed onto the shared main repo at merge time — replaying the same
+    # snippet-match edit (rather than diffing two independently-evolving
+    # files) is what lets the merge fail cleanly if the main repo has moved
+    # on in a conflicting way, instead of silently doing the wrong thing.
+    dsl_edits: list = field(default_factory=list)
 
     def _root(self, root: str) -> Path:
         if root == "rulescript":
@@ -250,7 +250,9 @@ class RepoTools:
                         "previously-proved rule(s) would have broken.",
             }
 
-        self.dsl_extended_this_run = True
+        self.dsl_edits.append({
+            "file": file, "old_snippet": old_snippet, "new_snippet": new_snippet, "reason": reason,
+        })
         return {
             "ok": True, "file": file, "reason": reason,
             "regression_checked": checked,

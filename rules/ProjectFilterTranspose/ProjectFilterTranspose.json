@@ -1,0 +1,114 @@
+{
+  "help" : [ "LogicalProject($f0=[E($0, $1)], $f1=[F($0)])\n  LogicalFilter(condition=[P(E($0, $1), $1)])\n    LogicalTableScan(table=[[S]])\n", "LogicalProject($f2=[$2], $f3=[$3])\n  LogicalFilter(condition=[P($2, $1)])\n    LogicalProject(col-S-0=[$0], col-S-1=[$1], $f2=[E($0, $1)], $f3=[F($0)])\n      LogicalTableScan(table=[[S]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER", "INTEGER" ],
+    "nullable" : [ true, true ],
+    "name" : "S",
+    "guaranteed" : [ ],
+    "fields" : [ "col-S-0", "col-S-1" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "project" : {
+      "source" : {
+        "filter" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "type" : "INTEGER",
+              "operand" : [ {
+                "column" : 0,
+                "type" : "INTEGER"
+              }, {
+                "column" : 1,
+                "type" : "INTEGER"
+              } ],
+              "operator" : "E"
+            }, {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "P"
+          },
+          "source" : {
+            "scan" : 0
+          }
+        }
+      },
+      "target" : [ {
+        "type" : "INTEGER",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "E"
+      }, {
+        "type" : "INTEGER",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "F"
+      } ]
+    }
+  }, {
+    "project" : {
+      "source" : {
+        "filter" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 2,
+              "type" : "INTEGER"
+            }, {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "P"
+          },
+          "source" : {
+            "project" : {
+              "source" : {
+                "scan" : 0
+              },
+              "target" : [ {
+                "column" : 0,
+                "type" : "INTEGER"
+              }, {
+                "column" : 1,
+                "type" : "INTEGER"
+              }, {
+                "type" : "INTEGER",
+                "operand" : [ {
+                  "column" : 0,
+                  "type" : "INTEGER"
+                }, {
+                  "column" : 1,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "E"
+              }, {
+                "type" : "INTEGER",
+                "operand" : [ {
+                  "column" : 0,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "F"
+              } ]
+            }
+          }
+        }
+      },
+      "target" : [ {
+        "column" : 2,
+        "type" : "INTEGER"
+      }, {
+        "column" : 3,
+        "type" : "INTEGER"
+      } ]
+    }
+  } ]
+}

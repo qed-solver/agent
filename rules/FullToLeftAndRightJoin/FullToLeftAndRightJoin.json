@@ -1,0 +1,103 @@
+{
+  "help" : [ "LogicalJoin(condition=[=($0, $1)], joinType=[full])\n  LogicalTableScan(table=[[L]])\n  LogicalTableScan(table=[[R]])\n", "LogicalUnion(all=[true])\n  LogicalJoin(condition=[=($0, $1)], joinType=[left])\n    LogicalTableScan(table=[[L]])\n    LogicalTableScan(table=[[R]])\n  LogicalFilter(condition=[IS NOT TRUE(=($0, $1))])\n    LogicalJoin(condition=[=($0, $1)], joinType=[right])\n      LogicalTableScan(table=[[L]])\n      LogicalTableScan(table=[[R]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "L",
+    "guaranteed" : [ ],
+    "fields" : [ "col-L" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "R",
+    "guaranteed" : [ ],
+    "fields" : [ "col-R" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "="
+      },
+      "left" : {
+        "scan" : 0
+      },
+      "kind" : "FULL",
+      "right" : {
+        "scan" : 1
+      }
+    }
+  }, {
+    "union" : [ {
+      "join" : {
+        "condition" : {
+          "type" : "BOOLEAN",
+          "operand" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          }, {
+            "column" : 1,
+            "type" : "INTEGER"
+          } ],
+          "operator" : "="
+        },
+        "left" : {
+          "scan" : 0
+        },
+        "kind" : "LEFT",
+        "right" : {
+          "scan" : 1
+        }
+      }
+    }, {
+      "filter" : {
+        "condition" : {
+          "type" : "BOOLEAN",
+          "operand" : [ {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            }, {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "="
+          } ],
+          "operator" : "IS NOT TRUE"
+        },
+        "source" : {
+          "join" : {
+            "condition" : {
+              "type" : "BOOLEAN",
+              "operand" : [ {
+                "column" : 0,
+                "type" : "INTEGER"
+              }, {
+                "column" : 1,
+                "type" : "INTEGER"
+              } ],
+              "operator" : "="
+            },
+            "left" : {
+              "scan" : 0
+            },
+            "kind" : "RIGHT",
+            "right" : {
+              "scan" : 1
+            }
+          }
+        }
+      }
+    } ]
+  } ]
+}

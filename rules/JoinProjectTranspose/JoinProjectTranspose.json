@@ -1,0 +1,130 @@
+{
+  "help" : [ "LogicalJoin(condition=[C($0, $1)], joinType=[inner])\n  LogicalProject($f0=[TL($0, $1)])\n    LogicalTableScan(table=[[L]])\n  LogicalProject($f0=[TR($0, $1)])\n    LogicalTableScan(table=[[R]])\n", "LogicalProject($f0=[TL($0, $1)], $f1=[TR($2, $3)])\n  LogicalJoin(condition=[C(TL($0, $1), TR($2, $3))], joinType=[inner])\n    LogicalTableScan(table=[[L]])\n    LogicalTableScan(table=[[R]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER", "INTEGER" ],
+    "nullable" : [ true, true ],
+    "name" : "L",
+    "guaranteed" : [ ],
+    "fields" : [ "col-L-0", "col-L-1" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER", "INTEGER" ],
+    "nullable" : [ true, true ],
+    "name" : "R",
+    "guaranteed" : [ ],
+    "fields" : [ "col-R-0", "col-R-1" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "C"
+      },
+      "left" : {
+        "project" : {
+          "source" : {
+            "scan" : 0
+          },
+          "target" : [ {
+            "type" : "INTEGER",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            }, {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "TL"
+          } ]
+        }
+      },
+      "kind" : "INNER",
+      "right" : {
+        "project" : {
+          "source" : {
+            "scan" : 1
+          },
+          "target" : [ {
+            "type" : "INTEGER",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            }, {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "TR"
+          } ]
+        }
+      }
+    }
+  }, {
+    "project" : {
+      "source" : {
+        "join" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "type" : "INTEGER",
+              "operand" : [ {
+                "column" : 0,
+                "type" : "INTEGER"
+              }, {
+                "column" : 1,
+                "type" : "INTEGER"
+              } ],
+              "operator" : "TL"
+            }, {
+              "type" : "INTEGER",
+              "operand" : [ {
+                "column" : 2,
+                "type" : "INTEGER"
+              }, {
+                "column" : 3,
+                "type" : "INTEGER"
+              } ],
+              "operator" : "TR"
+            } ],
+            "operator" : "C"
+          },
+          "left" : {
+            "scan" : 0
+          },
+          "kind" : "INNER",
+          "right" : {
+            "scan" : 1
+          }
+        }
+      },
+      "target" : [ {
+        "type" : "INTEGER",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "TL"
+      }, {
+        "type" : "INTEGER",
+        "operand" : [ {
+          "column" : 2,
+          "type" : "INTEGER"
+        }, {
+          "column" : 3,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "TR"
+      } ]
+    }
+  } ]
+}

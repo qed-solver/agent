@@ -68,6 +68,7 @@ import dsl_audit  # noqa: E402
 import dsl_auditor_prompts  # noqa: E402
 import prompts  # noqa: E402
 import verifier_prompts  # noqa: E402
+import workspace  # noqa: E402
 from llm_client import (  # noqa: E402
     AgentTurn, LLMClient, LLMError, ToolCall,
     format_assistant_message, format_tool_results_message,
@@ -352,124 +353,139 @@ def snapshot_dsl_files(rulescript_root: Path) -> dict[str, str]:
     return {f: (base / f).read_text() for f in EXTENDABLE_DSL_FILES if (base / f).exists()}
 
 
-def finalize_dsl_changes(
-    pipeline: Pipeline, rulescript_root: Path, snapshot: dict[str, str],
-    rule_name: str, final_code: str | None, proved: bool,
-    baseline_proved: tuple[str, ...] = (), auditor_llm: LLMClient | None = None,
-    dsl_touched_by_this_rule: bool = False,
-) -> str:
-    """Whatever the porter did to RelRN.java/RexRN.java/JSONSerializer.java during
-    this run, decide automatically whether to keep it — never by trusting the
-    model's self-report. If the rule wasn't proved, or the DSL wasn't touched,
-    there's nothing to justify keeping a change. If it was proved, check whether
-    the exact same final code still proves against the *original* DSL: if so the
-    extension wasn't actually load-bearing and is reverted; only a change the
-    final proof genuinely depends on is kept.
+def merge_rule_to_main(
+    pipeline: Pipeline, rulescript_root: Path,
+    rule_name: str, final_code: str, dsl_edits: list[dict],
+    auditor_llm: LLMClient | None, progress_json_path: Path, lock_path: Path,
+) -> tuple[str, str]:
+    """Merge one rule's QED-confirmed proof, produced in its own isolated
+    workspace, into the shared main repo. If the porter's own extend_dsl_file
+    calls kept any DSL edits along the way (`dsl_edits`, from
+    `tools_obj.dsl_edits` — exact (file, old_snippet, new_snippet, reason)
+    records, the same primitive extend_dsl_file itself uses), replay each one
+    onto the main repo's *current* file — not a blind overwrite, so if the
+    main repo has moved on in a conflicting way since this workspace was
+    forked, the merge fails cleanly instead of silently clobbering something.
 
-    A change that looks load-bearing then goes through one more, independent
-    gate before being made permanent: a *fresh* re-proof of every rule proved
-    before this one started (not reusing whatever extend_dsl_file's own gate
-    found earlier), plus an independent LLM review of the literal diff, since
-    a change can coincidentally leave every existing proof intact while still
-    narrowing or altering what an operator means for a rule not yet written.
-    Either check failing reverts the extension — the rule that seemed to need
-    it is then unprovable again, so the caller must NOT treat it as proved.
+    Everything here runs inside a cross-process file lock (`merge_lock`) so
+    only one rule's merge touches the shared repo at a time, and is re-gated
+    exactly like extend_dsl_file/the old finalize_dsl_changes was: a fresh
+    compile, a fresh re-proof of every rule *currently* recorded PROVED (read
+    fresh, inside the lock — other rules may have merged in since this
+    workspace forked), a fresh re-proof of this rule itself against the
+    merged result, and — only if DSL files actually changed — an independent
+    LLM audit of the diff.
 
-    Returns "kept" | "reverted" | "kept-audit-failed" | "unchanged". Only
-    "kept" means the extension is now permanent and the proof stands; anything
-    else means the DSL is back to `snapshot` and (for "kept-audit-failed"
-    specifically) the caller's proof no longer holds without it.
-
-    `dsl_touched_by_this_rule` must come from this rule's own RepoTools
-    instance (`tools_obj.dsl_extended_this_run`), not from diffing `snapshot`
-    against the file's current contents: with several rules running
-    concurrently against the same shared DSL files, a diff alone can't tell
-    "this rule's own extend_dsl_file call changed it" apart from "some other
-    concurrently-running rule (or a human operator) changed it while this one
-    was in flight" — and treating the latter as this rule's own change would
-    revert (or "helpfully" keep) someone else's independently-verified edit
-    based on this rule's unrelated outcome.
+    Returns (status, detail). status == "merged" is the only success case;
+    anything else means nothing was merged (the main repo is exactly as it
+    was before this call) and the caller must not treat the rule as proved.
     """
-    if not dsl_touched_by_this_rule:
-        return "unchanged"
     base = rulescript_root / "src" / "main" / "java" / "org" / "qed"
-    changed = {f: content for f, content in snapshot.items() if (base / f).read_text() != content}
-    if not changed:
-        return "unchanged"
+    with workspace.merge_lock(lock_path):
+        pre_merge = {f: (base / f).read_text() for f in EXTENDABLE_DSL_FILES if (base / f).exists()}
 
-    current = {f: (base / f).read_text() for f in changed}
+        def restore_dsl() -> None:
+            for f, content in pre_merge.items():
+                (base / f).write_text(content)
 
-    def restore(files: dict[str, str]) -> None:
-        for f, content in files.items():
-            (base / f).write_text(content)
-        pipeline.compile()
+        applied_files: list[str] = []
+        for edit in dsl_edits:
+            f = edit["file"]
+            path = base / f
+            current = path.read_text()
+            if current.count(edit["old_snippet"]) != 1:
+                restore_dsl()
+                pipeline.compile()
+                return "merge-conflict", (
+                    f"{f}: this rule's recorded edit no longer applies cleanly to the current "
+                    "shared DSL (another rule's merge likely already changed that region since "
+                    "this workspace was forked). Needs a fresh attempt against the current DSL."
+                )
+            path.write_text(current.replace(edit["old_snippet"], edit["new_snippet"], 1))
+            applied_files.append(f)
 
-    if not proved or not final_code:
-        restore(snapshot)
-        print(f"   [dsl] reverted {list(changed)}: rule was not proved, no reason to keep the extension")
-        return "reverted"
+        regression_results: list[dict] = []
+        if dsl_edits:
+            compile_result = pipeline.compile()
+            if not compile_result.ok:
+                restore_dsl()
+                pipeline.compile()
+                return "merge-compile-failed", compile_result.output[:2000]
 
-    restore(snapshot)
-    compile_result = pipeline.compile()
-    still_works = False
-    if compile_result.ok:
+            current_baseline = ()
+            if progress_json_path.exists():
+                current_baseline = tuple(
+                    e["rule_name"] for e in json.loads(progress_json_path.read_text())
+                    if e["status"] == "PROVED" and e["rule_name"] != rule_name
+                )
+            regression_results = dsl_audit.run_regression_audit(
+                pipeline, list(current_baseline), ROOT_DIR / ".cache" / "tmp-rules"
+            )
+            regressions = [r for r in regression_results if not r["ok"]]
+            if regressions:
+                restore_dsl()
+                pipeline.compile()
+                return "merge-regressed", (
+                    f"{len(regressions)} previously-proved rule(s) would break: "
+                    + ", ".join(r["rule"] for r in regressions)
+                )
+
         pipeline.write_rule(rule_name, final_code)
-        json_result, json_path = pipeline.generate_json(rule_name, ROOT_DIR / ".cache" / "tmp-rules")
-        if json_result.ok and json_path.exists():
+        rule_compile = pipeline.compile()
+        ok = rule_compile.ok
+        json_path = None
+        if ok:
+            json_result, json_path = pipeline.generate_json(rule_name, ROOT_DIR / ".cache" / "tmp-rules")
+            ok = json_result.ok and json_path.exists()
+        if ok:
             _, parsed = pipeline.run_prover(json_path)
-            still_works = bool(parsed and parsed.get("provable") is True)
+            ok = bool(parsed and parsed.get("provable") is True)
+        if not ok:
+            pipeline.remove_rule(rule_name)
+            if dsl_edits:
+                restore_dsl()
+            pipeline.compile()
+            return "merge-reproof-failed", (
+                "The rule no longer re-proves against the current shared repo state — it may "
+                "have diverged from what this rule's isolated workspace assumed."
+            )
 
-    if still_works:
-        print(f"   [dsl] reverted {list(changed)}: final encoding proves fine without it")
-        return "reverted"
+        if dsl_edits:
+            diffs = {f: dsl_audit.unified_diff(pre_merge[f], (base / f).read_text(), f) for f in applied_files}
+            reason = "; ".join(e["reason"] for e in dsl_edits)
+            llm_verdict, llm_reasoning = "NO_AUDITOR", "(no auditor LLM configured — diff not independently reviewed)"
+            if auditor_llm is not None:
+                system = dsl_auditor_prompts.system_prompt()
+                prompt = "\n\n".join(
+                    dsl_auditor_prompts.review_dsl_change(f, diffs[f], reason, rule_name) for f in applied_files
+                )
+                try:
+                    reply = auditor_llm.complete(system, [{"role": "user", "content": prompt}])
+                    llm_verdict, llm_reasoning = verifier_prompts.parse_verdict(reply)
+                    if llm_verdict is None:
+                        llm_verdict = "UNSAFE"
+                        llm_reasoning = f"(auditor reply unparseable, conservatively rejecting: {reply[:300]!r})"
+                except LLMError as e:
+                    llm_verdict, llm_reasoning = "UNSAFE", f"(auditor LLM call failed, conservatively rejecting: {e})"
 
-    # It looks load-bearing. Before making it permanent: independent audit.
-    restore(current)
-    pipeline.write_rule(rule_name, final_code)
+            if llm_verdict == "UNSAFE":
+                pipeline.remove_rule(rule_name)
+                restore_dsl()
+                pipeline.compile()
+                dsl_audit.write_report(
+                    pipeline.rules_out_dir, rule_name, diffs, reason, regression_results,
+                    llm_verdict, llm_reasoning, "reverted (auditor: UNSAFE)",
+                )
+                return "merge-audit-failed", llm_reasoning
 
-    diffs = {f: dsl_audit.unified_diff(snapshot[f], current[f], f) for f in changed}
-    reason = f"(extension made while porting {rule_name})"
+            dsl_audit.write_report(
+                pipeline.rules_out_dir, rule_name, diffs, reason, regression_results,
+                llm_verdict, llm_reasoning, "merged",
+            )
+            print(f"   [dsl] merged {applied_files}: {len(regression_results)} prior rule(s) "
+                  f"re-verified fresh, auditor={llm_verdict}")
 
-    regression_results = dsl_audit.run_regression_audit(
-        pipeline, list(baseline_proved), ROOT_DIR / ".cache" / "tmp-rules"
-    )
-    regressions = [r for r in regression_results if not r["ok"]]
-
-    llm_verdict, llm_reasoning = "NO_AUDITOR", "(no auditor LLM configured — diff not independently reviewed)"
-    if auditor_llm is not None and not regressions:
-        system = dsl_auditor_prompts.system_prompt()
-        prompt = "\n\n".join(
-            dsl_auditor_prompts.review_dsl_change(f, diffs[f], reason, rule_name) for f in changed
-        )
-        try:
-            reply = auditor_llm.complete(system, [{"role": "user", "content": prompt}])
-            llm_verdict, llm_reasoning = verifier_prompts.parse_verdict(reply)
-            if llm_verdict is None:
-                llm_verdict = "UNSAFE"
-                llm_reasoning = f"(auditor reply unparseable, conservatively rejecting: {reply[:300]!r})"
-        except LLMError as e:
-            llm_verdict, llm_reasoning = "UNSAFE", f"(auditor LLM call failed, conservatively rejecting: {e})"
-
-    if regressions or llm_verdict == "UNSAFE":
-        outcome = "reverted (regression)" if regressions else "reverted (auditor: UNSAFE)"
-        dsl_audit.write_report(
-            pipeline.rules_out_dir, rule_name, diffs, reason, regression_results,
-            llm_verdict, llm_reasoning, outcome,
-        )
-        restore(snapshot)
-        pipeline.remove_rule(rule_name)
-        print(f"   [dsl audit] reverted {list(changed)}: "
-              + (f"{len(regressions)} regression(s) on fresh re-proof" if regressions
-                 else "independent LLM auditor flagged it UNSAFE"))
-        return "kept-audit-failed"
-
-    dsl_audit.write_report(
-        pipeline.rules_out_dir, rule_name, diffs, reason, regression_results,
-        llm_verdict, llm_reasoning, "kept",
-    )
-    print(f"   [dsl] kept {list(changed)}: the accepted proof genuinely depends on it "
-          f"({len(regression_results)} prior rule(s) re-verified fresh, auditor={llm_verdict})")
-    return "kept"
+        return "merged", "ok"
 
 
 SUMMARIZER_ROLE_PREAMBLE = """You are a careful technical note-taker working alongside a separate agent (the
@@ -637,6 +653,9 @@ def run_one(
     max_rounds: int,
     offline_code: str | None = None,
     auditor_llm: LLMClient | None = None,
+    workspaces_dir: Path | None = None,
+    merge_lock_path: Path | None = None,
+    progress_json_path: Path | None = None,
 ) -> RuleAttempt:
     print(f"\n=== Porting {spec.name} (from {spec.backend}) ===")
     system = prompts.system_prompt()
@@ -645,15 +664,33 @@ def run_one(
         {"role": "user", "content": prompts.initial_user_prompt(spec.name, spec.backend, spec.source_path, source_hint)}
     ]
     source_text = read_source_text(calcite_root, spec.source_path)
+
+    # This rule gets its own private copy of the whole Maven project to work
+    # in. Nothing it does — including a DSL extension — touches (or is
+    # visible to) the shared main repo, or any other concurrently-running
+    # rule, until it has a real, QED-confirmed proof and merge_rule_to_main
+    # successfully lands it. See workspace.py for why.
+    isolated = workspaces_dir is not None
+    if isolated:
+        workspace_root = workspace.make_workspace(rulescript_root, workspaces_dir, spec.name)
+        worker_pipeline = Pipeline(workspace_root, pipeline.qed_prover_bin, rules_out_dir=pipeline.rules_out_dir)
+    else:
+        workspace_root = rulescript_root
+        worker_pipeline = pipeline
+
     baseline_proved = tuple(
-        p.stem for p in pipeline.rules_dir.glob("*.java") if p.stem != spec.name
+        p.stem for p in worker_pipeline.rules_dir.glob("*.java") if p.stem != spec.name
     )
     tools_obj = RepoTools(
-        rulescript_root, calcite_root, pipeline, spec.name, ROOT_DIR / ".cache" / "tmp-rules",
+        workspace_root, calcite_root, worker_pipeline, spec.name, ROOT_DIR / ".cache" / "tmp-rules",
         baseline_proved_rules=baseline_proved,
     )
-    dsl_snapshot = snapshot_dsl_files(rulescript_root)
+    dsl_snapshot = snapshot_dsl_files(workspace_root)
     debug_dir = ROOT_DIR / ".cache" / "transcripts"
+
+    def cleanup() -> None:
+        if isolated:
+            workspace.cleanup_workspace(workspace_root)
 
     total_turns = 0
     last_reason = ""
@@ -676,42 +713,30 @@ def run_one(
             )
             last_verifier_verdict, last_verifier_reasoning = verdict, reasoning
             if verdict in (NO_VERIFIER, "CONFIRMED"):
-                dsl_status = finalize_dsl_changes(
-                    pipeline, rulescript_root, dsl_snapshot, spec.name, result.code, True,
-                    baseline_proved=baseline_proved, auditor_llm=auditor_llm,
-                    dsl_touched_by_this_rule=tools_obj.dsl_extended_this_run,
-                )
-                if dsl_status == "kept-audit-failed":
-                    print("   [dsl audit] the extension this proof depended on failed independent audit; "
-                          "rule is no longer proved without it")
-                    audit_failure_note = (
-                        "The proof itself was confirmed faithful, but it depended on a DSL extension "
-                        "that failed an independent audit afterward (broke a previously-proved rule on "
-                        "a fresh re-check, or was judged unsafe/non-additive) and has been reverted. "
-                        "The rule is NOT proved — this candidate does not currently work."
+                if isolated:
+                    merge_status, merge_detail = merge_rule_to_main(
+                        pipeline, rulescript_root, spec.name, result.code, tools_obj.dsl_edits,
+                        auditor_llm, progress_json_path, merge_lock_path,
                     )
-                    self_summary = summarize_round(
-                        llm, system, result.round_log, audit_failure_note, debug_dir, spec.name, round_num
+                else:
+                    # Legacy non-isolated path: pipeline IS the main repo, so
+                    # "merging" is just writing the rule in place.
+                    pipeline.write_rule(spec.name, result.code)
+                    merge_status, merge_detail = "merged", "ok"
+                if merge_status != "merged":
+                    print(f"   [merge] failed ({merge_status}): {merge_detail}")
+                    cleanup()
+                    return RuleAttempt(
+                        spec.name, spec.backend, spec.description, "FAILED", total_turns,
+                        reason=f"Proved in an isolated workspace but failed to merge into the shared "
+                               f"repo ({merge_status}): {merge_detail}",
+                        prover_stats=result.prover_json, verification_rounds_used=round_num,
+                        verifier_verdict=verdict, verifier_reasoning=reasoning,
                     )
-                    conversation = [{
-                        "role": "user",
-                        "content": round_continuation_prompt(
-                            spec, source_hint, result.code,
-                            "Your proof depended on a DSL extension that failed an independent audit "
-                            "after the fact (either it broke a previously-proved rule on a fresh "
-                            "re-check, or an independent reviewer judged the change unsafe or "
-                            "non-additive) and has been reverted. The rule is no longer proved:",
-                            "Try a different approach that doesn't rely on that extension, or propose "
-                            "a different, more clearly additive extension if the gap is still real.",
-                            self_summary,
-                        ),
-                    }]
-                    continue
-                final_path = pipeline.write_rule(spec.name, result.code)
                 scope, scope_detail = extract_scope(result.code)
                 final_reasoning = reasoning + (
                     "\n\n(This proof relies on an accepted RuleScript DSL extension made during "
-                    "this session — see the extended file(s) for what changed.)" if dsl_status == "kept" else ""
+                    "this session — see the extended file(s) for what changed.)" if tools_obj.dsl_edits else ""
                 )
                 pipeline.publish(
                     spec.name, result.code, status="PROVED", spec_backend=spec.backend,
@@ -720,9 +745,10 @@ def run_one(
                     verifier_reasoning=final_reasoning, attempts_used=total_turns, rounds_used=round_num,
                     scope=scope, scope_detail=scope_detail,
                 )
-                print(f"   verifier {verdict}: wrote verified rule to {final_path} [SCOPE: {scope}]")
+                print(f"   verifier {verdict}: merged into shared repo [SCOPE: {scope}]")
                 print(f"   published for inspection under rules/{spec.name}/")
                 clear_all_transcripts(debug_dir, spec.name)
+                cleanup()
                 return RuleAttempt(
                     spec.name, spec.backend, spec.description, "PROVED", total_turns,
                     reason=final_reasoning, prover_stats=result.prover_json,
@@ -730,7 +756,7 @@ def run_one(
                     verifier_reasoning=final_reasoning, scope=scope, scope_detail=scope_detail,
                 )
             print(f"   verifier {verdict}: {reasoning}")
-            pipeline.remove_rule(spec.name)
+            worker_pipeline.remove_rule(spec.name)
             self_summary = summarize_round(
                 llm, system, result.round_log,
                 f"REJECTED — the proof was not accepted as faithful: {reasoning}",
@@ -754,11 +780,10 @@ def run_one(
         last_verifier_verdict, last_verifier_reasoning = verdict, reasoning
         if verdict in (NO_VERIFIER, "AGREE"):
             print(f"   verifier {verdict}: finalizing as SKIPPED — {reasoning}")
-            finalize_dsl_changes(
-                pipeline, rulescript_root, dsl_snapshot, spec.name, None, False,
-                dsl_touched_by_this_rule=tools_obj.dsl_extended_this_run,
-            )
-            pipeline.remove_rule(spec.name)
+            # Nothing to merge: this rule's own DSL edits (if it made any)
+            # simply vanish along with its isolated workspace below — never
+            # touching the shared repo, so there's no revert to perform.
+            worker_pipeline.remove_rule(spec.name)
             if result.code:
                 pipeline.stash_unprovable(spec.name, result.code, reasoning)
             pipeline.publish(
@@ -769,6 +794,7 @@ def run_one(
             )
             print(f"   published (reasoning{'' if result.code else ' only, no candidate code'}) under rules/{spec.name}/")
             clear_all_transcripts(debug_dir, spec.name)
+            cleanup()
             return RuleAttempt(
                 spec.name, spec.backend, spec.description, "SKIPPED", total_turns,
                 reason=reasoning, prover_stats=last_stats,
@@ -792,11 +818,7 @@ def run_one(
         }]
 
     print("   exhausted all verification rounds; marking FAILED for human follow-up")
-    finalize_dsl_changes(
-        pipeline, rulescript_root, dsl_snapshot, spec.name, None, False,
-        dsl_touched_by_this_rule=tools_obj.dsl_extended_this_run,
-    )
-    pipeline.remove_rule(spec.name)
+    worker_pipeline.remove_rule(spec.name)
     last_code = result.code  # from the final round's PorterResult
     if last_code:
         pipeline.stash_unprovable(spec.name, last_code, last_reason)
@@ -807,6 +829,7 @@ def run_one(
         attempts_used=total_turns, rounds_used=max_rounds,
     )
     print(f"   published (reasoning{'' if last_code else ' only, no candidate code'}) under rules/{spec.name}/")
+    cleanup()
     return RuleAttempt(
         spec.name, spec.backend, spec.description, "FAILED", total_turns,
         reason=last_reason, prover_stats=last_stats,
@@ -889,6 +912,23 @@ def main():
     parser.add_argument("--progress-md", type=Path, default=ROOT_DIR / "PROGRESS.md")
     parser.add_argument("--progress-json", type=Path, default=ROOT_DIR / "progress.json")
     parser.add_argument(
+        "--no-isolation", action="store_true",
+        help="Work directly against --repo instead of giving each rule its own private copy. "
+             "Only safe for a single rule at a time with nothing else touching --repo "
+             "concurrently — with --isolation (the default), several port_rule.py processes "
+             "can safely run at once, each porting a different rule, merging into --repo only "
+             "once a rule is actually QED-confirmed.",
+    )
+    parser.add_argument(
+        "--workspaces-dir", type=Path, default=ROOT_DIR / ".cache" / "workspaces",
+        help="Where each rule's isolated private copy of --repo is created (ignored with --no-isolation).",
+    )
+    parser.add_argument(
+        "--merge-lock", type=Path, default=ROOT_DIR / ".cache" / "merge.lock",
+        help="Cross-process lock file guarding the merge-into-main step, so two concurrently "
+             "running port_rule.py processes never merge at the same time (ignored with --no-isolation).",
+    )
+    parser.add_argument(
         "--offline-code",
         type=Path,
         help="Skip the LLM for the porter's first turn and directly call try_rule with this "
@@ -948,6 +988,9 @@ def main():
                 spec, pipeline, llm, verifier_llm, args.repo, args.calcite_root,
                 args.max_turns, args.max_verification_rounds, offline_code_text,
                 auditor_llm=auditor_llm,
+                workspaces_dir=None if args.no_isolation else args.workspaces_dir,
+                merge_lock_path=args.merge_lock,
+                progress_json_path=args.progress_json,
             )
         except LLMError as e:
             attempt = RuleAttempt(spec.name, spec.backend, spec.description, "FAILED", 0, f"LLM error: {e}")

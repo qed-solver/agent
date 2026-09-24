@@ -211,11 +211,12 @@ class LLMClient:
                 args = {}
             tool_calls.append(ToolCall(id=tc["id"], name=tc["function"]["name"], arguments=args))
         truncated = choice.get("finish_reason") == "length"
+        raw_reasoning = message.get("reasoning_content") or message.get("reasoning") or ""
         content = _strip_thinking(message.get("content") or "")
-        if not content and not tool_calls and not truncated:
-            content = _strip_thinking(message.get("reasoning_content") or message.get("reasoning") or "")
+        if not content and not tool_calls:
+            content = _strip_thinking(raw_reasoning)
         if truncated and not tool_calls:
-            content += "\n\n[NOTE: response was truncated at the token limit before finishing.]"
+            content += "\n\n[NOTE: the above reasoning was truncated at the token limit before finishing — continue from here instead of starting over.]"
         return AgentTurn(content=content, tool_calls=tool_calls)
 
     def _post(self, headers: dict, body: dict) -> dict:

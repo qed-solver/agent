@@ -1,0 +1,442 @@
+[
+  {
+    "rule_name": "EliminateNot",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/bool.opt\n\nEliminateNot discards a doubled Not operator.\n\nExtracted from `bool.opt` (which defines multiple rules \u2014 implement specifically `EliminateNot`, not the other rules in that file):\n\n```\n# EliminateNot discards a doubled Not operator.\n[EliminateNot, Normalize]\n(Not (Not $input:*))\n=>\n$input\n```",
+    "status": "PROVED",
+    "attempts_used": 5,
+    "reason": "The encoding directly captures `EliminateNot` by removing a doubled `NOT` around the same uninterpreted predicate while keeping the same source and filter context. The `scan`/`filter` wrapper is only the relational vehicle needed to give the boolean expression meaning, and the uninterpreted predicate makes the result universal over arbitrary boolean inputs without adding extra assumptions.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 336500
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding directly captures `EliminateNot` by removing a doubled `NOT` around the same uninterpreted predicate while keeping the same source and filter context. The `scan`/`filter` wrapper is only the relational vehicle needed to give the boolean expression meaning, and the uninterpreted predicate makes the result universal over arbitrary boolean inputs without adding extra assumptions.",
+    "scope": "FULL",
+    "scope_detail": "public record EliminateNot() implements RRule {",
+    "timestamp": "2026-09-24T07:26:02.759736+00:00"
+  },
+  {
+    "rule_name": "EliminateUnaryMinus",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/numeric.opt\n\nEliminateUnaryMinus discards a doubled UnaryMinus operator.\n\nExtracted from `numeric.opt` (which defines multiple rules \u2014 implement specifically `EliminateUnaryMinus`, not the other rules in that file):\n\n```\n# EliminateUnaryMinus discards a doubled UnaryMinus operator.\n[EliminateUnaryMinus, Normalize]\n(UnaryMinus (UnaryMinus $input:*))\n=>\n$input\n```",
+    "status": "SKIPPED",
+    "attempts_used": 20,
+    "reason": "EliminateUnaryMinus is a pure scalar algebraic identity \u2014 numeric negation being an involution, \u2212(\u2212x) = x \u2014 and the only faithful encoding in RuleScript is a projection operator by name (e.g. scan \u2192 project(\"neg\", project(\"neg\", x)) \u2261 x), which QED models as an uninterpreted function with no involution axiom, so SMT refutes it with a countermodel where \"neg\" is an arbitrary non-involutive function. That property is exactly a backend operator's bespoke internal semantics, which lives in the Rust prover's theory (off-limits) and cannot be supplied by any Java DSL extension; asserting f(f(x))=x as a table \"guaranteed\" constraint would merely assume the conclusion, and a boolean Not(Not(p))\u2261p encoding would be a different rule, not a special case of numeric negation. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 1,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "EliminateUnaryMinus is a pure scalar algebraic identity \u2014 numeric negation being an involution, \u2212(\u2212x) = x \u2014 and the only faithful encoding in RuleScript is a projection operator by name (e.g. scan \u2192 project(\"neg\", project(\"neg\", x)) \u2261 x), which QED models as an uninterpreted function with no involution axiom, so SMT refutes it with a countermodel where \"neg\" is an arbitrary non-involutive function. That property is exactly a backend operator's bespoke internal semantics, which lives in the Rust prover's theory (off-limits) and cannot be supplied by any Java DSL extension; asserting f(f(x))=x as a table \"guaranteed\" constraint would merely assume the conclusion, and a boolean Not(Not(p))\u2261p encoding would be a different rule, not a special case of numeric negation. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-24T07:31:20.773927+00:00"
+  },
+  {
+    "rule_name": "FoldNotFalse",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/bool.opt\n\nFoldNotFalse replaces NOT(False) with True.\n\nExtracted from `bool.opt` (which defines multiple rules \u2014 implement specifically `FoldNotFalse`, not the other rules in that file):\n\n```\n# FoldNotFalse replaces NOT(False) with True.\n[FoldNotFalse, Normalize]\n(Not (False))\n=>\n(True)\n```",
+    "status": "PROVED",
+    "attempts_used": 4,
+    "reason": "The encoding is non-vacuous (Filter(Not(False), R) vs. Filter(True, R) are structurally distinct) and matches the source rule term-for-term: FoldNotFalse is a closed, non-schematic rewrite NOT(FALSE) \u27f9 TRUE with no variables to leave uninterpreted, so the unconstrained scan is a neutral carrier, the filter condition is the DSL's minimal relational vehicle for a boolean term (same carrier as the FilterMerge example), and no rule instance is left out \u2014 the DSL has no expression-level hole to quantify over arbitrary positions, so this is as general as the rule can be expressed here, making the FULL tag honest. No preconditions (keys, NOT NULL) are involved and the literal is non-null, so no null-semantics edge case is silently dropped; the 0.26 ms proof is simply reflecting that the rule's content is a trivial constant identity, not a degenerate encoding.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 260666
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is non-vacuous (Filter(Not(False), R) vs. Filter(True, R) are structurally distinct) and matches the source rule term-for-term: FoldNotFalse is a closed, non-schematic rewrite NOT(FALSE) \u27f9 TRUE with no variables to leave uninterpreted, so the unconstrained scan is a neutral carrier, the filter condition is the DSL's minimal relational vehicle for a boolean term (same carrier as the FilterMerge example), and no rule instance is left out \u2014 the DSL has no expression-level hole to quantify over arbitrary positions, so this is as general as the rule can be expressed here, making the FULL tag honest. No preconditions (keys, NOT NULL) are involved and the literal is non-null, so no null-semantics edge case is silently dropped; the 0.26 ms proof is simply reflecting that the rule's content is a trivial constant identity, not a degenerate encoding.",
+    "scope": "FULL",
+    "scope_detail": "public record FoldNotFalse() implements RRule {",
+    "timestamp": "2026-09-24T07:36:36.521196+00:00"
+  },
+  {
+    "rule_name": "NegateComparison",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/bool.opt\n\nNegateComparison inverts eligible comparison operators when they are negated\nby the Not operator. For example, Eq maps to Ne, and Gt maps to Le. All\ncomparisons can be negated except for the JSON and Geospatial comparisons.\n\nExtracted from `bool.opt` (which defines multiple rules \u2014 implement specifically `NegateComparison`, not the other rules in that file):\n\n```\n# NegateComparison inverts eligible comparison operators when they are negated\n# by the Not operator. For example, Eq maps to Ne, and Gt maps to Le. All\n# comparisons can be negated except for the JSON and Geospatial comparisons.\n[NegateComparison, Normalize]\n(Not\n    $input:(Comparison $left:* $right:*) &\n        (CanNegateComparison $op:(OpName $input))\n)\n=>\n(NegateComparison $op $left $right)\n```",
+    "status": "SKIPPED",
+    "attempts_used": 20,
+    "reason": "NegateComparison is not a pure And/Or/Not identity; it depends on specific comparison-operator algebra, e.g. \u00acEQ being NE and \u00acGT being LE. RuleScript/QED treats predicate symbols as uninterpreted and has no axioms linking an operator to its negated counterpart, so QED cannot prove this rewrite for any non-trivial comparison pair. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 1,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "NegateComparison is not a pure And/Or/Not identity; it depends on specific comparison-operator algebra, e.g. \u00acEQ being NE and \u00acGT being LE. RuleScript/QED treats predicate symbols as uninterpreted and has no axioms linking an operator to its negated counterpart, so QED cannot prove this rewrite for any non-trivial comparison pair. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-24T07:41:28.689596+00:00"
+  },
+  {
+    "rule_name": "EliminateDistinct",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/groupby.opt\n\nEliminateDistinct discards a DistinctOn operator that is eliminating duplicate\nrows by using grouping columns that are statically known to form a strict key.\nBy definition, a strict key does not allow duplicate values, so the GroupBy is\nredundant and can be eliminated.\n\nSince a DistinctOn operator can serve as a projection operator, we need to\nreplace it with a Project so that the correct columns are projected. The\nproject itself may be eliminated later by other rules.\n\nExtracted from `groupby.opt` (which defines multiple rules \u2014 implement specifically `EliminateDistinct`, not the other rules in that file):\n\n```\n# EliminateDistinct discards a DistinctOn operator that is eliminating duplicate\n# rows by using grouping columns that are statically known to form a strict key.\n# By definition, a strict key does not allow duplicate values, so the GroupBy is\n# redundant and can be eliminated.\n#\n# Since a DistinctOn operator can serve as a projection operator, we need to\n# replace it with a Project so that the correct columns are projected. The\n# project itself may be eliminated later by other rules.\n[EliminateDistinct, Normalize]\n(DistinctOn | EnsureDistinctOn\n    $input:*\n    $aggs:*\n    $groupingPrivate:* &\n        (ColsAreStrictKey (GroupingCols $groupingPrivate) $input)\n)\n=>\n(Project $input [] (GroupingOutputCols $groupingPrivate $aggs))\n```",
+    "status": "PROVED",
+    "attempts_used": 26,
+    "reason": "The encoding is structurally faithful: DistinctOn is exactly a group-by with no aggregation calls (matching `Aggregate(source, [field(0)], [])`), and the RHS is a plain `Project` of the input's grouping column, and the source rule's one substantive precondition \u2014 grouping columns statically form a strict key of the input \u2014 is correctly expressed as the scan's declared `unique` non-nullable key, which is precisely what makes before/after non-vacuously different (the proof can only hold because of that key; without it a group-by over a duplicate column would not equal a plain projection). The narrowing (base-table input, single grouping column, identity projection) is forced by real QED/DSL limits \u2014 strict keys can only be declared on `scan` (a `ScanMany` cannot declare a key, and no other node exposes key declarations) \u2014 and the file's SCOPE line states exactly these assumptions, so the partial scope is honest and the result is a genuine, non-degenerate proof. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 340041
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is structurally faithful: DistinctOn is exactly a group-by with no aggregation calls (matching `Aggregate(source, [field(0)], [])`), and the RHS is a plain `Project` of the input's grouping column, and the source rule's one substantive precondition \u2014 grouping columns statically form a strict key of the input \u2014 is correctly expressed as the scan's declared `unique` non-nullable key, which is precisely what makes before/after non-vacuously different (the proof can only hold because of that key; without it a group-by over a duplicate column would not equal a plain projection). The narrowing (base-table input, single grouping column, identity projection) is forced by real QED/DSL limits \u2014 strict keys can only be declared on `scan` (a `ScanMany` cannot declare a key, and no other node exposes key declarations) \u2014 and the file's SCOPE line states exactly these assumptions, so the partial scope is honest and the result is a genuine, non-degenerate proof. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "assumes the DistinctOn's input is a base table whose single grouping column is statically known to be a strict key (declared unique) and there are no aggregate output columns, so the distinct is a plain group-by on that column and the replacement Project just projects it.",
+    "timestamp": "2026-09-24T07:44:05.564089+00:00"
+  },
+  {
+    "rule_name": "EliminateWindow",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/window.opt\n\nEliminateWindow removes a Window operator with no window functions (which can\noccur via column pruning).\n\nExtracted from `window.opt` (which defines multiple rules \u2014 implement specifically `EliminateWindow`, not the other rules in that file):\n\n```\n# EliminateWindow removes a Window operator with no window functions (which can\n# occur via column pruning).\n[EliminateWindow, Normalize]\n(Window $input:* [])\n=>\n$input\n```",
+    "status": "SKIPPED",
+    "attempts_used": 9,
+    "reason": "RuleScript has no Window builder and QED\u2019s serializer/prover have no window semantics, so the source left-hand side cannot be represented as a window node. Modeling an empty window as an identity projection instead only proves the unrelated identity-projection tautology, not that CockroachDB\u2019s no-op Window operator can be eliminated.",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "RuleScript has no Window builder and QED\u2019s serializer/prover have no window semantics, so the source left-hand side cannot be represented as a window node. Modeling an empty window as an identity projection instead only proves the unrelated identity-projection tautology, not that CockroachDB\u2019s no-op Window operator can be eliminated.",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-24T07:44:05.767331+00:00"
+  },
+  {
+    "rule_name": "SimplifyAndFalse",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/bool.opt\n\nSimplifyAndFalse maps the And operator to False if its right input is False.\n\nExtracted from `bool.opt` (which defines multiple rules \u2014 implement specifically `SimplifyAndFalse`, not the other rules in that file):\n\n```\n# SimplifyAndFalse maps the And operator to False if its right input is False.\n[SimplifyAndFalse, Normalize]\n(And * $right:(False))\n=>\n$right\n```",
+    "status": "PROVED",
+    "attempts_used": 4,
+    "reason": "The encoding faithfully captures `(And * (False)) => (False)`: the left operand is a fully uninterpreted predicate (universally quantified over all instantiations, which subsumes any boolean expression the `*` could match), the right operand is correctly hard-coded as the literal `False` because the rule requires the syntactic False constant, and `before()`/`after()` genuinely differ (the And conjunct is eliminated), so the proof is non-vacuous. Embedding the boolean identity in filter position over an arbitrary, unconstrained scan is the standard semantics-preserving translation in this DSL (same treatment as the FilterMerge worked example), and in QED's two-valued semantics the proven statement `\u2200R, f: filter(And(f,\u22a5)) = filter(\u22a5)` is exactly equivalent to the pointwise expression equality `And(x, False) \u2261 False` for all x \u2014 no keys, NOT NULLs, or other preconditions are assumed that the unguarded source rule does not itself impose, and the single symbol `left` is shared only where the source pattern requires. Hence `// SCOPE: FULL` is honest: no assumption anywhere narrows the family beyond the canonical relational witness of the expression rule.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 284458
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding faithfully captures `(And * (False)) => (False)`: the left operand is a fully uninterpreted predicate (universally quantified over all instantiations, which subsumes any boolean expression the `*` could match), the right operand is correctly hard-coded as the literal `False` because the rule requires the syntactic False constant, and `before()`/`after()` genuinely differ (the And conjunct is eliminated), so the proof is non-vacuous. Embedding the boolean identity in filter position over an arbitrary, unconstrained scan is the standard semantics-preserving translation in this DSL (same treatment as the FilterMerge worked example), and in QED's two-valued semantics the proven statement `\u2200R, f: filter(And(f,\u22a5)) = filter(\u22a5)` is exactly equivalent to the pointwise expression equality `And(x, False) \u2261 False` for all x \u2014 no keys, NOT NULLs, or other preconditions are assumed that the unguarded source rule does not itself impose, and the single symbol `left` is shared only where the source pattern requires. Hence `// SCOPE: FULL` is honest: no assumption anywhere narrows the family beyond the canonical relational witness of the expression rule.",
+    "scope": "FULL",
+    "scope_detail": "public record SimplifyAndFalse() implements RRule {",
+    "timestamp": "2026-09-24T07:49:22.474118+00:00"
+  },
+  {
+    "rule_name": "PushFilterIntoJoinLeft",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/join.opt\n\nPushFilterIntoJoinLeft pushes Join filter conditions into the left side of the\njoin. This is possible in the case of InnerJoin, as long as the condition has\nno dependencies on the right side of the join. Left and Full joins are not\neligible, since filtering left rows will change the number of rows in the\nresult for those types of joins:\n\n-- A row with nulls on the right side is returned for a.x=1, a.y=2, b.x=1.\nSELECT * FROM a LEFT JOIN b ON a.x=b.x AND a.y < 0\n\n-- But if the filter is incorrectly pushed down, then no row is returned.\nSELECT * FROM (SELECT * FROM a WHERE a.y < 0) a LEFT JOIN b ON a.x=b.x\n\nIn addition, AntiJoin is not eligible for this rule, as illustrated by this\nexample:\n\n-- A row is returned for a.y=2.\nSELECT * FROM a ANTI JOIN b ON a.y < 0\n\n-- But if the filter is incorrectly pushed down, then no row is returned.\nSELECT * FROM (SELECT * FROM a WHERE a.y < 0) a ANTI JOIN b ON True\n\nCitations: [1]\n\nExtracted from `join.opt` (which defines multiple rules \u2014 implement specifically `PushFilterIntoJoinLeft`, not the other rules in that file):\n\n```\n# PushFilterIntoJoinLeft pushes Join filter conditions into the left side of the\n# join. This is possible in the case of InnerJoin, as long as the condition has\n# no dependencies on the right side of the join. Left and Full joins are not\n# eligible, since filtering left rows will change the number of rows in the\n# result for those types of joins:\n#\n#   -- A row with nulls on the right side is returned for a.x=1, a.y=2, b.x=1.\n#   SELECT * FROM a LEFT JOIN b ON a.x=b.x AND a.y < 0\n#\n#   -- But if the filter is incorrectly pushed down, then no row is returned.\n#   SELECT * FROM (SELECT * FROM a WHERE a.y < 0) a LEFT JOIN b ON a.x=b.x\n#\n# In addition, AntiJoin is not eligible for this rule, as illustrated by this\n# example:\n#\n#   -- A row is returned for a.y=2.\n#   SELECT * FROM a ANTI JOIN b ON a.y < 0\n#\n#   -- But if the filter is incorrectly pushed down, then no row is returned.\n#   SELECT * FROM (SELECT * FROM a WHERE a.y < 0) a ANTI JOIN b ON True\n#\n# Citations: [1]\n[PushFilterIntoJoinLeft, Normalize]\n(InnerJoin | InnerJoinApply | SemiJoin | SemiJoinApply\n    $left:* & ^(HasOuterCols $left)\n    $right:*\n    $on:[\n        ...\n        $item:* & (IsBoundBy $item $leftCols:(OutputCols $left))\n        ...\n    ]\n    $private:*\n)\n=>\n((OpName)\n    (Select $left (ExtractBoundConditions $on $leftCols))\n    $right\n    (ExtractUnboundConditions $on $leftCols)\n    $private\n)\n```",
+    "status": "PROVED",
+    "attempts_used": 22,
+    "reason": "`before()` (inner join with conjuncts `f(L) \u2227 g(L,R)`) and `after()` (left filtered by `f(L)`, then joined on `g(L,R)`) are structurally different, share the same uninterpreted symbols `f`, `g`, and the L column (so `f` is genuinely left-bound in both and correctly identified as the pushed conjunct), making the QED proof non-vacuous and semantically valid for inner joins; the narrowing to INNER-only with one left-bound/one unbound conjunct and single-column inputs is a genuine, honestly-labeled (PARTIAL), non-degenerate special case of the source rule.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 7278752
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 43229875
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 873709
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 418708
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 19740875
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 43355875
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 79625666
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "`before()` (inner join with conjuncts `f(L) \u2227 g(L,R)`) and `after()` (left filtered by `f(L)`, then joined on `g(L,R)`) are structurally different, share the same uninterpreted symbols `f`, `g`, and the L column (so `f` is genuinely left-bound in both and correctly identified as the pushed conjunct), making the QED proof non-vacuous and semantically valid for inner joins; the narrowing to INNER-only with one left-bound/one unbound conjunct and single-column inputs is a genuine, honestly-labeled (PARTIAL), non-degenerate special case of the source rule.",
+    "scope": "PARTIAL",
+    "scope_detail": "INNER join only (no Semi/Left/Full/Anti), one left-bound conjunct with no outer columns, one unbound conjunct, single-column inputs",
+    "timestamp": "2026-09-24T08:01:20.655902+00:00"
+  },
+  {
+    "rule_name": "PruneJoinLeftCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneJoinLeftCols discards columns on the left side of a join that are never\nused. AddDerivedOnClauseConditionsFromFKContraints builds equijoin predicates\nwhich might be added during optimization, if any, to ensure those columns are\nnot pruned away.\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneJoinLeftCols`, not the other rules in that file):\n\n```\n# PruneJoinLeftCols discards columns on the left side of a join that are never\n# used. AddDerivedOnClauseConditionsFromFKContraints builds equijoin predicates\n# which might be added during optimization, if any, to ensure those columns are\n# not pruned away.\n[PruneJoinLeftCols, Normalize]\n(Project\n    $input:(Join $left:* $right:* $on:* $private:*)\n    $projections:*\n    $passthrough:* &\n        (CanPruneCols\n            $left\n            $needed:(UnionCols4\n                (OuterCols $right)\n                (FilterOuterCols\n                    (AddDerivedOnClauseConditionsFromFKContraints\n                        $on\n                        $left\n                        $right\n                    )\n                )\n                (ProjectionOuterCols $projections)\n                $passthrough\n            )\n        )\n)\n=>\n(Project\n    ((OpName $input)\n        (PruneCols $left $needed)\n        $right\n        $on\n        $private\n    )\n    $projections\n    $passthrough\n)\n```",
+    "status": "PROVED",
+    "attempts_used": 10,
+    "reason": "The encoding faithfully captures `PruneJoinLeftCols` as a specific, honestly-labeled (PARTIAL) instance \u2014 an inner join whose left input has a join-key column plus one unused column, with the on-clause and outer projection as uninterpreted functions over the retained (key, right) columns \u2014 so the pruned left column is genuinely unreferenced and projecting it below the join is exactly the source rule's `PruneCols $left $needed`. `before()` and `after()` are structurally different (the after inserts a Project pushing the key down to the join's left input and re-indexes the join row from (key, extra, right) to (key, right)), so the proof is non-vacuous, and reusing the same `C`/`G` symbols correctly reflects that the rewrite preserves the on-clause and outer projection; field indexing checks out in both directions, no key/NOT-NULL precondition is silently dropped (nullable types used, and the left being a Scan satisfies the `CanPruneCols` merge precondition), so the provable result is meaningful rather than coincidentally over-constrained.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 7268793
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 62868376
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": true,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 1085750
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 527333
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 19805708
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 63241417
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 99601958
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding faithfully captures `PruneJoinLeftCols` as a specific, honestly-labeled (PARTIAL) instance \u2014 an inner join whose left input has a join-key column plus one unused column, with the on-clause and outer projection as uninterpreted functions over the retained (key, right) columns \u2014 so the pruned left column is genuinely unreferenced and projecting it below the join is exactly the source rule's `PruneCols $left $needed`. `before()` and `after()` are structurally different (the after inserts a Project pushing the key down to the join's left input and re-indexes the join row from (key, extra, right) to (key, right)), so the proof is non-vacuous, and reusing the same `C`/`G` symbols correctly reflects that the rewrite preserves the on-clause and outer projection; field indexing checks out in both directions, no key/NOT-NULL precondition is silently dropped (nullable types used, and the left being a Scan satisfies the `CanPruneCols` merge precondition), so the provable result is meaningful rather than coincidentally over-constrained.",
+    "scope": "PARTIAL",
+    "scope_detail": "inner join whose left input has one key column (referenced by the on-clause and the outer projection) and one extra column that is pruned, with the on-clause and outer projection uninterpreted over the retained (key, right) columns",
+    "timestamp": "2026-09-24T08:05:27.004841+00:00"
+  },
+  {
+    "rule_name": "SimplifyTrueAnd",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/bool.opt\n\nSimplifyTrueAnd simplifies the And operator by discarding a True condition on\nthe left side.\n\nExtracted from `bool.opt` (which defines multiple rules \u2014 implement specifically `SimplifyTrueAnd`, not the other rules in that file):\n\n```\n# SimplifyTrueAnd simplifies the And operator by discarding a True condition on\n# the left side.\n[SimplifyTrueAnd, Normalize]\n(And (True) $right:*)\n=>\n$right\n```",
+    "status": "PROVED",
+    "attempts_used": 4,
+    "reason": "`before()` is `Filter(AND(TRUE, P), S)` and `after()` is `Filter(P, S)` over the same uninterpreted scan `S` and the same uninterpreted predicate `P`, so the proof is a genuine, non-vacuous universal proof of exactly the boolean identity `And(True, E) \u2261 E` the source rule states, with the True literal on the correct (left) side, no concrete predicates or operators baked in, and symbol sharing matching the rule precisely. The identity holds under SQL three-valued logic for every truth value including NULL (`TRUE AND NULL = NULL`), so no precondition is silently missing, and embedding the scalar rule in a filter over a general scan (same shape as the reference FilterMerge exemplar) captures the rule's full logical content \u2014 the identity is compositional and its proof is universal over the uninterpreted symbols \u2014 so the `SCOPE: FULL` tag is honest.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 1029375
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "`before()` is `Filter(AND(TRUE, P), S)` and `after()` is `Filter(P, S)` over the same uninterpreted scan `S` and the same uninterpreted predicate `P`, so the proof is a genuine, non-vacuous universal proof of exactly the boolean identity `And(True, E) \u2261 E` the source rule states, with the True literal on the correct (left) side, no concrete predicates or operators baked in, and symbol sharing matching the rule precisely. The identity holds under SQL three-valued logic for every truth value including NULL (`TRUE AND NULL = NULL`), so no precondition is silently missing, and embedding the scalar rule in a filter over a general scan (same shape as the reference FilterMerge exemplar) captures the rule's full logical content \u2014 the identity is compositional and its proof is universal over the uninterpreted symbols \u2014 so the `SCOPE: FULL` tag is honest.",
+    "scope": "FULL",
+    "scope_detail": "public record SimplifyTrueAnd() implements RRule {",
+    "timestamp": "2026-09-24T08:42:26.464990+00:00"
+  },
+  {
+    "rule_name": "TryDecorrelateSelect",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/decorrelate.opt\n\nTryDecorrelateSelect \"pushes down\" the join apply into the select operator,\nin order to eliminate any correlation between the select filter list and the\nleft side of the join, and also to keep \"digging\" down to find and eliminate\nother unnecessary correlation. Eventually, the hope is to trigger the\nDecorrelateJoin pattern to turn JoinApply operators into non-apply Join\noperators.\n\nNote that citation [3] doesn't directly contain this identity, since it\nassumes that the Select will be hoisted above the Join rather than becoming\npart of its On condition. PushFilterIntoJoinRight allows the condition to be\npushed down, so this rule can correctly pull it up.\n\nCitations: [3] (see identity #3)\n\nExtracted from `decorrelate.opt` (which defines multiple rules \u2014 implement specifically `TryDecorrelateSelect`, not the other rules in that file):\n\n```\n# TryDecorrelateSelect \"pushes down\" the join apply into the select operator,\n# in order to eliminate any correlation between the select filter list and the\n# left side of the join, and also to keep \"digging\" down to find and eliminate\n# other unnecessary correlation. Eventually, the hope is to trigger the\n# DecorrelateJoin pattern to turn JoinApply operators into non-apply Join\n# operators.\n#\n# Note that citation [3] doesn't directly contain this identity, since it\n# assumes that the Select will be hoisted above the Join rather than becoming\n# part of its On condition. PushFilterIntoJoinRight allows the condition to be\n# pushed down, so this rule can correctly pull it up.\n#\n# Citations: [3] (see identity #3)\n[TryDecorrelateSelect, Normalize]\n(InnerJoin | InnerJoinApply | LeftJoin | LeftJoinApply | SemiJoin\n        | SemiJoinApply | AntiJoin | AntiJoinApply\n    $left:*\n    $right:* &\n        (HasOuterCols $right) &\n        (Select $input:* $filters:*)\n    $on:*\n    $private:*\n)\n=>\n((OpName) $left $input (ConcatFilters $on $filters) $private)\n```",
+    "status": "FAILED",
+    "attempts_used": 0,
+    "reason": "agent error: timed out",
+    "prover_stats": {},
+    "verification_rounds_used": 0,
+    "verifier_verdict": "",
+    "verifier_reasoning": "",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-24T08:42:58.015008+00:00"
+  },
+  {
+    "rule_name": "SimplifyLeftJoin",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/join.opt\n\nSimplifyLeftJoin reduces a LeftJoin operator to an InnerJoin operator (or a\nFullJoin to a RightJoin) when it's known that every row in the join's left\ninput will match at least one row in the right input. Since every row matches,\nNULL-extended rows will never be added by the outer join, and therefore can be\nmapped to an InnerJoin (or RightJoin in case of FullJoin). See\nfiltersMatchAllLeftRows comment for conditions in which this rule can match.\n\nSelf-join example:\nSELECT * FROM xy LEFT JOIN xy AS xy2 ON xy.y = xy2.y\n=>\nSELECT * FROM xy INNER JOIN xy AS xy2 ON xy.y = xy2.y\n\nForeign-key example:\nSELECT * FROM orders o LEFT JOIN customers c ON o.customer_id = c.id\n=>\nSELECT * FROM orders o INNER JOIN customers c ON o.customer_id = c.id\n\nExtracted from `join.opt` (which defines multiple rules \u2014 implement specifically `SimplifyLeftJoin`, not the other rules in that file):\n\n```\n# SimplifyLeftJoin reduces a LeftJoin operator to an InnerJoin operator (or a\n# FullJoin to a RightJoin) when it's known that every row in the join's left\n# input will match at least one row in the right input. Since every row matches,\n# NULL-extended rows will never be added by the outer join, and therefore can be\n# mapped to an InnerJoin (or RightJoin in case of FullJoin). See\n# filtersMatchAllLeftRows comment for conditions in which this rule can match.\n#\n# Self-join example:\n#   SELECT * FROM xy LEFT JOIN xy AS xy2 ON xy.y = xy2.y\n#   =>\n#   SELECT * FROM xy INNER JOIN xy AS xy2 ON xy.y = xy2.y\n#\n# Foreign-key example:\n#   SELECT * FROM orders o LEFT JOIN customers c ON o.customer_id = c.id\n#   =>\n#   SELECT * FROM orders o INNER JOIN customers c ON o.customer_id = c.id\n[SimplifyLeftJoin, Normalize]\n(LeftJoin | LeftJoinApply | FullJoin\n    $left:*\n    $right:*\n    $on:* & (JoinFiltersMatchAllLeftRows $left $right $on)\n    $private:*\n)\n=>\n(ConstructNonLeftJoin (OpName) $left $right $on $private)\n```",
+    "status": "SKIPPED",
+    "attempts_used": 20,
+    "reason": "The rule's soundness rests entirely on the side condition `JoinFiltersMatchAllLeftRows` (for every left row, \u2203 a right row satisfying the join predicate) \u2014 a quantified entailment between uninterpreted symbols that QED explicitly cannot reason about, and RuleScript's pattern-pair format has no mechanism to state rule preconditions; without that guard, QED correctly sees that LeftJoin \u2260 InnerJoin for arbitrary instantiations (a left row with no match yields a NULL-extended row in the left join but no row in the inner join), and no non-trivial special case (self-join, `True` condition) is provable either, since the join predicate is uninterpreted (no reflexivity) and non-emptiness of the right input is likewise inexpressible. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 1,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's soundness rests entirely on the side condition `JoinFiltersMatchAllLeftRows` (for every left row, \u2203 a right row satisfying the join predicate) \u2014 a quantified entailment between uninterpreted symbols that QED explicitly cannot reason about, and RuleScript's pattern-pair format has no mechanism to state rule preconditions; without that guard, QED correctly sees that LeftJoin \u2260 InnerJoin for arbitrary instantiations (a left row with no match yields a NULL-extended row in the left join but no row in the inner join), and no non-trivial special case (self-join, `True` condition) is provable either, since the join predicate is uninterpreted (no reflexivity) and non-emptiness of the right input is likewise inexpressible. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-24T08:47:18.212026+00:00"
+  },
+  {
+    "rule_name": "EliminateAggDistinct",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/agg.opt\n\nEliminateAggDistinct removes AggDistinct for aggregations where DISTINCT\nnever modifies the result; for example: min(DISTINCT x).\n\nExtracted from `agg.opt` (which defines multiple rules \u2014 implement specifically `EliminateAggDistinct`, not the other rules in that file):\n\n```\n# EliminateAggDistinct removes AggDistinct for aggregations where DISTINCT\n# never modifies the result; for example: min(DISTINCT x).\n[EliminateAggDistinct, Normalize]\n(AggDistinct $input:(Min | Max | BoolAnd | BoolOr))\n=>\n$input\n```",
+    "status": "SKIPPED",
+    "attempts_used": 20,
+    "reason": "The rule's soundness rests on Min/Max/BoolAnd/BoolOr being idempotent with respect to duplicate input values \u2014 an algebraic identity of specific aggregate functions \u2014 but QED models every aggregate (even one literally named \"Min\") as an uninterpreted function over its input bag and knows only bag-equality of inputs, so it cannot relate agg(DISTINCT x), which aggregates over the deduplicated bag, to agg(x) over the raw bag; an SMT countermodel (an aggregate that depends on value multiplicity) always exists, and the source rule's restriction to those four functions has no semantic content in the DSL since generic aggregate operators carry no algebra. The richer input-key-based special case (like the proven PARTIAL `EliminateDistinct` precedent) at best covers degenerate inputs where deduplication is provably a no-op, not the function-based justification this rule actually has. The porter's recorded failure was an LLM context-length crash rather than an actual QED run, but the UNSUPPORTED conclusion is correct on the merits.",
+    "prover_stats": {},
+    "verification_rounds_used": 1,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's soundness rests on Min/Max/BoolAnd/BoolOr being idempotent with respect to duplicate input values \u2014 an algebraic identity of specific aggregate functions \u2014 but QED models every aggregate (even one literally named \"Min\") as an uninterpreted function over its input bag and knows only bag-equality of inputs, so it cannot relate agg(DISTINCT x), which aggregates over the deduplicated bag, to agg(x) over the raw bag; an SMT countermodel (an aggregate that depends on value multiplicity) always exists, and the source rule's restriction to those four functions has no semantic content in the DSL since generic aggregate operators carry no algebra. The richer input-key-based special case (like the proven PARTIAL `EliminateDistinct` precedent) at best covers degenerate inputs where deduplication is provably a no-op, not the function-based justification this rule actually has. The porter's recorded failure was an LLM context-length crash rather than an actual QED run, but the UNSUPPORTED conclusion is correct on the merits.",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-24T09:12:58.900013+00:00"
+  }
+]

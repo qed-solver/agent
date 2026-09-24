@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import fcntl
 import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -35,14 +36,21 @@ class ProgressLog:
             self.entries = json.loads(json_path.read_text())
 
     def record(self, attempt: RuleAttempt) -> None:
-        if self.json_path.exists():
+        lock_path = self.json_path.with_suffix(".lock")
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(lock_path, "w") as fh:
+            fcntl.flock(fh, fcntl.LOCK_EX)
             try:
-                self.entries = json.loads(self.json_path.read_text())
-            except json.JSONDecodeError:
-                pass
-        self.entries = [e for e in self.entries if e["rule_name"] != attempt.rule_name]
-        self.entries.append(asdict(attempt))
-        self._save()
+                if self.json_path.exists():
+                    try:
+                        self.entries = json.loads(self.json_path.read_text())
+                    except json.JSONDecodeError:
+                        pass
+                self.entries = [e for e in self.entries if e["rule_name"] != attempt.rule_name]
+                self.entries.append(asdict(attempt))
+                self._save()
+            finally:
+                fcntl.flock(fh, fcntl.LOCK_UN)
 
     def _save(self) -> None:
         self.json_path.write_text(json.dumps(self.entries, indent=2))

@@ -38,6 +38,17 @@ def nudge_use_tool_or_conclude() -> str:
     )
 
 
+def nudge_stop_deliberating() -> str:
+    return (
+        "Your last several replies were cut off at the token limit before producing any "
+        "tool call — you're spending your whole budget on internal reasoning and never "
+        "acting on it. Stop deliberating further. On this next reply, immediately call a "
+        "tool with your current best guess: either `try_rule` with whatever candidate "
+        "encoding you have in mind, or a narrowly-scoped lookup (`read_file`/`search_code`/"
+        "`find_symbol`) for one specific missing fact. Keep any reasoning brief and act now."
+    )
+
+
 def truncate(text: str, limit: int = 1500) -> str:
     text = text.strip()
     if len(text) <= limit:

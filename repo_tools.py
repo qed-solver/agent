@@ -12,6 +12,7 @@ MAX_READ_LINES = 400
 MAX_SEARCH_RESULTS = 60
 
 EXTENDABLE_DSL_FILES = ("RelRN.java", "RexRN.java", "JSONSerializer.java")
+SOURCE_INCLUDE_FLAGS = ["--include=*.java", "--include=*.go", "--include=*.rs", "--include=*.cpp", "--include=*.cc", "--include=*.py"]
 
 
 class ToolError(Exception):
@@ -71,7 +72,7 @@ class RepoTools:
     def _java_root(self, root: str) -> Path:
         if root not in ("rulescript", self.backend_name):
             raise ToolError(
-                f"root {root!r} is not a Java source tree — search_code/find_symbol only work "
+                f"root {root!r} is not a searchable source tree — search_code/find_symbol only work "
                 f"under 'rulescript' or {self.backend_name!r}. For the docs PDFs, use search_docs; "
                 "for a rule's own generated JSON, use read_file with root='output'."
             )
@@ -81,7 +82,7 @@ class RepoTools:
         base = self._java_root(root)
         target = _resolve(base, path)
         result = subprocess.run(
-            ["grep", "-rn", "--include=*.java", "-E", query, str(target)],
+            ["grep", "-rn", *SOURCE_INCLUDE_FLAGS, "-E", query, str(target)],
             capture_output=True, text=True, timeout=30,
         )
         lines = result.stdout.splitlines()
@@ -101,7 +102,7 @@ class RepoTools:
             rf"\b{symbol}\s*\("
         )
         result = subprocess.run(
-            ["grep", "-rn", "--include=*.java", "-E", pattern, str(base)],
+            ["grep", "-rn", *SOURCE_INCLUDE_FLAGS, "-E", pattern, str(base)],
             capture_output=True, text=True, timeout=30,
         )
         lines = result.stdout.splitlines()
@@ -373,15 +374,16 @@ class RepoTools:
                {"root": root_enum, "path": {"type": "string", "description": f"Path relative to the root, e.g. 'src/main/java/org/qed' for rulescript, or wherever {self.backend_name!r}'s own source layout puts a rule file."}},
                ["root", "path"]),
             fn("search_code",
-               f"grep (extended regex) for a pattern across .java files under 'rulescript' or "
-               f"{self.backend_name!r} — the only two Java source trees. Not valid for 'docs' (PDFs aren't "
-               "greppable text; use search_docs) or 'output' (a single JSON file; use read_file). "
-               "Returns matching 'path:line:text' entries.",
+               f"grep (extended regex) for a pattern across source files (.java, .go, .rs, .cpp, .cc, "
+               f".py) under 'rulescript' or {self.backend_name!r} — the only two searchable source "
+               "trees. Not valid for 'docs' (PDFs aren't greppable text; use search_docs) or 'output' "
+               "(a single JSON file; use read_file). Returns matching 'path:line:text' entries.",
                {"root": search_root_enum, "query": {"type": "string"}, "path": {"type": "string", "description": "Optional subpath to scope the search; defaults to the whole root."}},
                ["root", "query"]),
             fn("find_symbol",
-               f"Find where a Java class/interface/record/enum/method named `symbol` is declared or "
-               f"called, under 'rulescript' or {self.backend_name!r} only (same restriction as search_code).",
+               f"Find where a class/interface/record/enum/struct/func/method named `symbol` is "
+               f"declared or called, under 'rulescript' or {self.backend_name!r} only (same "
+               "restriction and file types as search_code).",
                {"root": search_root_enum, "symbol": {"type": "string"}},
                ["root", "symbol"]),
             fn("read_file",
@@ -406,7 +408,7 @@ class RepoTools:
                ["path"]),
             fn("search_docs",
                "grep (case-insensitive extended regex) across the docs PDFs' text — this is the "
-               "'docs' equivalent of search_code, since search_code itself only works on Java source "
+               "'docs' equivalent of search_code, since search_code itself only works on source code "
                "and cannot see into PDFs at all. Returns 'filename:line:text' entries whose line "
                "numbers match what read_pdf pages through, so you can jump straight to context with "
                "read_pdf(path=filename, start_line=<near a match>).",

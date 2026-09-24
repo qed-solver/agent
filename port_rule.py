@@ -116,6 +116,7 @@ def porter_agent_loop(
     last_reason = ""
     last_tried_code: str | None = None
     round_log: list[str] = []
+    consecutive_empty_turns = 0
 
     for turn in range(1, max_turns + 1):
         print(f"-- porter turn {turn}/{max_turns}")
@@ -149,11 +150,17 @@ def porter_agent_loop(
                 print(f"   porter declared UNSUPPORTED: {reason}")
                 return PorterResult("UNSUPPORTED", turn, code=last_tried_code, reason=reason,
                                      transcript_tail=transcript_tail(conversation), round_log=round_log)
-            print("   plain-text reply with no tool call; nudging")
-            conversation.append({"role": "user", "content": prompts.nudge_use_tool_or_conclude()})
+            consecutive_empty_turns += 1
+            if consecutive_empty_turns >= 3:
+                print(f"   plain-text reply with no tool call ({consecutive_empty_turns} in a row); nudging hard")
+                conversation.append({"role": "user", "content": prompts.nudge_stop_deliberating()})
+            else:
+                print("   plain-text reply with no tool call; nudging")
+                conversation.append({"role": "user", "content": prompts.nudge_use_tool_or_conclude()})
             last_reason = "model replied without calling a tool or declaring UNSUPPORTED"
             continue
 
+        consecutive_empty_turns = 0
         results: list[tuple[ToolCall, dict]] = []
         proved: tuple[str, dict] | None = None
         for tc in agent_turn.tool_calls:
@@ -593,7 +600,8 @@ def run_one(
 
     isolated = workspaces_dir is not None
     if isolated:
-        workspace_root = workspace.make_workspace(rulescript_root, workspaces_dir, spec.name)
+        with workspace.merge_lock(merge_lock_path):
+            workspace_root = workspace.make_workspace(rulescript_root, workspaces_dir, spec.name)
         worker_pipeline = Pipeline(workspace_root, pipeline.qed_prover_bin, rules_out_dir=pipeline.rules_out_dir)
     else:
         workspace_root = rulescript_root
@@ -911,6 +919,7 @@ def main():
         "--no-verifier, still gets independently reviewed). For testing the harness without an API key.",
     )
     args = parser.parse_args()
+    args.rules_out_dir = args.rules_out_dir.resolve()
 
     if not args.qed_prover.exists():
         parser.error(f"qed-prover binary not found at {args.qed_prover}; build it first.")

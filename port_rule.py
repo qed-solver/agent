@@ -828,7 +828,7 @@ def main():
     parser.add_argument("--pool-worker", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--name", help="Override the rule name (single-spec mode only).")
     parser.add_argument("--backend", help="Override the source backend label (single-spec mode only).")
-    parser.add_argument("--max-turns", type=int, default=30,
+    parser.add_argument("--max-turns", type=int, default=20,
                          help="Porter tool-calling turns (exploration + try_rule calls) per verification round.")
     parser.add_argument("--max-verification-rounds", type=int, default=5,
                          help="How many times the verifier may send the porter back to try again "

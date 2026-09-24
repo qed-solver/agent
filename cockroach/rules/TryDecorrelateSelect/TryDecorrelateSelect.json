@@ -1,0 +1,84 @@
+{
+  "help" : [ "LogicalJoin(condition=[on_cond($0, $1)], joinType=[inner])\n  LogicalTableScan(table=[[L]])\n  LogicalFilter(condition=[select_filter($0)])\n    LogicalTableScan(table=[[R]])\n", "LogicalJoin(condition=[AND(on_cond($0, $1), select_filter($1))], joinType=[inner])\n  LogicalTableScan(table=[[L]])\n  LogicalTableScan(table=[[R]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "L",
+    "guaranteed" : [ ],
+    "fields" : [ "col-L" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "R",
+    "guaranteed" : [ ],
+    "fields" : [ "col-R" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "on_cond"
+      },
+      "left" : {
+        "scan" : 0
+      },
+      "kind" : "INNER",
+      "right" : {
+        "filter" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "select_filter"
+          },
+          "source" : {
+            "scan" : 1
+          }
+        }
+      }
+    }
+  }, {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "type" : "BOOLEAN",
+          "operand" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          }, {
+            "column" : 1,
+            "type" : "INTEGER"
+          } ],
+          "operator" : "on_cond"
+        }, {
+          "type" : "BOOLEAN",
+          "operand" : [ {
+            "column" : 1,
+            "type" : "INTEGER"
+          } ],
+          "operator" : "select_filter"
+        } ],
+        "operator" : "AND"
+      },
+      "left" : {
+        "scan" : 0
+      },
+      "kind" : "INNER",
+      "right" : {
+        "scan" : 1
+      }
+    }
+  } ]
+}

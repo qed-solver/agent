@@ -1,0 +1,52 @@
+{
+  "help" : [ "LogicalAggregate(group=[{0}], f=[f(DISTINCT $0)])\n  LogicalTableScan(table=[[S]])\n", "LogicalAggregate(group=[{0}], f=[f($0)])\n  LogicalTableScan(table=[[S]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ false ],
+    "name" : "S",
+    "guaranteed" : [ ],
+    "fields" : [ "col-S" ],
+    "key" : [ [ 0 ] ]
+  } ],
+  "queries" : [ {
+    "group" : {
+      "keys" : [ {
+        "column" : 0,
+        "type" : "INTEGER"
+      } ],
+      "function" : [ {
+        "distinct" : true,
+        "type" : "INTEGER",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "f",
+        "ignoreNulls" : false
+      } ],
+      "source" : {
+        "scan" : 0
+      }
+    }
+  }, {
+    "group" : {
+      "keys" : [ {
+        "column" : 0,
+        "type" : "INTEGER"
+      } ],
+      "function" : [ {
+        "distinct" : false,
+        "type" : "INTEGER",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "f",
+        "ignoreNulls" : false
+      } ],
+      "source" : {
+        "scan" : 0
+      }
+    }
+  } ]
+}

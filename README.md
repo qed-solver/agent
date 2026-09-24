@@ -21,14 +21,17 @@ spec.py                     rule-spec (input) file parser
 rulescript_reference.md     the RuleScript DSL reference given to both agents
 support/JsonGenerator.java  tiny helper compiled once, used to dump a rule's QED JSON
 
-rule_specs/     <- put the rules you want ported here (one file each)
-rules/          <- OUTPUT: every ported rule lands here for human inspection,
-                   whatever the outcome — <Name>/<Name>.java, .json,
-                   .result.json, and a REPORT.md summary
-PROGRESS.md     <- OUTPUT: one-page summary of every rule's status
-progress.json   <- OUTPUT: same, machine-readable
+calcite/                <- everything backend-specific for Apache Calcite; a future
+                           cockroach/ or datafusion/ folder mirrors this same layout
+  rule_specs/           <- put the rules you want ported here (one file each)
+  rules/                <- OUTPUT: every ported rule lands here for human inspection,
+                           whatever the outcome — <Name>/<Name>.java, .json,
+                           .result.json, and a REPORT.md summary
+  PROGRESS.md           <- OUTPUT: one-page summary of every rule's status
+  progress.json         <- OUTPUT: same, machine-readable
 
-docs/           reference papers (RuleScript + QED)
+docs/           reference papers (RuleScript + QED); the agent reads these via a
+                dedicated read_pdf/search_docs tool, not read_file/search_code
 vendor/         external checkouts the agent drives (not part of this repo — see Setup)
 ```
 
@@ -132,7 +135,13 @@ from that same commit but with:
   inner classes removed (these were backend-codegen glue this agent never
   calls anyway — see "Out of scope" above),
 - `pom.xml`'s Java release bumped from 23 to 25 to match locally available
-  JDKs (Temurin ships 21/25, not 23).
+  JDKs (Temurin ships 21/25, not 23),
+- (appended after the Calcite porting pass) `RelRN.java` gains three
+  backend-agnostic primitives discovered to be genuinely needed along the
+  way — `scanMany` (multi-column scan), the `project(Seq<RexRN>)`/
+  `ProjectMany` overload (multi-column projection), and `Correlate` (a real
+  dependent join) — so the next backend starts with these already available
+  instead of rediscovering them.
 
 Everything else — `RelRN`/`RexRN`/`RRule`/`RuleBuilder`, the JSON
 serializer, the Calcite/CockroachDB/MySQL/ProxySQL generators' generic
@@ -144,32 +153,47 @@ dispatch, all Maven/CI scripts — is untouched.
 export ANTHROPIC_API_KEY=sk-ant-...        # or OPENAI_API_KEY with --provider openai
 
 # one rule
-python3 port_rule.py --spec rule_specs/my_rule.md
+python3 port_rule.py --spec calcite/rule_specs/my_rule.md
 
 # a whole batch
-python3 port_rule.py --spec-dir rule_specs
+python3 port_rule.py --spec-dir calcite/rule_specs
 
 # use a different (e.g. stronger) model as the verifier than the porter
-python3 port_rule.py --spec-dir rule_specs \
+python3 port_rule.py --spec-dir calcite/rule_specs \
     --model claude-sonnet-5 --verifier-model claude-opus-5
 
 # point at a self-hosted / third-party OpenAI-compatible endpoint instead
-python3 port_rule.py --spec-dir rule_specs \
+python3 port_rule.py --spec-dir calcite/rule_specs \
     --provider openai --endpoint https://your-host/v1/chat/completions --api-key ...
 
 # smoke-test the compile/JSON/prove/publish plumbing with no LLM at all,
 # by handing the porter's first "reply" a file directly (still goes through
 # the real compiler and the real qed-prover; add --no-verifier to also skip
 # the review step for a pure infra check)
-python3 port_rule.py --spec rule_specs/example_filter_merge.md \
+python3 port_rule.py --spec calcite/rule_specs/example_filter_merge.md \
     --offline-code some_handwritten_rule.java --no-verifier
+
+# porting for a different backend: point spec-dir/progress/rules-out-dir at
+# that backend's own folder instead (laid out the same way calcite/ is), and
+# --backend-root/--backend-name at that backend's own vendored source checkout
+python3 port_rule.py --spec-dir cockroach/rule_specs \
+    --progress-md cockroach/PROGRESS.md --progress-json cockroach/progress.json \
+    --rules-out-dir cockroach/rules \
+    --backend-root vendor/cockroach-src --backend-name cockroach
+
+# a whole batch, but as a shared work pool instead of a fixed sequential list:
+# N parallel workers each claim one rule at a time (file-locked, one command
+# launches all of them); a rule that FAILS is retried once by the pool before
+# being recorded as terminally FAILED
+python3 port_rule.py --spec-dir calcite/rule_specs --pool --workers 4
 ```
 
 ### Writing a rule-spec file
 
-Anything under `rule_specs/*.md` or `*.txt`. A tiny optional header, then
-freeform content (paste the original rule's source code, a before/after SQL
-example, or just describe it in prose — the porter is a capable reader):
+Anything under `<backend>/rule_specs/*.md` or `*.txt` (e.g. `calcite/rule_specs/`).
+A tiny optional header, then freeform content (paste the original rule's source
+code, a before/after SQL example, or just describe it in prose — the porter is
+a capable reader):
 
 ```markdown
 # Name: FilterMerge
@@ -179,7 +203,7 @@ example, or just describe it in prose — the porter is a capable reader):
 <the rule's source / description goes here>
 ```
 
-See `rule_specs/example_filter_merge.md` for a filled-in example.
+See `calcite/rule_specs/example_filter_merge.md` for a filled-in example.
 
 ## Limitations the agent is told about up front
 

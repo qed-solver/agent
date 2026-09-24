@@ -1,10 +1,3 @@
-"""Loads the live RuleScript DSL source files to attach as ground truth to
-both agents' system prompts, instead of a hand-maintained paraphrase that
-can silently drift from — or simply omit — what the API actually supports.
-
-Kept as a separate module so both prompts.py (porter) and verifier_prompts.py
-(verifier) attach the exact same ground truth.
-"""
 from __future__ import annotations
 
 from pathlib import Path

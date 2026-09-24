@@ -1,4 +1,3 @@
-"""Tracks the summarizing progress document (PROGRESS.md + progress.json)."""
 from __future__ import annotations
 
 import json

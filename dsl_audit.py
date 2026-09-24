@@ -1,15 +1,3 @@
-"""Mechanical audit + report-writing for RuleScript DSL extensions.
-
-`extend_dsl_file` (see repo_tools.py) already gates every edit behind a
-compile check and a live re-proof of every rule proved *before this rule's
-porting attempt started* (its `baseline_proved_rules` snapshot). This module
-adds a second, independent pass run once a change is actually about to be
-kept for good: a *fresh* full re-proof of those same rules (no caching/reuse
-of the earlier result), so the guarantee "this extension didn't break an
-existing proof" is checked again right before it becomes permanent, and a
-persisted report is written either way so a human can see exactly what was
-audited and why the extension was kept or reverted.
-"""
 from __future__ import annotations
 
 import difflib
@@ -19,8 +7,6 @@ from pipeline import Pipeline
 
 
 def run_regression_audit(pipeline: Pipeline, rule_names: list[str], json_out_dir: Path) -> list[dict]:
-    """Freshly re-prove every named rule with the real qed-prover — no
-    shortcuts, no reuse of any earlier result for these same rules."""
     results = []
     for name in rule_names:
         json_result, json_path = pipeline.generate_json(name, json_out_dir)

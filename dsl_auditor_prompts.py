@@ -1,16 +1,3 @@
-"""Prompt for the third agent role: an independent auditor of DSL extensions.
-
-`extend_dsl_file` lets the porter grow RelRN.java/RexRN.java/JSONSerializer.java
-when a rule genuinely needs an operator/shape that isn't exposed yet. That
-tool (see repo_tools.py) already re-proves every previously-proved rule
-before accepting the edit, which catches most regressions — but a change
-could still coincidentally leave every existing *proof* intact while
-subtly narrowing or altering what an existing operator *means* for rules
-not yet written. This auditor reviews the literal diff with fresh eyes (no
-memory of writing it) and judges whether the change reads as a genuine,
-additive generalization of the existing design, not just something that
-happens to still pass the current test set.
-"""
 from __future__ import annotations
 
 AUDITOR_ROLE_PREAMBLE = """You are the independent auditor for changes to RuleScript's core DSL

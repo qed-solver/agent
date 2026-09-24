@@ -1,22 +1,3 @@
-"""Parsing for rule-spec input files.
-
-A spec file is plain text with a small header:
-
-    # Name: FilterMerge
-    # Backend: Apache Calcite
-    # Source: core/src/main/java/org/apache/calcite/rel/rules/FilterMergeRule.java
-
-    <optional freeform hint: notes on which method matters, an edge case to
-    watch for, etc. Do NOT paste the source here — the porter agent reads it
-    itself via its `read_file` tool, from the `source_path` below, so it
-    only pulls in what it needs instead of the whole file being forced into
-    every prompt regardless of the model's context budget.>
-
-`Name` and `Backend` may also be supplied on the command line, in which case
-they override the header (or fill it in if absent). `Source` should be a
-path relative to the `calcite` tool root (currently
-`vendor/calcite-src/core/src/main/java/org/apache/calcite/`).
-"""
 from __future__ import annotations
 
 import re
@@ -35,9 +16,6 @@ class RuleSpec:
 
     @property
     def description(self) -> str:
-        """Short human-facing summary (for progress logs/reports) — deliberately
-        not the full source, which lives on disk at source_path for anyone who
-        wants to read it."""
         parts = [f"Source: {self.source_path}" if self.source_path else "(no source path given)"]
         if self.hint:
             parts.append(self.hint)

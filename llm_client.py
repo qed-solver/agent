@@ -1,23 +1,18 @@
-"""Minimal, dependency-free HTTP client for calling an LLM.
-
-Supports two wire formats so the agent can be pointed at whatever the user
-hands us:
-  - "anthropic": Anthropic Messages API (api.anthropic.com/v1/messages, or a
-    compatible endpoint).
-  - "openai": OpenAI-style chat completions API (works for OpenAI itself and
-    for most "OpenAI-compatible" self-hosted / third-party endpoints).
-
-Only the Python standard library is used (urllib) so the agent has zero
-install-time dependencies.
-"""
 from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from typing import Literal
+
+_THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+
+
+def _strip_thinking(text: str) -> str:
+    return _THINK_BLOCK_RE.sub("", text).strip()
 
 
 @dataclass
@@ -34,10 +29,6 @@ class AgentTurn:
 
 
 def format_assistant_message(provider: str, turn: AgentTurn) -> dict:
-    """Build the provider-native shape for an assistant turn (with or without
-    tool calls) to append to conversation history. Provider-parameterized
-    (rather than an instance method) so offline/no-LLM testing can still
-    build valid history without a live client."""
     if provider == "openai":
         msg = {"role": "assistant", "content": turn.content or None}
         if turn.tool_calls:
@@ -124,7 +115,6 @@ class LLMClient:
                 )
 
     def complete(self, system: str, messages: list[dict]) -> str:
-        """messages: [{"role": "user"|"assistant", "content": str}, ...]"""
         original_max_tokens = self.max_tokens
         try:
             while True:
@@ -145,10 +135,6 @@ class LLMClient:
 
 
     def step(self, system: str, messages: list[dict], tools: list[dict]) -> AgentTurn:
-        """One turn of a tool-using conversation. `messages` holds this
-        provider's *native* message shapes (as produced by `assistant_message`/
-        `tool_results_message` below) — callers should not try to share a
-        conversation list across providers."""
         original_max_tokens = self.max_tokens
         try:
             while True:
@@ -224,10 +210,11 @@ class LLMClient:
             except (KeyError, json.JSONDecodeError):
                 args = {}
             tool_calls.append(ToolCall(id=tc["id"], name=tc["function"]["name"], arguments=args))
-        content = message.get("content") or ""
-        if not content and not tool_calls:
-            content = message.get("reasoning_content") or message.get("reasoning") or ""
-        if choice.get("finish_reason") == "length" and not tool_calls:
+        truncated = choice.get("finish_reason") == "length"
+        content = _strip_thinking(message.get("content") or "")
+        if not content and not tool_calls and not truncated:
+            content = _strip_thinking(message.get("reasoning_content") or message.get("reasoning") or "")
+        if truncated and not tool_calls:
             content += "\n\n[NOTE: response was truncated at the token limit before finishing.]"
         return AgentTurn(content=content, tool_calls=tool_calls)
 
@@ -280,10 +267,11 @@ class LLMClient:
             message = choice["message"]
         except (KeyError, IndexError) as e:
             raise LLMError(f"Unexpected OpenAI-style response: {resp}") from e
-        content = message.get("content")
-        if not content:
-            content = message.get("reasoning_content") or message.get("reasoning") or ""
-        if choice.get("finish_reason") == "length":
+        truncated = choice.get("finish_reason") == "length"
+        content = _strip_thinking(message.get("content") or "")
+        if not content and not truncated:
+            content = _strip_thinking(message.get("reasoning_content") or message.get("reasoning") or "")
+        if truncated:
             content += (
                 "\n\n[NOTE: response was truncated at the token limit before finishing — "
                 "if this cut off mid-code-block, that's why it couldn't be parsed.]"

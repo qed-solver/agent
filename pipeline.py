@@ -1,8 +1,3 @@
-"""Compile -> serialize-to-JSON -> run qed-prover, for a single RuleScript rule.
-
-Everything here shells out to the existing Maven project and the qed-prover
-binary; nothing about the QED prover itself is modified or reimplemented.
-"""
 from __future__ import annotations
 
 import json
@@ -20,9 +15,6 @@ SCOPE_RE = re.compile(r"^\s*//\s*SCOPE:\s*(FULL|PARTIAL)\s*(?:—|-)?\s*(.*)$", 
 
 
 def extract_scope(java_source: str | None) -> tuple[str, str]:
-    """Pull the required `// SCOPE: FULL` / `// SCOPE: PARTIAL — <reason>` tag
-    out of a rule file. Returns (scope, detail); scope is "FULL", "PARTIAL", or
-    "UNSPECIFIED" if the model didn't include the tag at all."""
     if not java_source:
         return "UNSPECIFIED", ""
     m = SCOPE_RE.search(java_source)
@@ -59,7 +51,7 @@ class Pipeline:
         self.qed_prover_bin = qed_prover_bin
         self.rules_dir = repo_dir / "src/main/java/org/qed/RRuleInstances"
         self.unprovable_dir = repo_dir / "src/main/java/org/qed/UnprovableRRuleInstances"
-        self.rules_out_dir = rules_out_dir or (AGENT_DIR / "rules")
+        self.rules_out_dir = rules_out_dir or (AGENT_DIR / "calcite" / "rules")
         CACHE_DIR.mkdir(exist_ok=True)
 
 
@@ -107,10 +99,6 @@ class Pipeline:
         scope: str = "",
         scope_detail: str = "",
     ) -> Path:
-        """Mirror the final artifact for this rule into <root>/rules/<Name>/ so a
-        human can see exactly what was produced without digging into the vendored
-        Maven project — the *.java there is a copy for inspection, not the build
-        input (that stays in the RRuleInstances tree while it's the active build)."""
         out = self.rules_out_dir / rule_name
         out.mkdir(parents=True, exist_ok=True)
         if java_source:

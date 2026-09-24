@@ -34,14 +34,20 @@ kept only for human inspection).
 Usage:
 
     # one rule, described in a spec file
-    python3 port_rule.py --spec rule_specs/my_rule.md
+    python3 port_rule.py --spec calcite/rule_specs/my_rule.md
 
     # a whole directory of spec files
-    python3 port_rule.py --spec-dir rule_specs
+    python3 port_rule.py --spec-dir calcite/rule_specs
 
     # smoke-test the compile/JSON/prove plumbing without calling any LLM,
     # by handing the porter's first tool call directly
-    python3 port_rule.py --spec rule_specs/my_rule.md --offline-code my_rule.java
+    python3 port_rule.py --spec calcite/rule_specs/my_rule.md --offline-code my_rule.java
+
+    # porting for a different backend: point spec-dir/progress/rules-out-dir
+    # at that backend's own folder (created the same way calcite/ is laid out)
+    python3 port_rule.py --spec-dir cockroach/rule_specs \
+        --progress-md cockroach/PROGRESS.md --progress-json cockroach/progress.json \
+        --rules-out-dir cockroach/rules
 
 Configuration (env vars, or matching CLI flags):
     RULESCRIPT_AGENT_API_KEY / ANTHROPIC_API_KEY / OPENAI_API_KEY
@@ -55,6 +61,7 @@ import argparse
 import json
 import os
 import shutil
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -76,6 +83,7 @@ from llm_client import (
 OFFLINE_PROVIDER = "openai"
 from pipeline import Pipeline, extract_scope
 from progress import ProgressLog, RuleAttempt
+from pool import Pool
 from repo_tools import EXTENDABLE_DSL_FILES, RepoTools
 from spec import RuleSpec, parse_spec_file
 
@@ -194,11 +202,6 @@ def _redact(arguments: dict) -> dict:
 
 
 def _compact_result(result: dict, limit: int = 6000) -> str:
-    """Full-fidelity but bounded text form of a tool result, for the
-    round activity log — generous enough to usually capture an entire DSL
-    file's contents (so a fresh summarizer agent has the real facts to work
-    from, not just which tools were called), but capped so one unusually
-    large result can't blow out the log by itself."""
     text = json.dumps(result, ensure_ascii=False)
     if len(text) > limit:
         return text[:limit] + f"... [truncated, {len(text) - limit} more chars]"
@@ -212,12 +215,6 @@ def dump_transcript_entry(debug_dir: Path, rule_name: str, turn: int, kind: str,
 
 
 def clear_reply_transcripts(debug_dir: Path, rule_name: str) -> None:
-    """Delete this rule's per-turn porter reply dumps (turn_NN_reply.txt) —
-    never the verifier's turn_00_verifier_*.txt files or round_NN_summary.md
-    notes, which are still needed while the rule is in progress. Called at
-    the start of every round so a short round doesn't leave stale,
-    higher-numbered files from a longer previous round sitting there and
-    making it look like this round went further than it did."""
     d = debug_dir / rule_name
     if not d.exists():
         return
@@ -226,12 +223,6 @@ def clear_reply_transcripts(debug_dir: Path, rule_name: str) -> None:
 
 
 def clear_all_transcripts(debug_dir: Path, rule_name: str) -> None:
-    """Delete this rule's entire debug-transcript directory (replies,
-    verifier dumps, round summaries — everything) once it reaches a
-    terminal PROVED/SKIPPED state. All of it is scratch working material;
-    the permanent record for a resolved rule is rules/<Name>/REPORT.md,
-    not .cache/transcripts/, so once resolved there's nothing here worth
-    keeping around."""
     d = debug_dir / rule_name
     if d.exists():
         shutil.rmtree(d, ignore_errors=True)
@@ -265,16 +256,6 @@ NO_VERIFIER = "NO_VERIFIER"
 
 
 def _looks_like_reasoning_dump(reply: str) -> bool:
-    """Heuristic for a verifier reply that's really an unfinished scratchpad
-    rather than a considered final answer — seen from this session's
-    reasoning model as either literally echoing the prompt's own
-    `<placeholder>` text before it had worked through the problem, or
-    rambling at stream-of-consciousness length (the requested format is 1-3
-    sentences). A `VERDICT:` line can still be *present* in such a reply
-    (e.g. a throwaway first guess typed before the real reasoning even
-    starts) while being a poor signal of what the model actually concluded
-    by the end — so this is checked in addition to, not instead of,
-    parseability."""
     lowered = reply.lower()
     if "<what you think" in lowered or "<1-3 sentence" in lowered or "<one-sentence" in lowered:
         return True
@@ -348,28 +329,6 @@ def merge_rule_to_main(
     rule_name: str, final_code: str, dsl_edits: list[dict],
     auditor_llm: LLMClient | None, progress_json_path: Path, lock_path: Path,
 ) -> tuple[str, str]:
-    """Merge one rule's QED-confirmed proof, produced in its own isolated
-    workspace, into the shared main repo. If the porter's own extend_dsl_file
-    calls kept any DSL edits along the way (`dsl_edits`, from
-    `tools_obj.dsl_edits` — exact (file, old_snippet, new_snippet, reason)
-    records, the same primitive extend_dsl_file itself uses), replay each one
-    onto the main repo's *current* file — not a blind overwrite, so if the
-    main repo has moved on in a conflicting way since this workspace was
-    forked, the merge fails cleanly instead of silently clobbering something.
-
-    Everything here runs inside a cross-process file lock (`merge_lock`) so
-    only one rule's merge touches the shared repo at a time, and is re-gated
-    exactly like extend_dsl_file/the old finalize_dsl_changes was: a fresh
-    compile, a fresh re-proof of every rule *currently* recorded PROVED (read
-    fresh, inside the lock — other rules may have merged in since this
-    workspace forked), a fresh re-proof of this rule itself against the
-    merged result, and — only if DSL files actually changed — an independent
-    LLM audit of the diff.
-
-    Returns (status, detail). status == "merged" is the only success case;
-    anything else means nothing was merged (the main repo is exactly as it
-    was before this call) and the caller must not treat the rule as proved.
-    """
     base = rulescript_root / "src" / "main" / "java" / "org" / "qed"
     with workspace.merge_lock(lock_path):
         pre_merge = {f: (base / f).read_text() for f in EXTENDABLE_DSL_FILES if (base / f).exists()}
@@ -534,21 +493,6 @@ def summarize_round(
     llm: LLMClient | None, system: str, round_log: list[str], verifier_feedback: str, debug_dir: Path,
     rule_name: str, round_num: int,
 ) -> str:
-    """Have a genuinely fresh, separate agent read this round's compact
-    activity log (plus the DSL reference material the porter itself started
-    with, the previous round's summary if one exists, and — critically —
-    what the independent reviewer said about this round's own output) and
-    write updated scratch notes for the next attempt. Without the verifier's
-    verdict, the log alone can look like a success story (e.g. a `try_rule`
-    call that returned provable=true) even though the reviewer went on to
-    reject it, and a summarizer blind to that would happily recommend
-    reusing the very thing that was just turned down. This is deliberately
-    NOT a continuation of the porter's own (possibly near-context-limit)
-    conversation, so it always gets the model's full context budget to work
-    with regardless of how much the round itself already used, and a
-    failure here is independent of whatever caused the round to end.
-    Best-effort: any failure just means the next round explores from
-    scratch, same as if no summary had been attempted."""
     if llm is None or not round_log:
         return ""
     try:
@@ -581,19 +525,10 @@ def summarize_round(
 
 def round_continuation_prompt(
     spec: RuleSpec, source_hint: str, last_code: str | None, feedback_header: str, reasoning: str,
-    self_summary: str = "",
+    self_summary: str = "", backend_name: str = "calcite",
 ) -> str:
-    """Built fresh at the start of every retry round instead of appending to the
-    previous round's conversation. Carrying the *feedback* forward (per the
-    whole point of multi-round retries) is not the same as carrying forward
-    every raw tool-call/tool-result from a round that explored a lot — that
-    can leave a small-context model's next round with no room left to even
-    read the feedback before it responds, which defeats the purpose. This
-    keeps the feedback (and the code it's about), plus the porter's own
-    scratch-note summary of what it already found, while dropping the
-    now-irrelevant raw exploration transcript."""
     parts = [
-        prompts.initial_user_prompt(spec.name, spec.backend, spec.source_path, source_hint),
+        prompts.initial_user_prompt(spec.name, spec.backend, spec.source_path, source_hint, backend_name),
         f"{feedback_header}\n\n{reasoning}",
     ]
     if self_summary:
@@ -623,12 +558,12 @@ def round_continuation_prompt(
     return "\n\n".join(parts)
 
 
-def read_source_text(calcite_root: Path, source_path: str) -> str:
+def read_source_text(backend_root: Path, source_path: str) -> str:
     if not source_path:
         return "(no source path given)"
-    p = calcite_root / source_path
+    p = backend_root / source_path
     if not p.exists():
-        return f"(source path {source_path} not found under {calcite_root})"
+        return f"(source path {source_path} not found under {backend_root})"
     return p.read_text()
 
 
@@ -638,7 +573,7 @@ def run_one(
     llm: LLMClient | None,
     verifier_llm: LLMClient | None,
     rulescript_root: Path,
-    calcite_root: Path,
+    backend_root: Path,
     max_turns: int,
     max_rounds: int,
     offline_code: str | None = None,
@@ -646,14 +581,15 @@ def run_one(
     workspaces_dir: Path | None = None,
     merge_lock_path: Path | None = None,
     progress_json_path: Path | None = None,
+    backend_name: str = "calcite",
 ) -> RuleAttempt:
     print(f"\n=== Porting {spec.name} (from {spec.backend}) ===")
     system = prompts.system_prompt()
     source_hint = spec.hint or "(no additional notes — read the source file for everything you need.)"
     conversation: list[dict] = [
-        {"role": "user", "content": prompts.initial_user_prompt(spec.name, spec.backend, spec.source_path, source_hint)}
+        {"role": "user", "content": prompts.initial_user_prompt(spec.name, spec.backend, spec.source_path, source_hint, backend_name)}
     ]
-    source_text = read_source_text(calcite_root, spec.source_path)
+    source_text = read_source_text(backend_root, spec.source_path)
 
     isolated = workspaces_dir is not None
     if isolated:
@@ -667,8 +603,10 @@ def run_one(
         p.stem for p in worker_pipeline.rules_dir.glob("*.java") if p.stem != spec.name
     )
     tools_obj = RepoTools(
-        workspace_root, calcite_root, worker_pipeline, spec.name, ROOT_DIR / ".cache" / "tmp-rules",
+        workspace_root, backend_root, worker_pipeline, spec.name, ROOT_DIR / ".cache" / "tmp-rules",
+        backend_name=backend_name,
         docs_root=ROOT_DIR / "docs",
+        local_root=ROOT_DIR,
         baseline_proved_rules=baseline_proved,
     )
     dsl_snapshot = snapshot_dsl_files(workspace_root)
@@ -730,7 +668,7 @@ def run_one(
                     scope=scope, scope_detail=scope_detail,
                 )
                 print(f"   verifier {verdict}: merged into shared repo [SCOPE: {scope}]")
-                print(f"   published for inspection under rules/{spec.name}/")
+                print(f"   published for inspection under {pipeline.rules_out_dir.relative_to(ROOT_DIR)}/{spec.name}/")
                 clear_all_transcripts(debug_dir, spec.name)
                 cleanup()
                 return RuleAttempt(
@@ -751,7 +689,7 @@ def run_one(
                 "content": round_continuation_prompt(
                     spec, source_hint, result.code,
                     "An independent reviewer examined your proof and found it unfaithful "
-                    "to the source rule:", reasoning, self_summary,
+                    "to the source rule:", reasoning, self_summary, backend_name,
                 ),
             }]
             continue
@@ -773,7 +711,7 @@ def run_one(
                 result_json=last_stats or None, verifier_verdict=verdict,
                 verifier_reasoning=reasoning, attempts_used=total_turns, rounds_used=round_num,
             )
-            print(f"   published (reasoning{'' if result.code else ' only, no candidate code'}) under rules/{spec.name}/")
+            print(f"   published (reasoning{'' if result.code else ' only, no candidate code'}) under {pipeline.rules_out_dir.relative_to(ROOT_DIR)}/{spec.name}/")
             clear_all_transcripts(debug_dir, spec.name)
             cleanup()
             return RuleAttempt(
@@ -794,7 +732,7 @@ def run_one(
             "content": round_continuation_prompt(
                 spec, source_hint, result.code,
                 "An independent reviewer looked at your attempt and believes this rule "
-                "IS expressible in RuleScript:", reasoning, self_summary,
+                "IS expressible in RuleScript:", reasoning, self_summary, backend_name,
             ),
         }]
 
@@ -809,7 +747,7 @@ def run_one(
         verifier_verdict=last_verifier_verdict, verifier_reasoning=last_verifier_reasoning,
         attempts_used=total_turns, rounds_used=max_rounds,
     )
-    print(f"   published (reasoning{'' if last_code else ' only, no candidate code'}) under rules/{spec.name}/")
+    print(f"   published (reasoning{'' if last_code else ' only, no candidate code'}) under {pipeline.rules_out_dir.relative_to(ROOT_DIR)}/{spec.name}/")
     cleanup()
     return RuleAttempt(
         spec.name, spec.backend, spec.description, "FAILED", total_turns,
@@ -830,11 +768,56 @@ def build_llm(provider, model, api_key, endpoint, max_tokens, timeout) -> LLMCli
     )
 
 
+def run_pool_worker(
+    pool: Pool, worker_id: str, specs_by_name: dict[str, RuleSpec],
+    pipeline: Pipeline, llm, verifier_llm, auditor_llm, args, progress: ProgressLog,
+) -> None:
+    while True:
+        name = pool.claim_next(worker_id)
+        if name is None:
+            return
+        spec = specs_by_name[name]
+        print(f"\n[{worker_id}] claimed {name}")
+        start = time.time()
+        try:
+            attempt = run_one(
+                spec, pipeline, llm, verifier_llm, args.repo, args.backend_root,
+                args.max_turns, args.max_verification_rounds, None,
+                auditor_llm=auditor_llm,
+                workspaces_dir=None if args.no_isolation else args.workspaces_dir,
+                merge_lock_path=args.merge_lock,
+                progress_json_path=args.progress_json,
+                backend_name=args.backend_name,
+            )
+        except LLMError as e:
+            attempt = RuleAttempt(spec.name, spec.backend, spec.description, "FAILED", 0, f"LLM error: {e}")
+        except Exception as e:
+            attempt = RuleAttempt(spec.name, spec.backend, spec.description, "FAILED", 0, f"agent error: {e}")
+        elapsed = time.time() - start
+        pool_result = pool.mark_outcome(name, attempt.status)
+        print(f"[{worker_id}] -> {attempt.status} ({elapsed:.1f}s) [pool: {pool_result}]")
+        progress.record(attempt)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     src = parser.add_mutually_exclusive_group(required=True)
     src.add_argument("--spec", type=Path, help="Single rule-spec file to port.")
     src.add_argument("--spec-dir", type=Path, help="Directory of rule-spec files to port, one rule each.")
+    parser.add_argument(
+        "--pool", action="store_true",
+        help="Run --spec-dir as a shared work pool instead of a fixed sequential batch: "
+             "--workers parallel processes each claim one rule at a time (file-locked, so "
+             "no two workers ever take the same one), run it, and go back for the next. A "
+             "rule that comes back FAILED is put back in the pool once for a second attempt "
+             "(possibly by a different worker) before being recorded as terminally FAILED. "
+             "Requires --spec-dir.",
+    )
+    parser.add_argument(
+        "--workers", type=int, default=4,
+        help="Parallel worker processes for --pool (ignored otherwise).",
+    )
+    parser.add_argument("--pool-worker", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--name", help="Override the rule name (single-spec mode only).")
     parser.add_argument("--backend", help="Override the source backend label (single-spec mode only).")
     parser.add_argument("--max-turns", type=int, default=30,
@@ -881,8 +864,13 @@ def main():
         help="Path to the RuleScript maven project.",
     )
     parser.add_argument(
-        "--calcite-root", type=Path, default=ROOT_DIR / "vendor" / "calcite-src",
-        help="Path to the vendored Calcite (or other backend) source checkout the porter reads from.",
+        "--backend-root", type=Path, default=ROOT_DIR / "vendor" / "calcite-src",
+        help="Path to the vendored source checkout (Calcite, CockroachDB, ...) the porter reads from.",
+    )
+    parser.add_argument(
+        "--backend-name", type=str, default="calcite",
+        help="Tool-schema root name the porter uses for --backend-root, e.g. 'calcite' or "
+             "'cockroach' — must match the backend field in your rule specs' naming convention.",
     )
     parser.add_argument(
         "--qed-prover",
@@ -890,8 +878,14 @@ def main():
         default=ROOT_DIR / "vendor" / "qed-prover" / "target" / "release" / "qed-prover",
         help="Path to the built qed-prover binary.",
     )
-    parser.add_argument("--progress-md", type=Path, default=ROOT_DIR / "PROGRESS.md")
-    parser.add_argument("--progress-json", type=Path, default=ROOT_DIR / "progress.json")
+    parser.add_argument("--progress-md", type=Path, default=ROOT_DIR / "calcite" / "PROGRESS.md")
+    parser.add_argument("--progress-json", type=Path, default=ROOT_DIR / "calcite" / "progress.json")
+    parser.add_argument(
+        "--rules-out-dir", type=Path, default=ROOT_DIR / "calcite" / "rules",
+        help="Where the human-readable mirror of each rule's outcome is published. "
+             "Point this (and --progress-md/--progress-json/--spec-dir) at a different "
+             "backend's own folder (e.g. cockroach/) when porting for that backend.",
+    )
     parser.add_argument(
         "--no-isolation", action="store_true",
         help="Work directly against --repo instead of giving each rule its own private copy. "
@@ -958,20 +952,54 @@ def main():
             args.auditor_timeout or args.verifier_timeout or args.timeout,
         )
 
-    pipeline = Pipeline(args.repo, args.qed_prover)
+    pipeline = Pipeline(args.repo, args.qed_prover, rules_out_dir=args.rules_out_dir)
     progress = ProgressLog(args.progress_json, args.progress_md)
+
+    if args.pool_worker is not None:
+        specs_by_name = {s.name: s for s in specs}
+        run_pool_worker(
+            Pool(args.pool_worker), f"worker-{os.getpid()}", specs_by_name,
+            pipeline, llm, verifier_llm, auditor_llm, args, progress,
+        )
+        return
+
+    if args.pool:
+        if not args.spec_dir:
+            parser.error("--pool requires --spec-dir")
+        state_path = (ROOT_DIR / ".cache" / "pool" / f"{args.spec_dir.name}.json").resolve()
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        pool = Pool(state_path)
+        pool.init([s.name for s in specs])
+        print(f"Pool state at {state_path} — {len(specs)} rule(s), {args.workers} worker(s)")
+        child_argv = list(sys.argv[1:]) + ["--pool-worker", str(state_path)]
+        procs = [
+            subprocess.Popen([sys.executable, str(Path(__file__).resolve())] + child_argv)
+            for _ in range(args.workers)
+        ]
+        for p in procs:
+            p.wait()
+        summary = pool.summary()
+        counts: dict[str, int] = {}
+        print("\n=== Pool Summary ===")
+        for name, entry in sorted(summary.items()):
+            counts[entry["status"]] = counts.get(entry["status"], 0) + 1
+            print(f"  {entry['status']:12s} {name} (attempts={entry['attempts']})")
+        print(f"\n{counts}")
+        print(f"\nProgress written to {args.progress_md} and {args.progress_json}")
+        return
 
     results = []
     for spec in specs:
         start = time.time()
         try:
             attempt = run_one(
-                spec, pipeline, llm, verifier_llm, args.repo, args.calcite_root,
+                spec, pipeline, llm, verifier_llm, args.repo, args.backend_root,
                 args.max_turns, args.max_verification_rounds, offline_code_text,
                 auditor_llm=auditor_llm,
                 workspaces_dir=None if args.no_isolation else args.workspaces_dir,
                 merge_lock_path=args.merge_lock,
                 progress_json_path=args.progress_json,
+                backend_name=args.backend_name,
             )
         except LLMError as e:
             attempt = RuleAttempt(spec.name, spec.backend, spec.description, "FAILED", 0, f"LLM error: {e}")

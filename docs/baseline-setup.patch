@@ -9204,3 +9204,134 @@ index 27af3ba..0000000
 -        return left;
 -    }
 -}
+
+# --- Appended after the Calcite porting pass ---
+# The three hunks below add DSL primitives discovered to be genuinely needed
+# (not Calcite-specific) while porting Calcite's rules: RelRN.scanMany
+# (multi-column scan), the RelRN.project(Seq<RexRN>)/ProjectMany overload
+# (multi-column projection), and RelRN.Correlate (a real dependent join,
+# needed for JoinToCorrelate — see calcite/rules/JoinToCorrelate/REPORT.md
+# for the derivation). Keeping them in this same baseline patch means a
+# fresh checkout for the next backend starts with these already available,
+# instead of every backend rediscovering them independently.
+diff --git a/src/main/java/org/qed/RelRN.java b/src/main/java/org/qed/RelRN.java
+index 1debebb..40a478f 100644
+--- a/src/main/java/org/qed/RelRN.java
++++ b/src/main/java/org/qed/RelRN.java
+@@ -5,6 +5,8 @@ import kala.collection.Set;
+ import org.apache.calcite.rel.RelNode;
+ import org.apache.calcite.rel.core.Aggregate;
+ import org.apache.calcite.rel.core.JoinRelType;
++import org.apache.calcite.rel.logical.LogicalCorrelate;
++import org.apache.calcite.rel.logical.LogicalFilter;
+ import org.apache.calcite.rex.RexNode;
+ import org.apache.calcite.sql.SqlAggFunction;
+ import org.apache.calcite.sql.SqlOperator;
+@@ -26,6 +28,13 @@ public interface RelRN {
+         return scan(id, RexRN.varType(typeName, true), false);
+     }
+ 
++    /** Multi-column scan — additive alongside the single-column {@link #scan}
++     * above, for rules whose base relation needs more than one column (e.g.
++     * one column used as a join key, another as a separate group-by key). */
++    static ScanMany scanMany(String id, Seq<RelType.VarType> tys) {
++        return new ScanMany(id, tys);
++    }
++
+     RelNode semantics();
+ 
+     default RexRN field(int ordinal) {
+@@ -93,6 +102,14 @@ public interface RelRN {
+         return project(proj(name, type_name));
+     }
+ 
++    /** Multi-column projection (e.g. reordering/selecting several columns at
++     * once) — additive alongside the single-expression {@link #project(RexRN)}
++     * above, for rules that need to rebuild a row from more than one
++     * expression (e.g. reordering join output columns). */
++    default ProjectMany project(Seq<RexRN> exprs) {
++        return new ProjectMany(exprs, this);
++    }
++
+     default Join join(Join.JoinType ty, RexRN cond, RelRN right) {
+         return new Join(ty, cond, this, right);
+     }
+@@ -111,6 +128,16 @@ public interface RelRN {
+ 
+     default Join join(JoinRelType ty, String name, RelRN right) {return join(ty, joinPred(name, right), right);}
+ 
++    /** Correlate (dependent join): unlike {@link #join}, the condition is a
++     * raw uninterpreted {@link SqlOperator} rather than a prebuilt RexRN,
++     * because the correlated reference to the left row can only be built
++     * once a correlation id exists for this specific correlate node —
++     * {@link Correlate#semantics()} creates that id and the whole condition
++     * together, rather than delegating to an independently-built cond. */
++    default Correlate correlate(JoinRelType ty, SqlOperator cond, RelRN right) {
++        return new Correlate(ty, cond, this, right);
++    }
++
+     default Union union(boolean all, RelRN... sources) {
+         return new Union(all, Seq.of(this).appendedAll(sources));
+     }
+@@ -138,6 +165,16 @@ public interface RelRN {
+         }
+     }
+ 
++    record ScanMany(String name, Seq<RelType.VarType> tys) implements RelRN {
++        @Override
++        public RelNode semantics() {
++            var colNames = tys.mapIndexed((i, t) -> "col-" + name + "-" + i);
++            Seq<org.apache.calcite.rel.type.RelDataType> colTypes = tys.map(t -> t);
++            var table = new QedTable(name, colNames, colTypes, Set.empty(), Set.empty());
++            return RuleBuilder.create().addTable(table).scan(name).build();
++        }
++    }
++
+     record Filter(RexRN cond, RelRN source) implements RelRN {
+         @Override
+         public RelNode semantics() {
+@@ -152,6 +189,14 @@ public interface RelRN {
+         }
+     }
+ 
++    record ProjectMany(Seq<RexRN> exprs, RelRN source) implements RelRN {
++        @Override
++        public RelNode semantics() {
++            return RuleBuilder.create().push(source.semantics())
++                    .project(exprs.map(RexRN::semantics).asJava()).build();
++        }
++    }
++
+     record Join(Join.JoinType ty, RexRN cond, RelRN left, RelRN right) implements RelRN {
+         @Override
+         public RelNode semantics() {
+@@ -245,6 +290,29 @@ public interface RelRN {
+         }
+     }
+ 
++    record Correlate(JoinRelType ty, SqlOperator cond, RelRN left, RelRN right) implements RelRN {
++        @Override
++        public RelNode semantics() {
++            var builder = RuleBuilder.create();
++            var l = left.semantics();
++            var r = right.semantics();
++            int lc = l.getRowType().getFieldCount();
++            int rc = r.getRowType().getFieldCount();
++            var rexBuilder = builder.getRexBuilder();
++            var corrId = builder.getCluster().createCorrel();
++            var corrVar = rexBuilder.makeCorrel(l.getRowType(), corrId);
++            var rFields = r.getRowType().getFieldList();
++            Seq<RexNode> leftArgs = Seq.from(IntStream.range(0, lc)
++                    .<RexNode>mapToObj(i -> rexBuilder.makeFieldAccess(corrVar, i)).iterator());
++            Seq<RexNode> rightArgs = Seq.from(IntStream.range(0, rc)
++                    .<RexNode>mapToObj(j -> rexBuilder.makeInputRef(rFields.get(j).getType(), j)).iterator());
++            var condition = builder.call(cond, leftArgs.appendedAll(rightArgs).asJava());
++            var filteredRight = LogicalFilter.create(r, condition);
++            return LogicalCorrelate.create(l, filteredRight, java.util.List.of(), corrId,
++                    ImmutableBitSet.range(lc), ty);
++        }
++    }
++
+     record Union(boolean all, Seq<RelRN> sources) implements RelRN {
+ 
+         @Override

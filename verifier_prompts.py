@@ -1,18 +1,3 @@
-"""Prompts for the second agent role: an independent reviewer.
-
-The porter agent (see prompts.py) writes a candidate RuleScript encoding and
-we run it through the mechanical compile/JSON/qed-prover pipeline. That
-pipeline can only tell us "QED proved this" or "QED did not prove this" (or
-"the model gave up and called it unsupported") — it cannot tell us whether
-a *proved* encoding is actually a faithful, general rendering of the source
-rule (rather than e.g. an accidentally-trivial or overly-narrow pattern that
-happens to be easy to prove), nor whether an "unsupported" verdict is really
-justified rather than the model just not trying hard enough.
-
-The verifier agent is a fresh conversation (no shared history with the
-porter) that is given the original source rule plus the porter's final
-artifact, and must render an independent verdict with reasoning.
-"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -155,7 +140,6 @@ REASONING: <what you think the porter got wrong, and a concrete suggestion for h
 
 
 def parse_verdict(reply: str) -> tuple[str | None, str]:
-    """Returns (VERDICT_TOKEN or None, reasoning_text)."""
     verdict = None
     reasoning_lines = []
     in_reasoning = False

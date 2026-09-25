@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 20  **Verification rounds used:** 1
+**Porter attempts used:** 41  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
@@ -52,4 +52,4 @@ Extracted from `comp.opt` (which defines multiple rules — implement specifical
 
 **Verdict:** AGREE
 
-The rule's validity rests entirely on CockroachDB's specific definition of `levenshtein_less_equal(s,t,d)` (exact distance when ≤ d, else d+1 — the porter's own Go-code reading confirmed this), i.e. an algebraic relationship between the *internals of two specific functions*. QED models `levenshtein` and `levenshtein_less_equal` as independent uninterpreted function symbols, and the core language has no arithmetic, no conditionals, and no mechanism to relate or axiomatize two function symbols, so the two sides reduce to unrelated `L(s,t) OP d` vs `LLE(s,t,d) OP d` where the SMT solver trivially finds countermodels — and no faithful special case (any of the five comparison operators) can escape the dependency on that clamping property. (The porter's logged reason was an LLM context-overflow infrastructure error rather than an analysis, but the UNSUPPORTED conclusion is the correct one.)
+The rule's validity rests entirely on the backend's clamp identity `levenshtein_less_equal(a,b,n) = min(levenshtein(a,b), n)`, but RuleScript can only introduce these as independent uninterpreted symbols and offers no way to state any relationship between them — RexRN has no equality/arithmetic/min, there are no function-axiom mechanisms, and a scan's "guaranteed" constraint would itself be an uninterpreted predicate over columns that cannot bridge two distinct function terms. Since QED must prove equivalence for *all* instantiations of uninterpreted symbols and the fixed prover has no path for predicate inference between independent symbols, no genuine encoding is provable — this is precisely the "bespoke internal semantics of a backend operator" limitation.

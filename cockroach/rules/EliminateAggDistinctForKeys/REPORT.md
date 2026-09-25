@@ -1,8 +1,10 @@
 # EliminateAggDistinctForKeys
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 20  **Verification rounds used:** 1
+**Porter attempts used:** 4  **Verification rounds used:** 1
+**Scope detail:** the aggregation argument is the input scan's unique key, which is also the (single-column) grouping key, so each group holds at most one row and AggDistinct is a per-group no-op; the general CanRemoveAggDistinctForKeys condition (grouping cols functionally determine the agg arg over any input) is not expressible because QED only models scan uniqueness as a functional dependency.
+
 
 ## Source rule (as given to the porter)
 
@@ -43,6 +45,47 @@ Extracted from `groupby.opt` (which defines multiple rules — implement specifi
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-`EliminateAggDistinctForKeys` rewrites `AGG(DISTINCT x)` to `AGG(x)` on the premise that, when the grouping columns plus x form a strict key, x has no duplicate values within any group — i.e. its correctness rests on the aggregate identity "DISTINCT is a no-op when the argument is unique per group." QED models each aggregate invocation (the DISTINCT and non-DISTINCT forms being distinct function symbols) as an uninterpreted function and knows no algebra connecting them; its only aggregate reasoning is bag-equality of the input for the *same* function, which cannot apply because the rewrite changes the function itself. Hence no encoding — including the narrow "x is the table's primary key" special case, where the key condition is even expressible via `scan(unique=true)` — can reduce the two sides to the same aggregate over equal input bags, so the rule is genuinely outside QED's power (a missing aggregate-algebra capability in the prover, not a DSL gap that `extend_dsl_file` could close). ```
+The encoding faithfully captures a genuine special case of the rule (input is a scan whose unique key is also the grouping key and the DISTINCT aggregate's argument), `before()` and `after()` differ only in the `distinct` flag on an otherwise-identical uninterpreted aggregate call so the proof is not vacuous, the `unique=true` scan constraint is precisely the precondition QED needs to equate the per-group bag with the per-group set (making the SMT step non-trivial), and the PARTIAL scope tag honestly and specifically documents that the general "grouping cols functionally determine the agg arg over an arbitrary input" condition is inexpressible — leaving a useful, non-degenerate result.
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": false,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 8387917
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 38387958
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 908750
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 555000
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 21002250
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 38553458
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 75363042
+  }
+}
+```

@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 20  **Verification rounds used:** 1
+**Porter attempts used:** 43  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
@@ -43,4 +43,4 @@ Extracted from `scalar.opt` (which defines multiple rules — implement specific
 
 **Verdict:** AGREE
 
-The rule's validity rests entirely on the backend-specific semantic fact that LIKE's default escape character is '\', making like_escape(x, p, '\') identical to like(x, p). In QED's model, `like_escape` (3-ary) and `like` (2-ary) are independent uninterpreted predicate symbols with no axioms connecting them, so the SMT solver can construct a model where they differ for the same (x, p). No re-encoding can bridge this gap because the relationship is an internal operator semantic that QED fundamentally cannot see through — this is precisely the "operator whose specific internal semantics QED cannot see through as an uninterpreted function" limitation. ```
+The rule's correctness rests entirely on CockroachDB's backend-specific semantic that `LIKE`'s default escape character is `'\'`, i.e. the entailment `like_escape(x, p, '\')` ⟺ `like(x, p)`. In QED both `like_escape` and `like` can only be introduced as distinct uninterpreted predicate symbols, and the SMT solver has no axiom relating independent symbols (or symbols of different arity), so the equivalence is invalid under the interpretations QED quantifies over. No DSL extension can close this gap, since the missing piece is operator-specific semantic knowledge that lives in the prover — the trusted, unmodifiable arbiter — rather than a missing operator or shape in the DSL. ```

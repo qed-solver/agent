@@ -1,8 +1,10 @@
 # AssociateLimitJoinsRight
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 20  **Verification rounds used:** 1
+**Porter attempts used:** 8  **Verification rounds used:** 1
+**Scope detail:** the identical Limit/ordering wrapper is omitted and join conditions are uninterpreted predicates over fixed single-column fields
+
 
 ## Source rule (as given to the porter)
 
@@ -86,6 +88,47 @@ Extracted from `limit.opt` (which defines multiple rules — implement specifica
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-AssociateLimitJoinsRight re-associates joins specifically *under a Limit*, and its soundness precondition `JoinPreservesRightRows` exists solely to ensure the Limit still selects the same top-N rows after the rewrite — so its correctness rests on row-ordering/Limit semantics, which QED (bag-semantic only, and the unmodifiable arbiter) does not model; even `extend_dsl_file` adding a Limit/Sort builder couldn't be proved. Dropping the Limit to expose the inner join re-association would not be a special case of this rule but a different, unconditionally-true identity that ignores the `JoinPreservesRightRows`/`NoJoinHints` conditions that are the whole point of the limit version. ```
+before() = C ⋈ (A ⟕ B ON p_ab) and after() = (A ⋈ C ON p_ac) ⟕ B ON p_ab (re-projected to the common (C,A,B) column order) are genuinely different plan trees, so the proof is of the exact reassociation identity that is the semantic core of the rule, with join types matching the source (inner outside / left inside, flipped to inner inside / left outside). The two ON conditions are shared uninterpreted predicate symbols applied to the same logical columns in the same argument order on both sides (p_ab on (A,B), p_ac on (A,C)), which structurally enforces the rule's essential side condition that $outsideOn not reference $insideRight rather than coincidentally satisfying it, and A/B/C remain three independent uninterpreted tables. The declared PARTIAL scope is honest and non-degenerate: the Limit/ordering wrapper is identical on both sides and unmodelable by QED, the fixed single-column width is an inherent DSL limitation (no arity quantification) with no bearing on the identity's logical content, and the proof still fully exercises the null-extended-row path that is what makes the identity non-trivial. ```
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": false,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 20113210
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 47590208
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 1066166
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 1325875
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 44993417
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 47862791
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 109688708
+  }
+}
+```

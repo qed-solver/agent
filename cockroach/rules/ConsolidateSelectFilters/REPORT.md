@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 20  **Verification rounds used:** 1
+**Porter attempts used:** 43  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
@@ -50,4 +50,4 @@ Extracted from `select.opt` (which defines multiple rules — implement specific
 
 **Verdict:** AGREE
 
-ConsolidateSelectFilters rewrites a Select's filter by wrapping conjunctions of single-variable comparisons in a `Range` node, and its soundness rests entirely on CockroachDB's `Range` scalar operator being semantically transparent (equivalent to its child) — a backend-internal property of the operator. RuleScript can only introduce `Range` as an uninterpreted scalar symbol, and QED cannot prove that an uninterpreted function is the identity (no axiom mechanism exists to assert `range(e) = e`), so the only provable encodings are trivial: either keep `Range` and fail, or drop it and the rewrite degenerates to the identity. The porter's pre-crash investigation had in fact already pinned down exactly this — `Range` is "purely a hint for index constraint construction" with no logical effect — so the UNSUPPORTED conclusion is correct, not an encoding miss. ```
+The rule's entire semantic content is that CockroachDB's `Range` predicate is a transparent wrapper over its inner conjunction (Range(e) ≡ e in filter context); in RuleScript, `Range` can only be introduced as an uninterpreted predicate symbol, and QED fundamentally cannot prove an uninterpreted symbol equivalent to its argument, and the JSON/DSL format has no channel for operator axioms (the "guaranteed" field only attaches to base-table scans, and RelRN/RexRN/JSONSerializer carry no operator-axiom construct), so extending the DSL cannot supply the required transparency axiom without modifying the trusted prover. Any encoding that drops `Range` collapses the rule to nested-filter AND merging — i.e. the already PROVED FULL FilterMerge — so there is no genuine non-trivial PARTIAL fallback to port. ```

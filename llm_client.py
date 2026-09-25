@@ -230,6 +230,8 @@ class LLMClient:
             raise LLMError(f"HTTP {e.code} from {self.endpoint}: {detail}") from e
         except urllib.error.URLError as e:
             raise LLMError(f"Failed to reach {self.endpoint}: {e}") from e
+        except TimeoutError as e:
+            raise LLMError(f"Request to {self.endpoint} timed out after {self.timeout}s: {e}") from e
 
     def _complete_anthropic(self, system: str, messages: list[dict]) -> str:
         headers = {

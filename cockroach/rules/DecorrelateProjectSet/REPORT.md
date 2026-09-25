@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 20  **Verification rounds used:** 1
+**Porter attempts used:** 47  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
@@ -48,4 +48,4 @@ Extracted from `decorrelate.opt` (which defines multiple rules — implement spe
 
 **Verdict:** AGREE
 
-The rule's correctness depends entirely on the structural side condition that the set-returning ("zip") functions reference no input column (non-correlation), a free-variable/dependency property that QED — a bag-semantic equivalence prover over uninterpreted symbols — has no way to express or assume; "ProjectSet"/set-returning functions also have no operator in the DSL core language (no `RelRN` method, no `JSONSerializer` case) and no semantic model in QED's unmodifiable prover. Any faithful model of the SRF as an uninterpreted row-dependent relation makes the general rule false (hence unprovable), while a model that assumes independence collapses before and after to the identical cross join R × S — a trivially provable but vacuous identity containing no ProjectSet to actually transform.
+ProjectSet / set-returning (table-valued) functions have [NOTE: response was truncated at the token limit before finishing — if this cut off mid-code-block, that's why it couldn't be parsed.]

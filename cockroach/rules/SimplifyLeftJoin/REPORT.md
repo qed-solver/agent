@@ -1,8 +1,10 @@
 # SimplifyLeftJoin
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 20  **Verification rounds used:** 1
+**Porter attempts used:** 23  **Verification rounds used:** 2
+**Scope detail:** self-join in which both inputs are the same single non-nullable-column scan joined on equality of that column
+
 
 ## Source rule (as given to the porter)
 
@@ -59,6 +61,47 @@ Extracted from `join.opt` (which defines multiple rules — implement specifical
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-The rule's soundness rests entirely on the side condition `JoinFiltersMatchAllLeftRows` (for every left row, ∃ a right row satisfying the join predicate) — a quantified entailment between uninterpreted symbols that QED explicitly cannot reason about, and RuleScript's pattern-pair format has no mechanism to state rule preconditions; without that guard, QED correctly sees that LeftJoin ≠ InnerJoin for arbitrary instantiations (a left row with no match yields a NULL-extended row in the left join but no row in the inner join), and no non-trivial special case (self-join, `True` condition) is provable either, since the join predicate is uninterpreted (no reflexivity) and non-emptiness of the right input is likewise inexpressible. ```
+The encoding is non-vacuous and correctly shaped: `before()` and `after()` genuinely differ only in join kind (LEFT vs INNER), and the equivalence is a real theorem that holds *only* because both inputs are the same scan and the condition is `col = col` on a non-nullable column — this is precisely the structural encoding of the rule's `JoinFiltersMatchAllLeftRows` precondition (the self-join example from the rule's own doc comment), and each piece is load-bearing: two independent scans would fail (right side could be empty or lack a matching value) and a nullable column would fail (NULL = NULL is not true, so a NULL left row would get null-extended), so QED could not have proved a looser, wrong claim. The narrowing to plain `LeftJoin` with a single non-nullable-column self-join on equality is specific, non-degenerate, and accurately disclosed in the SCOPE line, so the provable result faithfully certifies a genuine special case of the source rule rather than a trivial or accidentally over-constrained one.
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": false,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 13721668
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 1123083
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 1169792
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 31464458
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 51125125
+  }
+}
+```

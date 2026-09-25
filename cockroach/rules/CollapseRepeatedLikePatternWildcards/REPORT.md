@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 20  **Verification rounds used:** 1
+**Porter attempts used:** 21  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -38,4 +38,4 @@ Extracted from `comp.opt` (which defines multiple rules — implement specifical
 
 **Verdict:** AGREE
 
-The rule's correctness rests entirely on LIKE's internal wildcard semantics (that a run of '%' matches the same language as a single '%'), but QED models LIKE as an uninterpreted predicate over uninterpreted values with no string theory, so it cannot relate like(x, p) to like(x, collapse(p)) for distinct pattern constants p and collapse(p); no DSL extension can close this gap because the missing piece is an interpretation of the predicate's string-matching internals, not a missing relational operator, and the prover itself cannot be modified. ```
+The rule's soundness rests entirely on glob-pattern semantics of LIKE's pattern argument — that a run of `%` wildcards matches exactly the same string set as a single `%` — which is an internal string-semantics property QED cannot see, since it models predicates only as uninterpreted functions over bag semantics and its SMT backend has no string/glob theory. No DSL extension can close this gap: even with a string-literal constructor, `LIKE(x,'a%%b')` and `LIKE(x,'a%b')` remain two distinct uninterpreted function applications over which SMT can build distinguishing countermodels, and the prover itself is a fixed, unmodifiable arbiter. Hence the only encodable form reuses one predicate symbol for both sides, degenerating into a vacuous identity — a genuine fundamental limitation, not a missing operator the porter failed to find.

@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 20  **Verification rounds used:** 1
+**Porter attempts used:** 6  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -40,4 +40,4 @@ Extracted from `with.opt` (which defines multiple rules — implement specifical
 
 **Verdict:** AGREE
 
-This is a logical-property (cardinality-bound) rule, not a bag-equivalence rule: it rewrites a RecursiveCTE into the backend-specific operator ApplyLimitToRecursiveCTEScan whose entire effect is to update cardinality-bound metadata on the recursive scans (with HasBoundedCardinality / ^HasBoundedCardinality as side conditions on subplans), and RuleScript has no notion of operator properties, no way to state cardinality constraints on subexpressions, and no such operator in its core language. The soundness of the transform also rests on recursive-CTE fixpoint/iteration semantics plus Limit semantics (capping the scans each iteration), and QED only decides bag equivalence of finite relational expressions — recursion/fixpoints and Sort/Limit/Ordering have no bag-semantic model in it. This is a fundamental modeling gap, not a missing builder: even a RecursiveCTE node added via extend_dsl_file would have no case in JSONSerializer and no semantics in the unchangeable Rust prover, so no encoding (full or special case) is expressible. ```
+The rule's precondition is a set of subplan cardinality side conditions (HasBoundedCardinality) and its effect is a backend marker operator that changes operator *properties*, not the produced relation — RuleScript's before/after patterns can only express row-level relational structure, with no mechanism to state cardinality-bound side conditions on subexpressions or to capture property propagation at all. Additionally, the operators the rule manipulates are outside QED's model: RecursiveCTE/fixpoint has no bag-semantic meaning, and Limit is explicitly among the operators QED cannot reason about, so neither side of the rewrite is encodable; extend_dsl_file cannot close this gap because the trusted Rust prover (off-limits for modification) has no Q-expression semantics for recursion or ordering/limit. ```

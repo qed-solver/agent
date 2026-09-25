@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 20  **Verification rounds used:** 1
+**Porter attempts used:** 21  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -37,4 +37,4 @@ Extracted from `comp.opt` (which defines multiple rules — implement specifical
 
 **Verdict:** AGREE
 
-The rule's soundness rests entirely on the backend's specific clamping invariant, `levenshtein_less_equal(a,b,d) = min(levenshtein(a,b), d+1)` — the porter's transcript shows it correctly derived this, which is exactly the relationship QED can never see. In RuleScript, `levenshtein` and `levenshtein_less_equal` can only be two distinct uninterpreted scalar symbols with no mechanism to assert any relation between them, and QED must certify bag-equivalence for *all* instantiations of uninterpreted symbols — under an arbitrary instantiation (e.g. `lle` returning a constant while `lev` doesn't) the before/after filters genuinely differ, so the prover can only ever report not-provable. No narrower special case (e.g. a constant `left`) removes this dependence, since even `5 OP lev(a,b)` ⟺ `5 OP lle(a,b,5)` requires the clamping property, so UNSUPPORTED is the correct conclusion; the real limitation is an operator's bespoke internal semantics, not a missing DSL shape. ```
+The rewrite `x OP levenshtein(s,t) ⟺ x OP levenshtein_less_equal(s,t,x)` is only valid because of CockroachDB's internal clamping contract for `levenshtein_less_equal` (returns the true distance when it is ≤ the bound, and a value strictly greater than the bound otherwise) — and checking each of Eq/Ge/Gt/Le/Lt, every one of the five directions of the equivalence depends on that relationship, which is an entailment between two function symbols that QED models as independent uninterpreted functions. RuleScript's core language offers no arithmetic or conditional terms and no axiom/assume mechanism to state such a contract, and since the frozen prover itself never relates independent uninterpreted symbols, no DSL builder extension could communicate it either — so no general or special-cased encoding (even with a literal bound, which would still leave the predicate and both function symbols uninterpreted) is provable. ```

@@ -1,52 +1,52 @@
 # RuleScript porting progress
 
-_Last updated: 2026-09-24T20:55:26.738013+00:00_
+_Last updated: 2026-09-25T08:20:35.366373+00:00_
 
-**18/41 rules proved** (0 failed, 23 skipped as out of QED's supported fragment).
+**25/41 rules proved** (0 failed, 16 skipped as out of QED's supported fragment).
 
 | Rule | Backend | Status | Scope | Attempts | Notes |
 |---|---|---|---|---|---|
 | `AssociateLimitJoinsLeft` | CockroachDB | ✅ PROVED | PARTIAL | 28 | The encoding faithfully captures the rule's substantive identity — ((A LEFT JOIN B ON p_ab) INNER JOIN C ON p_ac) ≡ reprojected((A INNER ... |
+| `AssociateLimitJoinsRight` | CockroachDB | ✅ PROVED | PARTIAL | 8 | before() = C ⋈ (A ⟕ B ON p_ab) and after() = (A ⋈ C ON p_ac) ⟕ B ON p_ab (re-projected to the common (C,A,B) column order) are genuinely ... |
 | `CommuteConst` | CockroachDB | ✅ PROVED | PARTIAL | 22 | The encoding faithfully captures the rule's Eq-case semantic core—commutativity of equality—by deliberately using the concrete SqlStdOper... |
+| `CommuteConstInequality` | CockroachDB | ✅ PROVED | PARTIAL | 41 | The encoding faithfully lifts the scalar Lt flip into the relational DSL — a maximally-general carrier (INNER cross-join of two unconstra... |
 | `CommuteRightJoin` | CockroachDB | ✅ PROVED | PARTIAL | 4 | The encoding is non-vacuous and semantically faithful: before() is a genuine RightJoin(L, R, P) and after() is a LeftJoin(R, L) with the ... |
 | `CommuteVar` | CockroachDB | ✅ PROVED | PARTIAL | 23 | The encoding is a faithful, non-vacuous proof of the Eq fragment of CommuteVar: `before()` and `after()` are structurally different (conc... |
+| `CommuteVarInequality` | CockroachDB | ✅ PROVED | PARTIAL | 24 | The encoding faithfully lifts the rule's scalar commutation to the relational level — an inner cross join of two independent same-type nu... |
 | `ConvertGroupByToDistinct` | CockroachDB | ✅ PROVED | PARTIAL | 23 | The encoding has the correct relational shape for the source rule: a no-aggregation `Aggregate` (group set = all columns, empty agg list)... |
 | `DecorrelateJoin` | CockroachDB | ✅ PROVED | PARTIAL | 22 | The encoding faithfully captures the core DecorrelateJoin transformation: `before()` builds a `LogicalCorrelate` (INNER) where the right ... |
 | `DeduplicateSelectFilters` | CockroachDB | ✅ PROVED | PARTIAL | 21 | before() (filter chain p, q, p) and after() (p, q) are genuinely different, and the shared uninterpreted symbol `p` correctly enforces th... |
 | `DetectJoinContradiction` | CockroachDB | ✅ PROVED | PARTIAL | 30 | The encoding faithfully mirrors the source transformation — a join whose ON list contains a contradictory (always-false) item alongside u... |
+| `EliminateAggDistinct` | CockroachDB | ✅ PROVED | PARTIAL | 4 | The encoding is a sound, non-vacuous special case rather than a vacuous one: `before()` and `after()` genuinely differ in the AggCall's `... |
+| `EliminateAggDistinctForKeys` | CockroachDB | ✅ PROVED | PARTIAL | 4 | The encoding faithfully captures a genuine special case of the rule (input is a scan whose unique key is also the grouping key and the DI... |
 | `EliminateAggFilteredDistinctForKeys` | CockroachDB | ✅ PROVED | PARTIAL | 62 | Manually re-derived and verified by Claude (not the automated porter/verifier LLM loop, which exhausted both pool attempts on repeated LL... |
 | `EliminateAntiJoin` | CockroachDB | ✅ PROVED | PARTIAL | 5 | The encoding is faithful and non-trivial: it uses an uninterpreted left relation, a zero-row right (the canonical `Empty` form, which is ... |
 | `EliminateDistinct` | CockroachDB | ✅ PROVED | PARTIAL | 26 | The encoding is structurally faithful: DistinctOn is exactly a group-by with no aggregation calls (matching `Aggregate(source, [field(0)]... |
 | `EliminateNot` | CockroachDB | ✅ PROVED | FULL | 5 | The encoding directly captures `EliminateNot` by removing a doubled `NOT` around the same uninterpreted predicate while keeping the same ... |
 | `FoldNotFalse` | CockroachDB | ✅ PROVED | FULL | 4 | The encoding is non-vacuous (Filter(Not(False), R) vs. Filter(True, R) are structurally distinct) and matches the source rule term-for-te... |
+| `NegateComparison` | CockroachDB | ✅ PROVED | PARTIAL | 21 | The proof is non-vacuous and genuine: `before()` is `Filter(¬(x = y))` vs `after()` `Filter(x <> y)` over the cross-join of two *independ... |
 | `PruneJoinLeftCols` | CockroachDB | ✅ PROVED | PARTIAL | 10 | The encoding faithfully captures `PruneJoinLeftCols` as a specific, honestly-labeled (PARTIAL) instance — an inner join whose left input ... |
 | `PushFilterIntoJoinLeft` | CockroachDB | ✅ PROVED | PARTIAL | 22 | `before()` (inner join with conjuncts `f(L) ∧ g(L,R)`) and `after()` (left filtered by `f(L)`, then joined on `g(L,R)`) are structurally ... |
 | `SimplifyAndFalse` | CockroachDB | ✅ PROVED | FULL | 4 | The encoding faithfully captures `(And * (False)) => (False)`: the left operand is a fully uninterpreted predicate (universally quantifie... |
+| `SimplifyLeftJoin` | CockroachDB | ✅ PROVED | PARTIAL | 23 | The encoding is non-vacuous and correctly shaped: `before()` and `after()` genuinely differ only in join kind (LEFT vs INNER), and the eq... |
 | `SimplifyTrueAnd` | CockroachDB | ✅ PROVED | FULL | 4 | `before()` is `Filter(AND(TRUE, P), S)` and `after()` is `Filter(P, S)` over the same uninterpreted scan `S` and the same uninterpreted p... |
 | `TryDecorrelateSelect` | CockroachDB | ✅ PROVED | PARTIAL | 62 | Manually re-derived and verified by Claude (not the automated porter/verifier LLM loop), after the automated attempt twice produced a vac... |
-| `ApplyLimitToRecursiveCTEScan` | CockroachDB | ⏭️ SKIPPED | — | 20 | This is a logical-property (cardinality-bound) rule, not a bag-equivalence rule: it rewrites a RecursiveCTE into the backend-specific ope... |
-| `AssociateLimitJoinsRight` | CockroachDB | ⏭️ SKIPPED | — | 20 | AssociateLimitJoinsRight re-associates joins specifically *under a Limit*, and its soundness precondition `JoinPreservesRightRows` exists... |
-| `CollapseRepeatedLikePatternWildcards` | CockroachDB | ⏭️ SKIPPED | — | 20 | The rule's correctness rests entirely on LIKE's internal wildcard semantics (that a run of '%' matches the same language as a single '%')... |
-| `CommuteConstInequality` | CockroachDB | ⏭️ SKIPPED | — | 20 | CommuteConstInequality is a scalar normalization whose entire correctness rests on the order-theoretic identity c ≤ x ⟺ x ≥ c (and the < ... |
-| `CommuteNullIs` | CockroachDB | ⏭️ SKIPPED | — | 20 | CommuteNullIs is a scalar rewrite whose correctness depends entirely on the null-aware (NULL-as-a-value) commutativity of CockroachDB's I... |
-| `CommuteVarInequality` | CockroachDB | ⏭️ SKIPPED | — | 20 | The rule's entire correctness content is the commutation law `a ≤ b ⟺ b ≥ a` / `a < b ⟺ b > a` — internal semantics of the comparison ope... |
-| `ConsolidateSelectFilters` | CockroachDB | ⏭️ SKIPPED | — | 20 | ConsolidateSelectFilters rewrites a Select's filter by wrapping conjunctions of single-variable comparisons in a `Range` node, and its so... |
-| `ConvertCountToCountRows` | CockroachDB | ⏭️ SKIPPED | — | 40 | ConvertCountToCountRows is valid only by virtue of the counting algebra of the COUNT operator itself — that COUNT(x) equals the group's r... |
-| `ConvertJSONSubscriptToFetchValue` | CockroachDB | ⏭️ SKIPPED | — | 20 | ConvertJSONSubscriptToFetchValue rewrites `Indirection(input, index)` into `FetchVal(input, index)` — two distinct backend operators — an... |
-| `ConvertLevenshteinToLevenshteinLessEqualLeft` | CockroachDB | ⏭️ SKIPPED | — | 20 | The rule's validity rests entirely on CockroachDB's specific definition of `levenshtein_less_equal(s,t,d)` (exact distance when ≤ d, else... |
-| `ConvertLevenshteinToLevenshteinLessEqualRight` | CockroachDB | ⏭️ SKIPPED | — | 20 | The rule's soundness rests entirely on the backend's specific clamping invariant, `levenshtein_less_equal(a,b,d) = min(levenshtein(a,b), ... |
-| `ConvertLikeEscapeToLike` | CockroachDB | ⏭️ SKIPPED | — | 20 | The rule's validity rests entirely on the backend-specific semantic fact that LIKE's default escape character is '\', making like_escape(... |
-| `ConvertRegressionCountToCount` | CockroachDB | ⏭️ SKIPPED | — | 20 | The rule relies on the internal semantics of RegressionCount as counting non-null (arg1, arg2) pairs and on the null-aware fact that this... |
-| `ConvertUncorrelatedExistsToCoalesceSubquery` | CockroachDB | ⏭️ SKIPPED | — | 20 | The rule's right-hand side — COALESCE of a scalar subquery projecting true over `input LIMIT 1` with false — equals EXISTS(input) only by... |
-| `ConvertUnionToDistinctUnionAll` | CockroachDB | ⏭️ SKIPPED | — | 20 | The rule's non-trivial effect is to reconstitute the non-key output columns of the deduplicated rows using a ConstAgg over each UnionAll ... |
-| `ConvertZipArraysToValues` | CockroachDB | ⏭️ SKIPPED | — | 20 | The porter's stated reason is only an LLM context-length crash (no real analysis was run), but the UNSUPPORTED conclusion is nonetheless ... |
-| `DecorrelateProjectSet` | CockroachDB | ⏭️ SKIPPED | — | 20 | The rule's correctness depends entirely on the structural side condition that the set-returning ("zip") functions reference no input colu... |
-| `EliminateAggDistinct` | CockroachDB | ⏭️ SKIPPED | — | 20 | The rule's soundness rests on Min/Max/BoolAnd/BoolOr being idempotent with respect to duplicate input values — an algebraic identity of s... |
-| `EliminateAggDistinctForKeys` | CockroachDB | ⏭️ SKIPPED | — | 20 | `EliminateAggDistinctForKeys` rewrites `AGG(DISTINCT x)` to `AGG(x)` on the premise that, when the grouping columns plus x form a strict ... |
-| `EliminateUnaryMinus` | CockroachDB | ⏭️ SKIPPED | — | 20 | EliminateUnaryMinus is a pure scalar algebraic identity — numeric negation being an involution, −(−x) = x — and the only faithful encodin... |
-| `EliminateWindow` | CockroachDB | ⏭️ SKIPPED | — | 9 | RuleScript has no Window builder and QED’s serializer/prover have no window semantics, so the source left-hand side cannot be represented... |
-| `NegateComparison` | CockroachDB | ⏭️ SKIPPED | — | 20 | NegateComparison is not a pure And/Or/Not identity; it depends on specific comparison-operator algebra, e.g. ¬EQ being NE and ¬GT being L... |
-| `SimplifyLeftJoin` | CockroachDB | ⏭️ SKIPPED | — | 20 | The rule's soundness rests entirely on the side condition `JoinFiltersMatchAllLeftRows` (for every left row, ∃ a right row satisfying the... |
+| `ApplyLimitToRecursiveCTEScan` | CockroachDB | ⏭️ SKIPPED | — | 6 | The rule's precondition is a set of subplan cardinality side conditions (HasBoundedCardinality) and its effect is a backend marker operat... |
+| `CollapseRepeatedLikePatternWildcards` | CockroachDB | ⏭️ SKIPPED | — | 21 | The rule's soundness rests entirely on glob-pattern semantics of LIKE's pattern argument — that a run of `%` wildcards matches exactly th... |
+| `CommuteNullIs` | CockroachDB | ⏭️ SKIPPED | — | 43 | The rewrite's validity rests entirely on the null-aware commutativity of CockroachDB's Is/IsNot operators (Is(NULL,x) ≡ Is(x, NULL)), whi... |
+| `ConsolidateSelectFilters` | CockroachDB | ⏭️ SKIPPED | — | 43 | The rule's entire semantic content is that CockroachDB's `Range` predicate is a transparent wrapper over its inner conjunction (Range(e) ... |
+| `ConvertCountToCountRows` | CockroachDB | ⏭️ SKIPPED | — | 1 | Manually investigated by Claude (not the automated porter/verifier LLM loop, which exhausted all 5 rounds on repeated context-length cras... |
+| `ConvertJSONSubscriptToFetchValue` | CockroachDB | ⏭️ SKIPPED | — | 25 | This rule is purely an operator-aliasing identity: it asserts that two syntactically distinct scalar operators (JSON indirection `[...]` ... |
+| `ConvertLevenshteinToLevenshteinLessEqualLeft` | CockroachDB | ⏭️ SKIPPED | — | 41 | The rule's validity rests entirely on the backend's clamp identity `levenshtein_less_equal(a,b,n) = min(levenshtein(a,b), n)`, but RuleSc... |
+| `ConvertLevenshteinToLevenshteinLessEqualRight` | CockroachDB | ⏭️ SKIPPED | — | 21 | The rewrite `x OP levenshtein(s,t) ⟺ x OP levenshtein_less_equal(s,t,x)` is only valid because of CockroachDB's internal clamping contrac... |
+| `ConvertLikeEscapeToLike` | CockroachDB | ⏭️ SKIPPED | — | 43 | The rule's correctness rests entirely on CockroachDB's backend-specific semantic that `LIKE`'s default escape character is `'\'`, i.e. th... |
+| `ConvertRegressionCountToCount` | CockroachDB | ⏭️ SKIPPED | — | 67 | The rewrite's correctness rests entirely on a specific algebraic identity between two *different* named aggregates — `RegressionCount(a,b... |
+| `ConvertUncorrelatedExistsToCoalesceSubquery` | CockroachDB | ⏭️ SKIPPED | — | 24 | Both sides of the rewrite are scalar expressions over nested sub-relations — an EXISTS on the left, and COALESCE of a scalar subquery (a ... |
+| `ConvertUnionToDistinctUnionAll` | CockroachDB | ⏭️ SKIPPED | — | 41 | The rule's after side is a DistinctOn that dedups on a strict subset of columns (the key) while retaining all output columns, i.e. an arb... |
+| `ConvertZipArraysToValues` | CockroachDB | ⏭️ SKIPPED | — | 21 | The rule's core is a set-returning/row-generating operation — `ProjectSet` expanding an array column (`unnest`/`json_array_elements`) int... |
+| `DecorrelateProjectSet` | CockroachDB | ⏭️ SKIPPED | — | 47 | ProjectSet / set-returning (table-valued) functions have [NOTE: response was truncated at the token limit before finishing — if this cut ... |
+| `EliminateUnaryMinus` | CockroachDB | ⏭️ SKIPPED | — | 8 | The rule requires the numeric negation algebraic law `neg(neg(x)) = x`, but RuleScript expresses that scalar operator as an uninterpreted... |
+| `EliminateWindow` | CockroachDB | ⏭️ SKIPPED | — | 48 | EliminateWindow's correctness rests entirely on the Window operator's internal semantics — that a Window with an empty function list is a... |
 
 ## Details
 
@@ -150,6 +150,89 @@ Extracted from `limit.opt` (which defines multiple rules — implement specifica
 - Reason / notes: The encoding faithfully captures the rule's substantive identity — ((A LEFT JOIN B ON p_ab) INNER JOIN C ON p_ac) ≡ reprojected((A INNER JOIN C ON p_ac) LEFT JOIN B ON p_ab) — with exactly the right join kinds, shared uninterpreted predicates used with consistent argument correspondence (p_ab over A+B, p_ac over A+C), and the one soundness-critical precondition (the outside ON condition must not reference the inner left join's right input) structurally enforced by making p_ac a predicate over A and C columns only. The two sides are genuinely different join trees so the proof is non-vacuous, and the only restrictions — single-column scans (the identity is row-wise and column-arity independent), omission of the Limit/ordering wrapper that QED cannot model anyway (both sides share the identical wrapper, so the join equivalence is the full meaningful claim), and omission of the non-soundness priority guards `^(JoinPreservesLeftRows)` and `NoJoinHints` — are honestly stated in the PARTIAL scope line.
 - QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 96351500}, panicked=False
 
+### `AssociateLimitJoinsRight` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/limit.opt
+
+AssociateLimitJoinsRight mirrors AssociateLimitJoinsLeft (it matches when the
+LeftJoin is the right input of the InnerJoin, as opposed to the left input).
+Here's the transformation:
+
+SELECT *
+FROM ab
+INNER JOIN (SELECT * FROM xy LEFT JOIN uv ON u = x)
+ON a = y
+LIMIT 10
+=>
+SELECT *
+FROM (SELECT * FROM xy INNER JOIN ab ON a = y)
+LEFT JOIN uv
+ON u = x
+LIMIT 10
+
+Extracted from `limit.opt` (which defines multiple rules — implement specifically `AssociateLimitJoinsRight`, not the other rules in that file):
+
+```
+# AssociateLimitJoinsRight mirrors AssociateLimitJoinsLeft (it matches when the
+# LeftJoin is the right input of the InnerJoin, as opposed to the left input).
+# Here's the transformation:
+#
+#   SELECT *
+#   FROM ab
+#   INNER JOIN (SELECT * FROM xy LEFT JOIN uv ON u = x)
+#   ON a = y
+#   LIMIT 10
+# =>
+#   SELECT *
+#   FROM (SELECT * FROM xy INNER JOIN ab ON a = y)
+#   LEFT JOIN uv
+#   ON u = x
+#   LIMIT 10
+#
+[AssociateLimitJoinsRight, Normalize, LowPriority]
+(Limit
+    $limitInput:(InnerJoin
+            $outsideLeft:*
+            $outsideRight:(LeftJoin
+                $insideLeft:*
+                $insideRight:*
+                $insideOn:*
+                $insidePrivate:* & (NoJoinHints $insidePrivate)
+            )
+            $outsideOn:* &
+                ^(ColsIntersect
+                    (FilterOuterCols $outsideOn)
+                    (OutputCols $insideRight)
+                )
+            $outsidePrivate:* & (NoJoinHints $outsidePrivate)
+        ) &
+        ^(JoinPreservesRightRows $limitInput)
+    $limitValue:*
+    $limitOrdering:*
+)
+=>
+(Limit
+    (LeftJoin
+        (InnerJoin
+            $insideLeft
+            $outsideLeft
+            $outsideOn
+            (EmptyJoinPrivate)
+        )
+        $insideRight
+        $insideOn
+        (EmptyJoinPrivate)
+    )
+    $limitValue
+    $limitOrdering
+)
+```
+- Attempts used: 8
+- Last updated: 2026-09-25T01:13:54.033415+00:00
+- Reason / notes: before() = C ⋈ (A ⟕ B ON p_ab) and after() = (A ⋈ C ON p_ac) ⟕ B ON p_ab (re-projected to the common (C,A,B) column order) are genuinely different plan trees, so the proof is of the exact reassociation identity that is the semantic core of the rule, with join types matching the source (inner outside / left inside, flipped to inner inside / left outside). The two ON conditions are shared uninterpreted predicate symbols applied to the same logical columns in the same argument order on both sides (p_ab on (A,B), p_ac on (A,C)), which structurally enforces the rule's essential side condition that $outsideOn not reference $insideRight rather than coincidentally satisfying it, and A/B/C remain three independent uninterpreted tables. The declared PARTIAL scope is honest and non-degenerate: the Limit/ordering wrapper is identical on both sides and unmodelable by QED, the fixed single-column width is an inherent DSL limitation (no arity quantification) with no bearing on the identity's logical content, and the proof still fully exercises the null-extended-row path that is what makes the identity non-trivial. ```
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 109688708}, panicked=False
+
 ### `CommuteConst` — ✅ PROVED
 
 - Source backend: CockroachDB
@@ -208,6 +291,31 @@ Extracted from `scalar.opt` (which defines multiple rules — implement specific
 - Reason / notes: The encoding faithfully captures the rule's Eq-case semantic core—commutativity of equality—by deliberately using the concrete SqlStdOperatorTable.EQUALS operator (not an uninterpreted pred), which is exactly what lets QED know the operator is commutative and prove the non-vacuous swap x = y ↔ y = x under three-valued logic; before() and after() are structurally distinct (operand order in the predicate), so the proof is not vacuous. The join is identical scaffolding on both sides, x and y are independent columns from two distinct scans, and no source precondition is silently dropped, since the Eq swap holds under full three-valued semantics (verified across the NULL cases). The scope is honestly and specifically PARTIAL—only the Eq variant of the 9-operator rule, with the arithmetic/bitwise variants correctly identified as beyond QED's commutativity reasoning—so this is a genuine, non-degenerate special case rather than a misleading or trivially-provable encoding. ```
 - QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 22556750}, panicked=False
 
+### `CommuteConstInequality` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/comp.opt
+
+CommuteConstInequality is similar to CommuteConst (in scalar.opt), except
+that it handles inequality comparison operators that need special handling to
+commute operands.
+
+Extracted from `comp.opt` (which defines multiple rules — implement specifically `CommuteConstInequality`, not the other rules in that file):
+
+```
+# CommuteConstInequality is similar to CommuteConst (in scalar.opt), except
+# that it handles inequality comparison operators that need special handling to
+# commute operands.
+[CommuteConstInequality, Normalize]
+(Le | Lt | Ge | Gt $left:(ConstValue) $right:^(ConstValue))
+=>
+(CommuteInequality (OpName) $left $right)
+```
+- Attempts used: 41
+- Last updated: 2026-09-25T01:25:14.779402+00:00
+- Reason / notes: The encoding faithfully lifts the scalar Lt flip into the relational DSL — a maximally-general carrier (INNER cross-join of two unconstrained scans, same type "V", no shared symbols) with `LESS_THAN(x,y)` in before and `GREATER_THAN(y,x)` in after — which is a genuinely non-vacuous SMT check of the exact duality `CommuteInequality` performs (an uninterpreted-operator model would not prove the swapped-argument equivalence). The source rule's "left is a constant / right is not" guard is a firing condition, not a semantic precondition, so the proved equivalence is at least as general as the rule requires, and the missing operator pairs are an inherent limitation of the one-record-per-rule shape (a FULL version would be a family of the four Lt↔Gt / Le↔Ge / Ge↔Le / Gt↔Lt records), making the PARTIAL scope line accurate, specific, and non-degenerate. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 71246167}, panicked=False
+
 ### `CommuteRightJoin` — ✅ PROVED
 
 - Source backend: CockroachDB
@@ -262,6 +370,31 @@ Extracted from `scalar.opt` (which defines multiple rules — implement specific
 - Last updated: 2026-09-24T20:28:25.926555+00:00
 - Reason / notes: The encoding is a faithful, non-vacuous proof of the Eq fragment of CommuteVar: `before()` and `after()` are structurally different (concrete `EQUALS` operand order swapped), the operand shapes match the rule's contract exactly (uninterpreted non-variable expression `e` on the left vs. column `x` — the "Variable" — on the right, over a standard filter embedding of the scalar rewrite), and using the concrete `=` operator is precisely what makes the claim checkable, since QED correctly refuses to assume commutativity of uninterpreted operators (which is a genuine prover limitation, not a DSL gap that `extend_dsl_file` could fix). The missing preconditions check passes (no PK/NOT NULL assumptions; nullable `VarType` keeps three-valued semantics in play, and `=` is symmetric in it), there are no over-constraining symbol-sharing errors (the same `e` and `x` are correctly shared between both sides), and the SCOPE line is honest and specific about the Eq-only narrowing — a genuine, useful, non-degenerate special case, notably the exact variant that `InlineExistsSelectTuple` in the same source file relies on ("CommuteVar ensures that the variable is on the left" above an `Eq` pattern).
 - QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 68633791}, panicked=False
+
+### `CommuteVarInequality` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/comp.opt
+
+CommuteVarInequality is similar to CommuteVar (in scalar.opt), except it
+handles inequality comparison operators that need special handling to commute
+operands.
+
+Extracted from `comp.opt` (which defines multiple rules — implement specifically `CommuteVarInequality`, not the other rules in that file):
+
+```
+# CommuteVarInequality is similar to CommuteVar (in scalar.opt), except it
+# handles inequality comparison operators that need special handling to commute
+# operands.
+[CommuteVarInequality, Normalize]
+(Le | Lt | Ge | Gt $left:^(Variable) $right:(Variable))
+=>
+(CommuteInequality (OpName) $left $right)
+```
+- Attempts used: 24
+- Last updated: 2026-09-25T01:39:19.557889+00:00
+- Reason / notes: The encoding faithfully lifts the rule's scalar commutation to the relational level — an inner cross join of two independent same-type nullable scans (so x and y are genuinely independent operands) filtered by x≤y versus y≥x, which is precisely the Le→Ge swap produced by the source rule's `CommuteInequality(Le, left, right)`. The proof is non-vacuous (before≠after structurally), uses the concrete ≤/≥ operators that this commutation genuinely requires (an uninterpreted predicate could not be proved commutable), and holds under three-valued/null semantics since the columns are nullable. The PARTIAL scope (Le only, not Lt/Ge/Gt) is honestly and specifically labeled and is a real consequence of the DSL exposing only a single before/after pair with no meta-operator mechanism, not a hidden over-constraint that would make the result misleading.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 76185416}, panicked=False
 
 ### `ConvertGroupByToDistinct` — ✅ PROVED
 
@@ -399,6 +532,69 @@ Extracted from `join.opt` (which defines multiple rules — implement specifical
 - Last updated: 2026-09-24T20:21:46.225801+00:00
 - Reason / notes: The encoding faithfully mirrors the source transformation — a join whose ON list contains a contradictory (always-false) item alongside uninterpreted remaining items is rewritten to a join with ON = literal False — with `rest` a genuinely uninterpreted predicate over the (L, R) join row and L/R fully general scans, so the proof is non-vacuous (before and after are structurally different plans, both being the empty inner join) and holds universally over all relations and all remaining predicates, exactly as the rule requires; the only narrowing is that the join kind is fixed to INNER while the source's generic `(Join ...)` pattern spans all join kinds (for which the equivalence also holds, since both ON conditions match no pair), and this is honestly and specifically tagged as PARTIAL, is inherent to the one-concrete-join-kind-per-record contract (other kinds are separate family instances rather than a single checkable encoding), and does not make the result degenerate.
 - QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 303167}, panicked=False
+
+### `EliminateAggDistinct` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/agg.opt
+
+EliminateAggDistinct removes AggDistinct for aggregations where DISTINCT
+never modifies the result; for example: min(DISTINCT x).
+
+Extracted from `agg.opt` (which defines multiple rules — implement specifically `EliminateAggDistinct`, not the other rules in that file):
+
+```
+# EliminateAggDistinct removes AggDistinct for aggregations where DISTINCT
+# never modifies the result; for example: min(DISTINCT x).
+[EliminateAggDistinct, Normalize]
+(AggDistinct $input:(Min | Max | BoolAnd | BoolOr))
+=>
+$input
+```
+- Attempts used: 4
+- Last updated: 2026-09-25T06:47:57.434269+00:00
+- Reason / notes: The encoding is a sound, non-vacuous special case rather than a vacuous one: `before()` and `after()` genuinely differ in the AggCall's `distinct` flag (which the JSON serializer emits), the same uninterpreted aggregate "f" is shared on both sides so the claim is really "distinctification changes nothing here," and that claim depends essentially on the disclosed premise — the scan is unique on field 0 and groups are by field 0, so every group is a singleton and bag distinctification is the identity (drop `unique=true` and QED would refute the equivalence, since it models aggregates as uninterpreted functions). The full rule (Min/Max/BoolAnd/BoolOr idempotent over arbitrary inputs) is genuinely out of reach of QED: no DSL construct or JSON field exists to attach an idempotency axiom to an uninterpreted aggregate, and the prover is the fixed arbiter, so this is a real QED limitation, not an unexplored DSL gap. The `// SCOPE: PARTIAL` line is present, specific, and accurately matches the code (uniqueness on field 0, group-by field 0, aggregation over field 0), with no missing preconditions or symbol-sharing errors.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 80494625}, panicked=False
+
+### `EliminateAggDistinctForKeys` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/groupby.opt
+
+EliminateAggDistinctForKeys eliminates unnecessary AggDistinct modifiers when
+it is known that the aggregation argument is unique within each group.
+
+Extracted from `groupby.opt` (which defines multiple rules — implement specifically `EliminateAggDistinctForKeys`, not the other rules in that file):
+
+```
+# EliminateAggDistinctForKeys eliminates unnecessary AggDistinct modifiers when
+# it is known that the aggregation argument is unique within each group.
+[EliminateAggDistinctForKeys, Normalize]
+(GroupBy | ScalarGroupBy
+    $input:* & (HasStrictKey $input)
+    $aggregations:[
+        ...
+        $item:(AggregationsItem (AggDistinct $agg:*))
+        ...
+    ]
+    $groupingPrivate:* &
+        (CanRemoveAggDistinctForKeys
+            $input
+            $groupingPrivate
+            $agg
+        )
+)
+=>
+((OpName)
+    $input
+    (ReplaceAggregationsItem $aggregations $item $agg)
+    $groupingPrivate
+)
+```
+- Attempts used: 4
+- Last updated: 2026-09-25T06:58:46.185021+00:00
+- Reason / notes: The encoding faithfully captures a genuine special case of the rule (input is a scan whose unique key is also the grouping key and the DISTINCT aggregate's argument), `before()` and `after()` differ only in the `distinct` flag on an otherwise-identical uninterpreted aggregate call so the proof is not vacuous, the `unique=true` scan constraint is precisely the precondition QED needs to equate the per-group bag with the per-group set (making the SMT step non-trivial), and the PARTIAL scope tag honestly and specifically documents that the general "grouping cols functionally determine the agg arg over an arbitrary input" condition is inexpressible — leaving a useful, non-degenerate result.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 75363042}, panicked=False
 
 ### `EliminateAggFilteredDistinctForKeys` — ✅ PROVED
 
@@ -554,6 +750,34 @@ Extracted from `bool.opt` (which defines multiple rules — implement specifical
 - Reason / notes: The encoding is non-vacuous (Filter(Not(False), R) vs. Filter(True, R) are structurally distinct) and matches the source rule term-for-term: FoldNotFalse is a closed, non-schematic rewrite NOT(FALSE) ⟹ TRUE with no variables to leave uninterpreted, so the unconstrained scan is a neutral carrier, the filter condition is the DSL's minimal relational vehicle for a boolean term (same carrier as the FilterMerge example), and no rule instance is left out — the DSL has no expression-level hole to quantify over arbitrary positions, so this is as general as the rule can be expressed here, making the FULL tag honest. No preconditions (keys, NOT NULL) are involved and the literal is non-null, so no null-semantics edge case is silently dropped; the 0.26 ms proof is simply reflecting that the rule's content is a trivial constant identity, not a degenerate encoding.
 - QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 260666}, panicked=False
 
+### `NegateComparison` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/bool.opt
+
+NegateComparison inverts eligible comparison operators when they are negated
+by the Not operator. For example, Eq maps to Ne, and Gt maps to Le. All
+comparisons can be negated except for the JSON and Geospatial comparisons.
+
+Extracted from `bool.opt` (which defines multiple rules — implement specifically `NegateComparison`, not the other rules in that file):
+
+```
+# NegateComparison inverts eligible comparison operators when they are negated
+# by the Not operator. For example, Eq maps to Ne, and Gt maps to Le. All
+# comparisons can be negated except for the JSON and Geospatial comparisons.
+[NegateComparison, Normalize]
+(Not
+    $input:(Comparison $left:* $right:*) &
+        (CanNegateComparison $op:(OpName $input))
+)
+=>
+(NegateComparison $op $left $right)
+```
+- Attempts used: 21
+- Last updated: 2026-09-25T07:31:01.548614+00:00
+- Reason / notes: The proof is non-vacuous and genuine: `before()` is `Filter(¬(x = y))` vs `after()` `Filter(x <> y)` over the cross-join of two *independent* single-column scans, so x and y are universally quantified independent values and the equivalence (which holds even under null semantics, where both sides share the same three-valued truth table) is a real theorem covering the Eq→Ne instance of the source rule's operator map for all value pairs. Using the concrete `EQUALS`/`NOT_EQUALS` operators is correct here, not hard-coding: the rule's entire content is the semantic link between those two operators, which would be unprovable — and false as stated — with independent uninterpreted predicate symbols, and the filter context is the natural relational home for this expression-level rule in a RelRN-based DSL. There are no symbol-sharing or missing-precondition issues (the source's `CanNegateComparison` guard only excludes JSON/geospatial operators, irrelevant to Eq), and the SCOPE line honestly and specifically discloses the narrowing to one of the 12 operator pairs.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 363500}, panicked=False
+
 ### `PruneJoinLeftCols` — ✅ PROVED
 
 - Source backend: CockroachDB
@@ -707,6 +931,62 @@ $right
 - Reason / notes: The encoding faithfully captures `(And * (False)) => (False)`: the left operand is a fully uninterpreted predicate (universally quantified over all instantiations, which subsumes any boolean expression the `*` could match), the right operand is correctly hard-coded as the literal `False` because the rule requires the syntactic False constant, and `before()`/`after()` genuinely differ (the And conjunct is eliminated), so the proof is non-vacuous. Embedding the boolean identity in filter position over an arbitrary, unconstrained scan is the standard semantics-preserving translation in this DSL (same treatment as the FilterMerge worked example), and in QED's two-valued semantics the proven statement `∀R, f: filter(And(f,⊥)) = filter(⊥)` is exactly equivalent to the pointwise expression equality `And(x, False) ≡ False` for all x — no keys, NOT NULLs, or other preconditions are assumed that the unguarded source rule does not itself impose, and the single symbol `left` is shared only where the source pattern requires. Hence `// SCOPE: FULL` is honest: no assumption anywhere narrows the family beyond the canonical relational witness of the expression rule.
 - QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 284458}, panicked=False
 
+### `SimplifyLeftJoin` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/join.opt
+
+SimplifyLeftJoin reduces a LeftJoin operator to an InnerJoin operator (or a
+FullJoin to a RightJoin) when it's known that every row in the join's left
+input will match at least one row in the right input. Since every row matches,
+NULL-extended rows will never be added by the outer join, and therefore can be
+mapped to an InnerJoin (or RightJoin in case of FullJoin). See
+filtersMatchAllLeftRows comment for conditions in which this rule can match.
+
+Self-join example:
+SELECT * FROM xy LEFT JOIN xy AS xy2 ON xy.y = xy2.y
+=>
+SELECT * FROM xy INNER JOIN xy AS xy2 ON xy.y = xy2.y
+
+Foreign-key example:
+SELECT * FROM orders o LEFT JOIN customers c ON o.customer_id = c.id
+=>
+SELECT * FROM orders o INNER JOIN customers c ON o.customer_id = c.id
+
+Extracted from `join.opt` (which defines multiple rules — implement specifically `SimplifyLeftJoin`, not the other rules in that file):
+
+```
+# SimplifyLeftJoin reduces a LeftJoin operator to an InnerJoin operator (or a
+# FullJoin to a RightJoin) when it's known that every row in the join's left
+# input will match at least one row in the right input. Since every row matches,
+# NULL-extended rows will never be added by the outer join, and therefore can be
+# mapped to an InnerJoin (or RightJoin in case of FullJoin). See
+# filtersMatchAllLeftRows comment for conditions in which this rule can match.
+#
+# Self-join example:
+#   SELECT * FROM xy LEFT JOIN xy AS xy2 ON xy.y = xy2.y
+#   =>
+#   SELECT * FROM xy INNER JOIN xy AS xy2 ON xy.y = xy2.y
+#
+# Foreign-key example:
+#   SELECT * FROM orders o LEFT JOIN customers c ON o.customer_id = c.id
+#   =>
+#   SELECT * FROM orders o INNER JOIN customers c ON o.customer_id = c.id
+[SimplifyLeftJoin, Normalize]
+(LeftJoin | LeftJoinApply | FullJoin
+    $left:*
+    $right:*
+    $on:* & (JoinFiltersMatchAllLeftRows $left $right $on)
+    $private:*
+)
+=>
+(ConstructNonLeftJoin (OpName) $left $right $on $private)
+```
+- Attempts used: 23
+- Last updated: 2026-09-25T07:54:35.698404+00:00
+- Reason / notes: The encoding is non-vacuous and correctly shaped: `before()` and `after()` genuinely differ only in join kind (LEFT vs INNER), and the equivalence is a real theorem that holds *only* because both inputs are the same scan and the condition is `col = col` on a non-nullable column — this is precisely the structural encoding of the rule's `JoinFiltersMatchAllLeftRows` precondition (the self-join example from the rule's own doc comment), and each piece is load-bearing: two independent scans would fail (right side could be empty or lack a matching value) and a nullable column would fail (NULL = NULL is not true, so a NULL left row would get null-extended), so QED could not have proved a looser, wrong claim. The narrowing to plain `LeftJoin` with a single non-nullable-column self-join on equality is specific, non-degenerate, and accurately disclosed in the SCOPE line, so the provable result faithfully certifies a genuine special case of the source rule rather than a trivial or accidentally over-constrained one.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 51125125}, panicked=False
+
 ### `SimplifyTrueAnd` — ✅ PROVED
 
 - Source backend: CockroachDB
@@ -813,91 +1093,9 @@ Extracted from `with.opt` (which defines multiple rules — implement specifical
     $private
 )
 ```
-- Attempts used: 20
-- Last updated: 2026-09-24T09:32:18.781761+00:00
-- Reason / notes: This is a logical-property (cardinality-bound) rule, not a bag-equivalence rule: it rewrites a RecursiveCTE into the backend-specific operator ApplyLimitToRecursiveCTEScan whose entire effect is to update cardinality-bound metadata on the recursive scans (with HasBoundedCardinality / ^HasBoundedCardinality as side conditions on subplans), and RuleScript has no notion of operator properties, no way to state cardinality constraints on subexpressions, and no such operator in its core language. The soundness of the transform also rests on recursive-CTE fixpoint/iteration semantics plus Limit semantics (capping the scans each iteration), and QED only decides bag equivalence of finite relational expressions — recursion/fixpoints and Sort/Limit/Ordering have no bag-semantic model in it. This is a fundamental modeling gap, not a missing builder: even a RecursiveCTE node added via extend_dsl_file would have no case in JSONSerializer and no semantics in the unchangeable Rust prover, so no encoding (full or special case) is expressible. ```
-
-### `AssociateLimitJoinsRight` — ⏭️ SKIPPED
-
-- Source backend: CockroachDB
-- Source rule: Source: pkg/sql/opt/norm/rules/limit.opt
-
-AssociateLimitJoinsRight mirrors AssociateLimitJoinsLeft (it matches when the
-LeftJoin is the right input of the InnerJoin, as opposed to the left input).
-Here's the transformation:
-
-SELECT *
-FROM ab
-INNER JOIN (SELECT * FROM xy LEFT JOIN uv ON u = x)
-ON a = y
-LIMIT 10
-=>
-SELECT *
-FROM (SELECT * FROM xy INNER JOIN ab ON a = y)
-LEFT JOIN uv
-ON u = x
-LIMIT 10
-
-Extracted from `limit.opt` (which defines multiple rules — implement specifically `AssociateLimitJoinsRight`, not the other rules in that file):
-
-```
-# AssociateLimitJoinsRight mirrors AssociateLimitJoinsLeft (it matches when the
-# LeftJoin is the right input of the InnerJoin, as opposed to the left input).
-# Here's the transformation:
-#
-#   SELECT *
-#   FROM ab
-#   INNER JOIN (SELECT * FROM xy LEFT JOIN uv ON u = x)
-#   ON a = y
-#   LIMIT 10
-# =>
-#   SELECT *
-#   FROM (SELECT * FROM xy INNER JOIN ab ON a = y)
-#   LEFT JOIN uv
-#   ON u = x
-#   LIMIT 10
-#
-[AssociateLimitJoinsRight, Normalize, LowPriority]
-(Limit
-    $limitInput:(InnerJoin
-            $outsideLeft:*
-            $outsideRight:(LeftJoin
-                $insideLeft:*
-                $insideRight:*
-                $insideOn:*
-                $insidePrivate:* & (NoJoinHints $insidePrivate)
-            )
-            $outsideOn:* &
-                ^(ColsIntersect
-                    (FilterOuterCols $outsideOn)
-                    (OutputCols $insideRight)
-                )
-            $outsidePrivate:* & (NoJoinHints $outsidePrivate)
-        ) &
-        ^(JoinPreservesRightRows $limitInput)
-    $limitValue:*
-    $limitOrdering:*
-)
-=>
-(Limit
-    (LeftJoin
-        (InnerJoin
-            $insideLeft
-            $outsideLeft
-            $outsideOn
-            (EmptyJoinPrivate)
-        )
-        $insideRight
-        $insideOn
-        (EmptyJoinPrivate)
-    )
-    $limitValue
-    $limitOrdering
-)
-```
-- Attempts used: 20
-- Last updated: 2026-09-24T09:41:33.916668+00:00
-- Reason / notes: AssociateLimitJoinsRight re-associates joins specifically *under a Limit*, and its soundness precondition `JoinPreservesRightRows` exists solely to ensure the Limit still selects the same top-N rows after the rewrite — so its correctness rests on row-ordering/Limit semantics, which QED (bag-semantic only, and the unmodifiable arbiter) does not model; even `extend_dsl_file` adding a Limit/Sort builder couldn't be proved. Dropping the Limit to expose the inner join re-association would not be a special case of this rule but a different, unconditionally-true identity that ignores the `JoinPreservesRightRows`/`NoJoinHints` conditions that are the whole point of the limit version. ```
+- Attempts used: 6
+- Last updated: 2026-09-25T01:07:26.741610+00:00
+- Reason / notes: The rule's precondition is a set of subplan cardinality side conditions (HasBoundedCardinality) and its effect is a backend marker operator that changes operator *properties*, not the produced relation — RuleScript's before/after patterns can only express row-level relational structure, with no mechanism to state cardinality-bound side conditions on subexpressions or to capture property propagation at all. Additionally, the operators the rule manipulates are outside QED's model: RecursiveCTE/fixpoint has no bag-semantic meaning, and Limit is explicitly among the operators QED cannot reason about, so neither side of the rewrite is encodable; extend_dsl_file cannot close this gap because the trusted Rust prover (off-limits for modification) has no Q-expression semantics for recursion or ordering/limit. ```
 
 ### `CollapseRepeatedLikePatternWildcards` — ⏭️ SKIPPED
 
@@ -927,33 +1125,9 @@ Extracted from `comp.opt` (which defines multiple rules — implement specifical
 =>
 ((OpName) $input $collapsed)
 ```
-- Attempts used: 20
-- Last updated: 2026-09-24T09:38:56.518665+00:00
-- Reason / notes: The rule's correctness rests entirely on LIKE's internal wildcard semantics (that a run of '%' matches the same language as a single '%'), but QED models LIKE as an uninterpreted predicate over uninterpreted values with no string theory, so it cannot relate like(x, p) to like(x, collapse(p)) for distinct pattern constants p and collapse(p); no DSL extension can close this gap because the missing piece is an interpretation of the predicate's string-matching internals, not a missing relational operator, and the prover itself cannot be modified. ```
-
-### `CommuteConstInequality` — ⏭️ SKIPPED
-
-- Source backend: CockroachDB
-- Source rule: Source: pkg/sql/opt/norm/rules/comp.opt
-
-CommuteConstInequality is similar to CommuteConst (in scalar.opt), except
-that it handles inequality comparison operators that need special handling to
-commute operands.
-
-Extracted from `comp.opt` (which defines multiple rules — implement specifically `CommuteConstInequality`, not the other rules in that file):
-
-```
-# CommuteConstInequality is similar to CommuteConst (in scalar.opt), except
-# that it handles inequality comparison operators that need special handling to
-# commute operands.
-[CommuteConstInequality, Normalize]
-(Le | Lt | Ge | Gt $left:(ConstValue) $right:^(ConstValue))
-=>
-(CommuteInequality (OpName) $left $right)
-```
-- Attempts used: 20
-- Last updated: 2026-09-24T09:46:39.202660+00:00
-- Reason / notes: CommuteConstInequality is a scalar normalization whose entire correctness rests on the order-theoretic identity c ≤ x ⟺ x ≥ c (and the < / > flips); in RuleScript the Le/Lt/Ge/Gt operators can only be introduced as uninterpreted predicate symbols, and QED proves equivalences that must hold for every instantiation of uninterpreted symbols, so it cannot entail le(c,x) from ge(x,c) — nor from a flipped-argument version of a single symbol, which would in fact be false for an arbitrary uninterpreted predicate. A faithful relational embedding (a scan filtered by the original comparison vs. one filtered by the commuted, direction-flipped comparison) is expressible in the core language but unprovable precisely because the rule's content is the numeric-order interpretation that QED has no model for (a documented limitation: no reasoning about a backend operator's bespoke internal semantics), and no extend_dsl_file change can close it since the operator names just flow as strings into the fixed, unchanging prover. (The porter's stated reason was an LLM HTTP 400 context-length error rather than a completed analysis, so the transcript contains no real attempt — but the unsupported conclusion itself is correct.) ```
+- Attempts used: 21
+- Last updated: 2026-09-25T01:11:07.344978+00:00
+- Reason / notes: The rule's soundness rests entirely on glob-pattern semantics of LIKE's pattern argument — that a run of `%` wildcards matches exactly the same string set as a single `%` — which is an internal string-semantics property QED cannot see, since it models predicates only as uninterpreted functions over bag semantics and its SMT backend has no string/glob theory. No DSL extension can close this gap: even with a string-literal constructor, `LIKE(x,'a%%b')` and `LIKE(x,'a%b')` remain two distinct uninterpreted function applications over which SMT can build distinguishing countermodels, and the prover itself is a fixed, unmodifiable arbiter. Hence the only encodable form reuses one predicate symbol for both sides, degenerating into a vacuous identity — a genuine fundamental limitation, not a missing operator the porter failed to find.
 
 ### `CommuteNullIs` — ⏭️ SKIPPED
 
@@ -971,33 +1145,9 @@ Extracted from `comp.opt` (which defines multiple rules — implement specifical
 =>
 ((OpName) $right $left)
 ```
-- Attempts used: 20
-- Last updated: 2026-09-24T09:54:31.683884+00:00
-- Reason / notes: CommuteNullIs is a scalar rewrite whose correctness depends entirely on the null-aware (NULL-as-a-value) commutativity of CockroachDB's IS / IS NOT comparison — i.e. that Is(NULL, x) ≡ Is(x, NULL) (and the IsNot variant) — and QED has no semantic model for that bespoke operator: it is not a built-in, so in the SMT encoding it is an uninterpreted function for which only congruence holds and no axiom relates Is(a,b) to Is(b,a) or to a null-test. The DSL also exposes no first-class IsNull/Is operator or NULL literal, and even adding them via extend_dsl_file could not make it provable, because QED fundamentally cannot see through this operator's internal null-aware semantics (regular three-valued `=` is not reducible to `IS`, since NULL = NULL is NULL while NULL IS NULL is True). This is a genuine QED limitation (uninterpretable bespoke-operator semantics), not a missing or mismodeled encoding. ```
-
-### `CommuteVarInequality` — ⏭️ SKIPPED
-
-- Source backend: CockroachDB
-- Source rule: Source: pkg/sql/opt/norm/rules/comp.opt
-
-CommuteVarInequality is similar to CommuteVar (in scalar.opt), except it
-handles inequality comparison operators that need special handling to commute
-operands.
-
-Extracted from `comp.opt` (which defines multiple rules — implement specifically `CommuteVarInequality`, not the other rules in that file):
-
-```
-# CommuteVarInequality is similar to CommuteVar (in scalar.opt), except it
-# handles inequality comparison operators that need special handling to commute
-# operands.
-[CommuteVarInequality, Normalize]
-(Le | Lt | Ge | Gt $left:^(Variable) $right:(Variable))
-=>
-(CommuteInequality (OpName) $left $right)
-```
-- Attempts used: 20
-- Last updated: 2026-09-24T19:55:25.273385+00:00
-- Reason / notes: The rule's entire correctness content is the commutation law `a ≤ b ⟺ b ≥ a` / `a < b ⟺ b > a` — internal semantics of the comparison operators — but RuleScript exposes comparisons only as uninterpreted `RexRN.Pred` symbols (RexRN.java's full construct set is Pred/Proj/GroupBy/And/Or/Not/literals; there are no interpreted comparison builders), and QED's proofs quantify universally over instantiations of those symbols, so it can derive no relation between `LE(a,b)` and `GE(b,a)` (nor between `P(a,b)` and `P(b,a)`, since uninterpreted predicates need not be symmetric) — precisely the documented "no predicate inference between independent symbols / no operator internal semantics" limitation. The rule's side condition (right operand must be a variable, left not) is likewise unexpressible, since a predicate's arguments are opaque atoms in the relational pattern language. So UNSUPPORTED is substantively correct, even though the porter's recorded "reason" was merely an API error: no alternative encoding can make QED prove this rule. ```
+- Attempts used: 43
+- Last updated: 2026-09-25T04:19:13.537920+00:00
+- Reason / notes: The rewrite's validity rests entirely on the null-aware commutativity of CockroachDB's Is/IsNot operators (Is(NULL,x) ≡ Is(x, NULL)), which requires null-aware-equality semantics (NULL IS NULL is TRUE, whereas NULL = NULL is UNKNOWN) that QED's built-in three-valued equality cannot express and that no RexRN/RelRN construct can build. Any Is/NULL symbol introduced via extend_dsl_file would land as an uninterpreted operator in the fixed prover's SMT encoding, where only congruence holds and no axiom relates Is(a,b) to Is(b,a) or to a null-test, so no relational encoding (e.g. Filter(Is(NULL,col),R) ≡ Filter(Is(col,NULL),R)) is provable — this is squarely the "bespoke internal semantics of a backend operator QED cannot see through as an uninterpreted function" limitation, and the prover itself cannot be given the missing axiom. ```
 
 ### `ConsolidateSelectFilters` — ⏭️ SKIPPED
 
@@ -1039,9 +1189,9 @@ Extracted from `select.opt` (which defines multiple rules — implement specific
 =>
 (Select $input (ConsolidateFilters $filters))
 ```
-- Attempts used: 20
-- Last updated: 2026-09-24T11:36:22.703024+00:00
-- Reason / notes: ConsolidateSelectFilters rewrites a Select's filter by wrapping conjunctions of single-variable comparisons in a `Range` node, and its soundness rests entirely on CockroachDB's `Range` scalar operator being semantically transparent (equivalent to its child) — a backend-internal property of the operator. RuleScript can only introduce `Range` as an uninterpreted scalar symbol, and QED cannot prove that an uninterpreted function is the identity (no axiom mechanism exists to assert `range(e) = e`), so the only provable encodings are trivial: either keep `Range` and fail, or drop it and the rewrite degenerates to the identity. The porter's pre-crash investigation had in fact already pinned down exactly this — `Range` is "purely a hint for index constraint construction" with no logical effect — so the UNSUPPORTED conclusion is correct, not an encoding miss. ```
+- Attempts used: 43
+- Last updated: 2026-09-25T04:33:47.399765+00:00
+- Reason / notes: The rule's entire semantic content is that CockroachDB's `Range` predicate is a transparent wrapper over its inner conjunction (Range(e) ≡ e in filter context); in RuleScript, `Range` can only be introduced as an uninterpreted predicate symbol, and QED fundamentally cannot prove an uninterpreted symbol equivalent to its argument, and the JSON/DSL format has no channel for operator axioms (the "guaranteed" field only attaches to base-table scans, and RelRN/RexRN/JSONSerializer carry no operator-axiom construct), so extending the DSL cannot supply the required transparency axiom without modifying the trusted prover. Any encoding that drops `Range` collapses the rule to nested-filter AND merging — i.e. the already PROVED FULL FilterMerge — so there is no genuine non-trivial PARTIAL fallback to port. ```
 
 ### `ConvertCountToCountRows` — ⏭️ SKIPPED
 
@@ -1076,9 +1226,9 @@ Extracted from `groupby.opt` (which defines multiple rules — implement specifi
     $groupingPrivate
 )
 ```
-- Attempts used: 40
-- Last updated: 2026-09-24T11:47:56.173630+00:00
-- Reason / notes: ConvertCountToCountRows is valid only by virtue of the counting algebra of the COUNT operator itself — that COUNT(x) equals the group's row count when x is never NULL — and its ExprIsNeverNull side condition is exactly the nullability inference that supplies that premise. QED models every aggregate call as an uninterpreted function of its per-group operand bag (per its own evaluation it knows nothing about a specific aggregate's algebra beyond bag equality of its input), so a `Count(x)` call (operand: x) can never be equated with an operand-free `CountRows` call in any encoding, not even one that gives x a non-nullable scan type, since the operator symbols differ and the operand bags differ. The only instances QED could prove are vacuous (e.g., an empty input where both sides collapse to the empty bag) or self-identical encodings that no longer express the rule, so the unsupported conclusion is correct even though the porter's transcript shows it was actually aborted by a context-length error rather than this analysis. ```
+- Attempts used: 1
+- Last updated: 2026-09-25T05:31:47.400997+00:00
+- Reason / notes: Manually investigated by Claude (not the automated porter/verifier LLM loop, which exhausted all 5 rounds on repeated context-length crashes without ever completing a try_rule call). A prior crashed attempt's cached JSON (.cache/tmp-rules/ConvertCountToCountRows.json) showed it had found QED's real built-in COUNT handling (qed-prover/src/pipeline/relation.rs special-cases the literal string "COUNT") but used the lowercase generic-aggregate operator name "count", which falls through to the generic/uninterpreted-HOp path instead — structurally unrelatable between the two sides, hence not provable. Fixing the operator name to "COUNT" (the RuleScript DSL lets a porter pick any string as an aggregate's name, so this required no DSL change) does make QED report provable=true. However, this is a VACUOUS proof, confirmed via a negative control: the exact same encoding still reports provable=true even when the aggregated column's schema is marked nullable=true (i.e. even when the source rule's actual precondition, ExprIsNeverNull, is violated). The reason: JSONSerializer.java always emits "ignoreNulls": bool(call.ignoreNulls()), and RelRN.Aggregate.semantics() builds the Calcite AggregateCall via the plain RelBuilder.aggregateCall(op, distinct, filter=null, name, operands) overload, which Calcite defaults to ignoreNulls=false with no DSL-exposed way to override it — RelRN.AggCall has no ignoreNulls field at all. QED's own prover core (relation.rs) DOES implement real null-skipping when ignore_nulls=true (it ANDs in a not-null predicate per aggregated row before summing), but the DSL can never actually produce that flag as true, so any COUNT(x)-vs-COUNT() proof built with today's DSL is really proving the strictly weaker, unconditional identity 'COUNT(x) with no null-skipping == COUNT(*)' (true for ANY column, nullable or not, since both sides just tally rows) rather than the source rule's actual conditional identity. Publishing that as PROVED would misrepresent what was verified. This is a genuine, fixable DSL gap (add an ignoreNulls control to RelRN.AggCall, threaded through a RelBuilder call that supports it) rather than a fundamental QED limitation — QED's core already models null-skipping correctly — so it's recorded here as SKIPPED with this specific, actionable cause rather than a generic FAILED.
 
 ### `ConvertJSONSubscriptToFetchValue` — ⏭️ SKIPPED
 
@@ -1098,9 +1248,9 @@ Extracted from `scalar.opt` (which defines multiple rules — implement specific
 =>
 (FetchVal $input $index)
 ```
-- Attempts used: 20
-- Last updated: 2026-09-24T11:40:03.666609+00:00
-- Reason / notes: ConvertJSONSubscriptToFetchValue rewrites `Indirection(input, index)` into `FetchVal(input, index)` — two distinct backend operators — and its correctness rests entirely on the internal JSON semantics of those two functions, which RuleScript can only introduce as two distinct uninterpreted projection symbols. QED has no axioms relating different uninterpreted function symbols (and the `IsJSON` guard is at best a type tag, since all virtual types map to INTEGER), so a countermodel exists where the two functions differ on JSON-valued inputs, making the equivalence unprovable for every instantiation. This is a fundamental limitation rather than an encoding bug: the JSON serialization carries only operator names, so no `extend_dsl_file` change to RelRN/RexRN can supply the required axiom — that would live in the QED prover itself, which is off-limits (the porter's recorded "reason" was actually an LLM context-length crash, not an analysis, but a fresh attempt would hit this same wall). ```
+- Attempts used: 25
+- Last updated: 2026-09-25T05:45:12.771131+00:00
+- Reason / notes: This rule is purely an operator-aliasing identity: it asserts that two syntactically distinct scalar operators (JSON indirection `[...]` and fetch value `->`) agree on JSON inputs. In RuleScript/QED that forces two *distinct* uninterpreted projection symbols, and QED's theory (bag semantics over uninterpreted functions) contains no axiom relating distinct function symbols — so a countermodel exists even restricted to the guarded (IsJSON) domain, since the guard is itself uninterpreted and the two functions can be instantiated to differ on it. No encoding or DSL extension can close this: the JSON format has no notion of "these two operator names denote the same function," and the prover (the unchangeable arbiter) is the only place such an axiom could live — this is exactly the "backend operator's bespoke internal semantics" limitation, and the porter's complete (non-timeout) SMT refutation on the fixed two-column encoding confirms it. ```
 
 ### `ConvertLevenshteinToLevenshteinLessEqualLeft` — ⏭️ SKIPPED
 
@@ -1144,9 +1294,9 @@ Extracted from `comp.opt` (which defines multiple rules — implement specifical
     $right
 )
 ```
-- Attempts used: 20
-- Last updated: 2026-09-24T11:46:51.351441+00:00
-- Reason / notes: The rule's validity rests entirely on CockroachDB's specific definition of `levenshtein_less_equal(s,t,d)` (exact distance when ≤ d, else d+1 — the porter's own Go-code reading confirmed this), i.e. an algebraic relationship between the *internals of two specific functions*. QED models `levenshtein` and `levenshtein_less_equal` as independent uninterpreted function symbols, and the core language has no arithmetic, no conditionals, and no mechanism to relate or axiomatize two function symbols, so the two sides reduce to unrelated `L(s,t) OP d` vs `LLE(s,t,d) OP d` where the SMT solver trivially finds countermodels — and no faithful special case (any of the five comparison operators) can escape the dependency on that clamping property. (The porter's logged reason was an LLM context-overflow infrastructure error rather than an analysis, but the UNSUPPORTED conclusion is the correct one.)
+- Attempts used: 41
+- Last updated: 2026-09-25T06:01:41.266984+00:00
+- Reason / notes: The rule's validity rests entirely on the backend's clamp identity `levenshtein_less_equal(a,b,n) = min(levenshtein(a,b), n)`, but RuleScript can only introduce these as independent uninterpreted symbols and offers no way to state any relationship between them — RexRN has no equality/arithmetic/min, there are no function-axiom mechanisms, and a scan's "guaranteed" constraint would itself be an uninterpreted predicate over columns that cannot bridge two distinct function terms. Since QED must prove equivalence for *all* instantiations of uninterpreted symbols and the fixed prover has no path for predicate inference between independent symbols, no genuine encoding is provable — this is precisely the "bespoke internal semantics of a backend operator" limitation.
 
 ### `ConvertLevenshteinToLevenshteinLessEqualRight` — ⏭️ SKIPPED
 
@@ -1175,9 +1325,9 @@ Extracted from `comp.opt` (which defines multiple rules — implement specifical
     (MakeLevenshteinLessEqualFunction $arg1 $arg2 $left)
 )
 ```
-- Attempts used: 20
-- Last updated: 2026-09-24T11:55:36.372539+00:00
-- Reason / notes: The rule's soundness rests entirely on the backend's specific clamping invariant, `levenshtein_less_equal(a,b,d) = min(levenshtein(a,b), d+1)` — the porter's transcript shows it correctly derived this, which is exactly the relationship QED can never see. In RuleScript, `levenshtein` and `levenshtein_less_equal` can only be two distinct uninterpreted scalar symbols with no mechanism to assert any relation between them, and QED must certify bag-equivalence for *all* instantiations of uninterpreted symbols — under an arbitrary instantiation (e.g. `lle` returning a constant while `lev` doesn't) the before/after filters genuinely differ, so the prover can only ever report not-provable. No narrower special case (e.g. a constant `left`) removes this dependence, since even `5 OP lev(a,b)` ⟺ `5 OP lle(a,b,5)` requires the clamping property, so UNSUPPORTED is the correct conclusion; the real limitation is an operator's bespoke internal semantics, not a missing DSL shape. ```
+- Attempts used: 21
+- Last updated: 2026-09-25T05:51:20.920855+00:00
+- Reason / notes: The rewrite `x OP levenshtein(s,t) ⟺ x OP levenshtein_less_equal(s,t,x)` is only valid because of CockroachDB's internal clamping contract for `levenshtein_less_equal` (returns the true distance when it is ≤ the bound, and a value strictly greater than the bound otherwise) — and checking each of Eq/Ge/Gt/Le/Lt, every one of the five directions of the equivalence depends on that relationship, which is an entailment between two function symbols that QED models as independent uninterpreted functions. RuleScript's core language offers no arithmetic or conditional terms and no axiom/assume mechanism to state such a contract, and since the frozen prover itself never relates independent uninterpreted symbols, no DSL builder extension could communicate it either — so no general or special-cased encoding (even with a literal bound, which would still leave the predicate and both function symbols uninterpreted) is provable. ```
 
 ### `ConvertLikeEscapeToLike` — ⏭️ SKIPPED
 
@@ -1212,9 +1362,9 @@ Extracted from `scalar.opt` (which defines multiple rules — implement specific
 =>
 (Like $input $pattern)
 ```
-- Attempts used: 20
-- Last updated: 2026-09-24T11:54:19.227253+00:00
-- Reason / notes: The rule's validity rests entirely on the backend-specific semantic fact that LIKE's default escape character is '\', making like_escape(x, p, '\') identical to like(x, p). In QED's model, `like_escape` (3-ary) and `like` (2-ary) are independent uninterpreted predicate symbols with no axioms connecting them, so the SMT solver can construct a model where they differ for the same (x, p). No re-encoding can bridge this gap because the relationship is an internal operator semantic that QED fundamentally cannot see through — this is precisely the "operator whose specific internal semantics QED cannot see through as an uninterpreted function" limitation. ```
+- Attempts used: 43
+- Last updated: 2026-09-25T06:08:28.520442+00:00
+- Reason / notes: The rule's correctness rests entirely on CockroachDB's backend-specific semantic that `LIKE`'s default escape character is `'\'`, i.e. the entailment `like_escape(x, p, '\')` ⟺ `like(x, p)`. In QED both `like_escape` and `like` can only be introduced as distinct uninterpreted predicate symbols, and the SMT solver has no axiom relating independent symbols (or symbols of different arity), so the equivalence is invalid under the interpretations QED quantifies over. No DSL extension can close this gap, since the missing piece is operator-specific semantic knowledge that lives in the prover — the trusted, unmodifiable arbiter — rather than a missing operator or shape in the DSL. ```
 
 ### `ConvertRegressionCountToCount` — ⏭️ SKIPPED
 
@@ -1260,9 +1410,9 @@ Extracted from `groupby.opt` (which defines multiple rules — implement specifi
     $groupingPrivate
 )
 ```
-- Attempts used: 20
-- Last updated: 2026-09-24T11:58:55.019814+00:00
-- Reason / notes: The rule relies on the internal semantics of RegressionCount as counting non-null (arg1, arg2) pairs and on the null-aware fact that this reduces to Count(newArg) when one argument is known non-null. QED cannot model that bespoke aggregate's null-pair semantics as an uninterpreted function, so the equivalence is not provable in RuleScript/QED. ```
+- Attempts used: 67
+- Last updated: 2026-09-25T06:39:54.589255+00:00
+- Reason / notes: The rewrite's correctness rests entirely on a specific algebraic identity between two *different* named aggregates — `RegressionCount(a,b)` (counts rows where both args are non-null) equaling `Count(b)` (counts rows where one arg is non-null) under the side condition that `a` is provably never-null — and QED treats aggregate names as uninterpreted beyond bag equality of their input, with no mechanism in the Java DSL or JSON format to declare such a semantic axiom (the prover is Rust-side and untouchable). Any genuine instance of this rule necessarily changes the aggregate's name and arity, so no non-vacuous special case survives: even the narrowest encoding (e.g. one arg a non-nullable-typed column) still requires the prover to bridge an opaque 2-operand `RegressionCount` to an interpreted 1-operand `Count`, which SMT will refute by choosing an interpretation of the uninterpreted aggregate that disagrees with the count. This is precisely the documented limitation "knows nothing about a specific aggregate function's algebra beyond bag equality of its input" / "a backend operator's bespoke internal semantics," not a gap `extend_dsl_file` could close (multi-operand `AggCall` already exists; only the prover-side semantics are missing). ```
 
 ### `ConvertUncorrelatedExistsToCoalesceSubquery` — ⏭️ SKIPPED
 
@@ -1328,9 +1478,9 @@ Extracted from `scalar.opt` (which defines multiple rules — implement specific
     ]
 )
 ```
-- Attempts used: 20
-- Last updated: 2026-09-24T12:02:02.298565+00:00
-- Reason / notes: The rule's right-hand side — COALESCE of a scalar subquery projecting true over `input LIMIT 1` with false — equals EXISTS(input) only by virtue of LIMIT's emptiness-preserving behavior, the scalar subquery's "zero rows ⇒ NULL" semantics, and COALESCE's null-skip algebra. QED explicitly does not model Sort/Limit/Offset (no bag-semantic meaning) and cannot reason about a scalar operator's bespoke null semantics — COALESCE would remain an uninterpreted symbol — so no honest encoding of the RHS exists that the prover can check, and extending the DSL with builders cannot help since the missing piece is the prover, which is off-limits. UNSUPPORTED is therefore the correct verdict even though the porter's actual failure was a context-length infrastructure error rather than a failed proof attempt.
+- Attempts used: 24
+- Last updated: 2026-09-25T06:15:21.834748+00:00
+- Reason / notes: Both sides of the rewrite are scalar expressions over nested sub-relations — an EXISTS on the left, and COALESCE of a scalar subquery (a Project over a LIMIT) and false on the right — and QED's decision procedure cannot decide scalar expressions that contain a sub-relation at all (the prover marks such nodes non-complete/unhandled), so it has no way to even state the equivalence between the two forms. The rule's soundness also load-bears on LIMIT's row-cap (at most one row, non-empty iff input non-empty), the empty-scalar-subquery→NULL convention, and COALESCE's first-non-null behavior, all of which are bespoke uninterpreted semantics outside QED's bag algebra (and Limit has no bag-semantic meaning per its own evaluation), so no DSL-builder extension can supply them — consistent with the prior SubQueryRemove check where the Exists builder was added and the prover still rejected the encoding. ```
 
 ### `ConvertUnionToDistinctUnionAll` — ⏭️ SKIPPED
 
@@ -1473,9 +1623,9 @@ Extracted from `set.opt` (which defines multiple rules — implement specificall
     )
 )
 ```
-- Attempts used: 20
-- Last updated: 2026-09-24T12:08:45.469663+00:00
-- Reason / notes: The rule's non-trivial effect is to reconstitute the non-key output columns of the deduplicated rows using a ConstAgg over each UnionAll group, so its correctness hinges on proving ConstAgg(group) equals the original (functionally-determined) column value. QED models aggregates only as uninterpreted functions (it can equate two aggregates sharing an input bag but cannot compute or relate their output to raw column values), so it cannot bridge the raw non-key values on the distinct-Union side to the ConstAgg results on the DistinctOn side even if the key/functional-dependency is declared as a table constraint; the only provable encodings are the degenerate ones where the output is exactly the key columns (no non-key aggregation), which do not capture the rule. ```
+- Attempts used: 41
+- Last updated: 2026-09-25T07:17:24.865146+00:00
+- Reason / notes: The rule's after side is a DistinctOn that dedups on a strict subset of columns (the key) while retaining all output columns, i.e. an arbitrary "ConstAgg" selection of the non-key values per key group, and no operator in QED's prover language has those semantics: the set-family operators (distinct/union/intersect/except) only dedup on the whole row, and GroupBy's non-key outputs are uninterpreted aggregates that QED is told nothing about beyond bag equality of their inputs, so no expression can stand in for the dedup side and be tied to the row values. This gap sits in the fixed prover's JSON operator set — JSONSerializer can carry scan/filter/project/join/correlate/group/union(+distinct)/intersect/except/sort and nothing that serializes a subset-key dedup — rather than in the Java builder layer, so extend_dsl_file cannot bridge it, and any "encoding" that avoids the operator (e.g. set ops on the same bag) would only re-prove a tautology without exercising the key→all-columns functional dependency the rule actually rests on.
 
 ### `ConvertZipArraysToValues` — ⏭️ SKIPPED
 
@@ -1524,9 +1674,9 @@ Extracted from `project_set.opt` (which defines multiple rules — implement spe
     (EmptyJoinPrivate)
 )
 ```
-- Attempts used: 20
-- Last updated: 2026-09-24T12:06:18.319336+00:00
-- Reason / notes: The porter's stated reason is only an LLM context-length crash (no real analysis was run), but the UNSUPPORTED conclusion is nonetheless correct on the merits. The rule's entire correctness content is list semantics — unnest/json_array_elements expand a list into one row per element, and zip pairs elements index-wise with null-padding of shorter arrays — plus the CanConstructValuesFromZips guard, which depends on the *identity* of those specific functions; QED maps every type to an opaque integer with no list structure and treats all functions as uninterpreted, so it can model neither property. Additionally, the InnerJoinApply's right side is a Values relation *generated from the left row's array values* (data-dependent, correlated row generation), for which RuleScript has no operator — Correlate can only filter a fixed right relation by a predicate over the left row, and no DSL extension could help since QED's serialized Q-expression format and prover have no notion of "the elements of a column" — so even a narrower special case is inexpressible, not merely unprovable.
+- Attempts used: 21
+- Last updated: 2026-09-25T06:32:25.241037+00:00
+- Reason / notes: The rule's core is a set-returning/row-generating operation — `ProjectSet` expanding an array column (`unnest`/`json_array_elements`) into one row per element — plus a correlated `InnerJoinApply` whose right side is a dynamic Values whose rows are that specific left row's array elements. QED only models bag semantics with *scalar* uninterpreted functions and has no list/array type semantics (all types flatten to integers in `RelType`), no row-generating operator, and `JSONSerializer`/the Q-expression format carry no construct for a Values whose contents are derived from a correlated left row (the DSL's `Correlate` only filters a *fixed* right relation). This is a fundamental QED limitation (unmodelable list/row-generation semantics, and the Rust prover can't be modified), not a missing builder `extend_dsl_file` could close, so no non-vacuous special case is provable.
 
 ### `DecorrelateProjectSet` — ⏭️ SKIPPED
 
@@ -1566,70 +1716,9 @@ Extracted from `decorrelate.opt` (which defines multiple rules — implement spe
     (EmptyJoinPrivate)
 )
 ```
-- Attempts used: 20
-- Last updated: 2026-09-24T12:20:41.780175+00:00
-- Reason / notes: The rule's correctness depends entirely on the structural side condition that the set-returning ("zip") functions reference no input column (non-correlation), a free-variable/dependency property that QED — a bag-semantic equivalence prover over uninterpreted symbols — has no way to express or assume; "ProjectSet"/set-returning functions also have no operator in the DSL core language (no `RelRN` method, no `JSONSerializer` case) and no semantic model in QED's unmodifiable prover. Any faithful model of the SRF as an uninterpreted row-dependent relation makes the general rule false (hence unprovable), while a model that assumes independence collapses before and after to the identical cross join R × S — a trivially provable but vacuous identity containing no ProjectSet to actually transform.
-
-### `EliminateAggDistinct` — ⏭️ SKIPPED
-
-- Source backend: CockroachDB
-- Source rule: Source: pkg/sql/opt/norm/rules/agg.opt
-
-EliminateAggDistinct removes AggDistinct for aggregations where DISTINCT
-never modifies the result; for example: min(DISTINCT x).
-
-Extracted from `agg.opt` (which defines multiple rules — implement specifically `EliminateAggDistinct`, not the other rules in that file):
-
-```
-# EliminateAggDistinct removes AggDistinct for aggregations where DISTINCT
-# never modifies the result; for example: min(DISTINCT x).
-[EliminateAggDistinct, Normalize]
-(AggDistinct $input:(Min | Max | BoolAnd | BoolOr))
-=>
-$input
-```
-- Attempts used: 20
-- Last updated: 2026-09-24T09:12:58.900013+00:00
-- Reason / notes: The rule's soundness rests on Min/Max/BoolAnd/BoolOr being idempotent with respect to duplicate input values — an algebraic identity of specific aggregate functions — but QED models every aggregate (even one literally named "Min") as an uninterpreted function over its input bag and knows only bag-equality of inputs, so it cannot relate agg(DISTINCT x), which aggregates over the deduplicated bag, to agg(x) over the raw bag; an SMT countermodel (an aggregate that depends on value multiplicity) always exists, and the source rule's restriction to those four functions has no semantic content in the DSL since generic aggregate operators carry no algebra. The richer input-key-based special case (like the proven PARTIAL `EliminateDistinct` precedent) at best covers degenerate inputs where deduplication is provably a no-op, not the function-based justification this rule actually has. The porter's recorded failure was an LLM context-length crash rather than an actual QED run, but the UNSUPPORTED conclusion is correct on the merits.
-
-### `EliminateAggDistinctForKeys` — ⏭️ SKIPPED
-
-- Source backend: CockroachDB
-- Source rule: Source: pkg/sql/opt/norm/rules/groupby.opt
-
-EliminateAggDistinctForKeys eliminates unnecessary AggDistinct modifiers when
-it is known that the aggregation argument is unique within each group.
-
-Extracted from `groupby.opt` (which defines multiple rules — implement specifically `EliminateAggDistinctForKeys`, not the other rules in that file):
-
-```
-# EliminateAggDistinctForKeys eliminates unnecessary AggDistinct modifiers when
-# it is known that the aggregation argument is unique within each group.
-[EliminateAggDistinctForKeys, Normalize]
-(GroupBy | ScalarGroupBy
-    $input:* & (HasStrictKey $input)
-    $aggregations:[
-        ...
-        $item:(AggregationsItem (AggDistinct $agg:*))
-        ...
-    ]
-    $groupingPrivate:* &
-        (CanRemoveAggDistinctForKeys
-            $input
-            $groupingPrivate
-            $agg
-        )
-)
-=>
-((OpName)
-    $input
-    (ReplaceAggregationsItem $aggregations $item $agg)
-    $groupingPrivate
-)
-```
-- Attempts used: 20
-- Last updated: 2026-09-24T12:30:12.294319+00:00
-- Reason / notes: `EliminateAggDistinctForKeys` rewrites `AGG(DISTINCT x)` to `AGG(x)` on the premise that, when the grouping columns plus x form a strict key, x has no duplicate values within any group — i.e. its correctness rests on the aggregate identity "DISTINCT is a no-op when the argument is unique per group." QED models each aggregate invocation (the DISTINCT and non-DISTINCT forms being distinct function symbols) as an uninterpreted function and knows no algebra connecting them; its only aggregate reasoning is bag-equality of the input for the *same* function, which cannot apply because the rewrite changes the function itself. Hence no encoding — including the narrow "x is the table's primary key" special case, where the key condition is even expressible via `scan(unique=true)` — can reduce the two sides to the same aggregate over equal input bags, so the rule is genuinely outside QED's power (a missing aggregate-algebra capability in the prover, not a DSL gap that `extend_dsl_file` could close). ```
+- Attempts used: 47
+- Last updated: 2026-09-25T08:20:35.361914+00:00
+- Reason / notes: ProjectSet / set-returning (table-valued) functions have [NOTE: response was truncated at the token limit before finishing — if this cut off mid-code-block, that's why it couldn't be parsed.]
 
 ### `EliminateUnaryMinus` — ⏭️ SKIPPED
 
@@ -1647,9 +1736,9 @@ Extracted from `numeric.opt` (which defines multiple rules — implement specifi
 =>
 $input
 ```
-- Attempts used: 20
-- Last updated: 2026-09-24T07:31:20.773927+00:00
-- Reason / notes: EliminateUnaryMinus is a pure scalar algebraic identity — numeric negation being an involution, −(−x) = x — and the only faithful encoding in RuleScript is a projection operator by name (e.g. scan → project("neg", project("neg", x)) ≡ x), which QED models as an uninterpreted function with no involution axiom, so SMT refutes it with a countermodel where "neg" is an arbitrary non-involutive function. That property is exactly a backend operator's bespoke internal semantics, which lives in the Rust prover's theory (off-limits) and cannot be supplied by any Java DSL extension; asserting f(f(x))=x as a table "guaranteed" constraint would merely assume the conclusion, and a boolean Not(Not(p))≡p encoding would be a different rule, not a special case of numeric negation. ```
+- Attempts used: 8
+- Last updated: 2026-09-25T07:07:51.954360+00:00
+- Reason / notes: The rule requires the numeric negation algebraic law `neg(neg(x)) = x`, but RuleScript expresses that scalar operator as an uninterpreted projection symbol and QED has no involution axiom for uninterpreted functions. The porter’s encoding is therefore faithful, and the failure is a fundamental limitation rather than a symbol-sharing or modeling bug. Asserting the law as a table “guaranteed” constraint would circularly assume the conclusion, and using boolean `Not` would prove a different rule.
 
 ### `EliminateWindow` — ⏭️ SKIPPED
 
@@ -1669,89 +1758,7 @@ Extracted from `window.opt` (which defines multiple rules — implement specific
 =>
 $input
 ```
-- Attempts used: 9
-- Last updated: 2026-09-24T07:44:05.767331+00:00
-- Reason / notes: RuleScript has no Window builder and QED’s serializer/prover have no window semantics, so the source left-hand side cannot be represented as a window node. Modeling an empty window as an identity projection instead only proves the unrelated identity-projection tautology, not that CockroachDB’s no-op Window operator can be eliminated.
-
-### `NegateComparison` — ⏭️ SKIPPED
-
-- Source backend: CockroachDB
-- Source rule: Source: pkg/sql/opt/norm/rules/bool.opt
-
-NegateComparison inverts eligible comparison operators when they are negated
-by the Not operator. For example, Eq maps to Ne, and Gt maps to Le. All
-comparisons can be negated except for the JSON and Geospatial comparisons.
-
-Extracted from `bool.opt` (which defines multiple rules — implement specifically `NegateComparison`, not the other rules in that file):
-
-```
-# NegateComparison inverts eligible comparison operators when they are negated
-# by the Not operator. For example, Eq maps to Ne, and Gt maps to Le. All
-# comparisons can be negated except for the JSON and Geospatial comparisons.
-[NegateComparison, Normalize]
-(Not
-    $input:(Comparison $left:* $right:*) &
-        (CanNegateComparison $op:(OpName $input))
-)
-=>
-(NegateComparison $op $left $right)
-```
-- Attempts used: 20
-- Last updated: 2026-09-24T07:41:28.689596+00:00
-- Reason / notes: NegateComparison is not a pure And/Or/Not identity; it depends on specific comparison-operator algebra, e.g. ¬EQ being NE and ¬GT being LE. RuleScript/QED treats predicate symbols as uninterpreted and has no axioms linking an operator to its negated counterpart, so QED cannot prove this rewrite for any non-trivial comparison pair. ```
-
-### `SimplifyLeftJoin` — ⏭️ SKIPPED
-
-- Source backend: CockroachDB
-- Source rule: Source: pkg/sql/opt/norm/rules/join.opt
-
-SimplifyLeftJoin reduces a LeftJoin operator to an InnerJoin operator (or a
-FullJoin to a RightJoin) when it's known that every row in the join's left
-input will match at least one row in the right input. Since every row matches,
-NULL-extended rows will never be added by the outer join, and therefore can be
-mapped to an InnerJoin (or RightJoin in case of FullJoin). See
-filtersMatchAllLeftRows comment for conditions in which this rule can match.
-
-Self-join example:
-SELECT * FROM xy LEFT JOIN xy AS xy2 ON xy.y = xy2.y
-=>
-SELECT * FROM xy INNER JOIN xy AS xy2 ON xy.y = xy2.y
-
-Foreign-key example:
-SELECT * FROM orders o LEFT JOIN customers c ON o.customer_id = c.id
-=>
-SELECT * FROM orders o INNER JOIN customers c ON o.customer_id = c.id
-
-Extracted from `join.opt` (which defines multiple rules — implement specifically `SimplifyLeftJoin`, not the other rules in that file):
-
-```
-# SimplifyLeftJoin reduces a LeftJoin operator to an InnerJoin operator (or a
-# FullJoin to a RightJoin) when it's known that every row in the join's left
-# input will match at least one row in the right input. Since every row matches,
-# NULL-extended rows will never be added by the outer join, and therefore can be
-# mapped to an InnerJoin (or RightJoin in case of FullJoin). See
-# filtersMatchAllLeftRows comment for conditions in which this rule can match.
-#
-# Self-join example:
-#   SELECT * FROM xy LEFT JOIN xy AS xy2 ON xy.y = xy2.y
-#   =>
-#   SELECT * FROM xy INNER JOIN xy AS xy2 ON xy.y = xy2.y
-#
-# Foreign-key example:
-#   SELECT * FROM orders o LEFT JOIN customers c ON o.customer_id = c.id
-#   =>
-#   SELECT * FROM orders o INNER JOIN customers c ON o.customer_id = c.id
-[SimplifyLeftJoin, Normalize]
-(LeftJoin | LeftJoinApply | FullJoin
-    $left:*
-    $right:*
-    $on:* & (JoinFiltersMatchAllLeftRows $left $right $on)
-    $private:*
-)
-=>
-(ConstructNonLeftJoin (OpName) $left $right $on $private)
-```
-- Attempts used: 20
-- Last updated: 2026-09-24T08:47:18.212026+00:00
-- Reason / notes: The rule's soundness rests entirely on the side condition `JoinFiltersMatchAllLeftRows` (for every left row, ∃ a right row satisfying the join predicate) — a quantified entailment between uninterpreted symbols that QED explicitly cannot reason about, and RuleScript's pattern-pair format has no mechanism to state rule preconditions; without that guard, QED correctly sees that LeftJoin ≠ InnerJoin for arbitrary instantiations (a left row with no match yields a NULL-extended row in the left join but no row in the inner join), and no non-trivial special case (self-join, `True` condition) is provable either, since the join predicate is uninterpreted (no reflexivity) and non-emptiness of the right input is likewise inexpressible. ```
+- Attempts used: 48
+- Last updated: 2026-09-25T07:39:47.981126+00:00
+- Reason / notes: EliminateWindow's correctness rests entirely on the Window operator's internal semantics — that a Window with an empty function list is a row-preserving identity — but QED's bag-semiring prover has no Window operator at all, since Window requires list/ordering semantics the bag model cannot express (the RuleScript paper explicitly excludes Sort/Window as out of scope). Because the trusted Rust prover is unmodifiable, this gap can't be bridged by extending the Java DSL: an empty Window would remain an opaque symbol QED cannot reduce to its input, and any core-operator stand-in (identity Project, redundant group-by) would prove a *different* operator's theorem rather than this one, so no faithful encoding of `Window($input []) => $input` exists. ```
 

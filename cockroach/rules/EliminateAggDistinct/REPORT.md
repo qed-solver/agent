@@ -1,8 +1,10 @@
 # EliminateAggDistinct
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 20  **Verification rounds used:** 1
+**Porter attempts used:** 4  **Verification rounds used:** 1
+**Scope detail:** the aggregation argument is the input relation's unique (primary) key, so each group holds at most one row and AggDistinct is a per-group no-op; the full rule (min/max/bool_and/bool_or are idempotent, so AggDistinct never changes their value over arbitrary inputs) is unprovable in QED, which models every aggregate, even one named "Min", as an uninterpreted function knowing only bag-equality of its input.
+
 
 ## Source rule (as given to the porter)
 
@@ -26,6 +28,47 @@ $input
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-The rule's soundness rests on Min/Max/BoolAnd/BoolOr being idempotent with respect to duplicate input values — an algebraic identity of specific aggregate functions — but QED models every aggregate (even one literally named "Min") as an uninterpreted function over its input bag and knows only bag-equality of inputs, so it cannot relate agg(DISTINCT x), which aggregates over the deduplicated bag, to agg(x) over the raw bag; an SMT countermodel (an aggregate that depends on value multiplicity) always exists, and the source rule's restriction to those four functions has no semantic content in the DSL since generic aggregate operators carry no algebra. The richer input-key-based special case (like the proven PARTIAL `EliminateDistinct` precedent) at best covers degenerate inputs where deduplication is provably a no-op, not the function-based justification this rule actually has. The porter's recorded failure was an LLM context-length crash rather than an actual QED run, but the UNSUPPORTED conclusion is correct on the merits.
+The encoding is a sound, non-vacuous special case rather than a vacuous one: `before()` and `after()` genuinely differ in the AggCall's `distinct` flag (which the JSON serializer emits), the same uninterpreted aggregate "f" is shared on both sides so the claim is really "distinctification changes nothing here," and that claim depends essentially on the disclosed premise — the scan is unique on field 0 and groups are by field 0, so every group is a singleton and bag distinctification is the identity (drop `unique=true` and QED would refute the equivalence, since it models aggregates as uninterpreted functions). The full rule (Min/Max/BoolAnd/BoolOr idempotent over arbitrary inputs) is genuinely out of reach of QED: no DSL construct or JSON field exists to attach an idempotency axiom to an uninterpreted aggregate, and the prover is the fixed arbiter, so this is a real QED limitation, not an unexplored DSL gap. The `// SCOPE: PARTIAL` line is present, specific, and accurately matches the code (uniqueness on field 0, group-by field 0, aggregation over field 0), with no missing preconditions or symbol-sharing errors.
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": false,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 9255459
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 39847666
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 918625
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 610750
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 24128667
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 40046458
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 80494625
+  }
+}
+```

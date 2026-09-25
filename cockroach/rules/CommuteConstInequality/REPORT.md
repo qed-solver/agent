@@ -1,8 +1,10 @@
 # CommuteConstInequality
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 20  **Verification rounds used:** 1
+**Porter attempts used:** 41  **Verification rounds used:** 3
+**Scope detail:** encodes only the Lt flip (x < y becomes y > x); the Le, Gt, and Ge commutation pairs of the original rule are not covered by this single record.
+
 
 ## Source rule (as given to the porter)
 
@@ -28,6 +30,47 @@ Extracted from `comp.opt` (which defines multiple rules — implement specifical
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-CommuteConstInequality is a scalar normalization whose entire correctness rests on the order-theoretic identity c ≤ x ⟺ x ≥ c (and the < / > flips); in RuleScript the Le/Lt/Ge/Gt operators can only be introduced as uninterpreted predicate symbols, and QED proves equivalences that must hold for every instantiation of uninterpreted symbols, so it cannot entail le(c,x) from ge(x,c) — nor from a flipped-argument version of a single symbol, which would in fact be false for an arbitrary uninterpreted predicate. A faithful relational embedding (a scan filtered by the original comparison vs. one filtered by the commuted, direction-flipped comparison) is expressible in the core language but unprovable precisely because the rule's content is the numeric-order interpretation that QED has no model for (a documented limitation: no reasoning about a backend operator's bespoke internal semantics), and no extend_dsl_file change can close it since the operator names just flow as strings into the fixed, unchanging prover. (The porter's stated reason was an LLM HTTP 400 context-length error rather than a completed analysis, so the transcript contains no real attempt — but the unsupported conclusion itself is correct.) ```
+The encoding faithfully lifts the scalar Lt flip into the relational DSL — a maximally-general carrier (INNER cross-join of two unconstrained scans, same type "V", no shared symbols) with `LESS_THAN(x,y)` in before and `GREATER_THAN(y,x)` in after — which is a genuinely non-vacuous SMT check of the exact duality `CommuteInequality` performs (an uninterpreted-operator model would not prove the swapped-argument equivalence). The source rule's "left is a constant / right is not" guard is a firing condition, not a semantic precondition, so the proved equivalence is at least as general as the rule requires, and the missing operator pairs are an inherent limitation of the one-record-per-rule shape (a FULL version would be a family of the four Lt↔Gt / Le↔Ge / Ge↔Le / Gt↔Lt records), making the PARTIAL scope line accurate, specific, and non-degenerate. ```
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": true,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 7626833
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 35989542
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 824875
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 482250
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 19300833
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 36088958
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 71246167
+  }
+}
+```

@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 20  **Verification rounds used:** 1
+**Porter attempts used:** 43  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
@@ -26,4 +26,4 @@ Extracted from `comp.opt` (which defines multiple rules — implement specifical
 
 **Verdict:** AGREE
 
-CommuteNullIs is a scalar rewrite whose correctness depends entirely on the null-aware (NULL-as-a-value) commutativity of CockroachDB's IS / IS NOT comparison — i.e. that Is(NULL, x) ≡ Is(x, NULL) (and the IsNot variant) — and QED has no semantic model for that bespoke operator: it is not a built-in, so in the SMT encoding it is an uninterpreted function for which only congruence holds and no axiom relates Is(a,b) to Is(b,a) or to a null-test. The DSL also exposes no first-class IsNull/Is operator or NULL literal, and even adding them via extend_dsl_file could not make it provable, because QED fundamentally cannot see through this operator's internal null-aware semantics (regular three-valued `=` is not reducible to `IS`, since NULL = NULL is NULL while NULL IS NULL is True). This is a genuine QED limitation (uninterpretable bespoke-operator semantics), not a missing or mismodeled encoding. ```
+The rewrite's validity rests entirely on the null-aware commutativity of CockroachDB's Is/IsNot operators (Is(NULL,x) ≡ Is(x, NULL)), which requires null-aware-equality semantics (NULL IS NULL is TRUE, whereas NULL = NULL is UNKNOWN) that QED's built-in three-valued equality cannot express and that no RexRN/RelRN construct can build. Any Is/NULL symbol introduced via extend_dsl_file would land as an uninterpreted operator in the fixed prover's SMT encoding, where only congruence holds and no axiom relates Is(a,b) to Is(b,a) or to a null-test, so no relational encoding (e.g. Filter(Is(NULL,col),R) ≡ Filter(Is(col,NULL),R)) is provable — this is squarely the "bespoke internal semantics of a backend operator QED cannot see through as an uninterpreted function" limitation, and the prover itself cannot be given the missing axiom. ```

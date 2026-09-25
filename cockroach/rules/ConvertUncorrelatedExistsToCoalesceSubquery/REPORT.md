@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 20  **Verification rounds used:** 1
+**Porter attempts used:** 24  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -74,4 +74,4 @@ Extracted from `scalar.opt` (which defines multiple rules — implement specific
 
 **Verdict:** AGREE
 
-The rule's right-hand side — COALESCE of a scalar subquery projecting true over `input LIMIT 1` with false — equals EXISTS(input) only by virtue of LIMIT's emptiness-preserving behavior, the scalar subquery's "zero rows ⇒ NULL" semantics, and COALESCE's null-skip algebra. QED explicitly does not model Sort/Limit/Offset (no bag-semantic meaning) and cannot reason about a scalar operator's bespoke null semantics — COALESCE would remain an uninterpreted symbol — so no honest encoding of the RHS exists that the prover can check, and extending the DSL with builders cannot help since the missing piece is the prover, which is off-limits. UNSUPPORTED is therefore the correct verdict even though the porter's actual failure was a context-length infrastructure error rather than a failed proof attempt.
+Both sides of the rewrite are scalar expressions over nested sub-relations — an EXISTS on the left, and COALESCE of a scalar subquery (a Project over a LIMIT) and false on the right — and QED's decision procedure cannot decide scalar expressions that contain a sub-relation at all (the prover marks such nodes non-complete/unhandled), so it has no way to even state the equivalence between the two forms. The rule's soundness also load-bears on LIMIT's row-cap (at most one row, non-empty iff input non-empty), the empty-scalar-subquery→NULL convention, and COALESCE's first-non-null behavior, all of which are bespoke uninterpreted semantics outside QED's bag algebra (and Limit has no bag-semantic meaning per its own evaluation), so no DSL-builder extension can supply them — consistent with the prior SubQueryRemove check where the Exists builder was added and the prover still rejected the encoding. ```

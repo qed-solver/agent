@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 20  **Verification rounds used:** 1
+**Porter attempts used:** 25  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -28,4 +28,4 @@ Extracted from `scalar.opt` (which defines multiple rules — implement specific
 
 **Verdict:** AGREE
 
-ConvertJSONSubscriptToFetchValue rewrites `Indirection(input, index)` into `FetchVal(input, index)` — two distinct backend operators — and its correctness rests entirely on the internal JSON semantics of those two functions, which RuleScript can only introduce as two distinct uninterpreted projection symbols. QED has no axioms relating different uninterpreted function symbols (and the `IsJSON` guard is at best a type tag, since all virtual types map to INTEGER), so a countermodel exists where the two functions differ on JSON-valued inputs, making the equivalence unprovable for every instantiation. This is a fundamental limitation rather than an encoding bug: the JSON serialization carries only operator names, so no `extend_dsl_file` change to RelRN/RexRN can supply the required axiom — that would live in the QED prover itself, which is off-limits (the porter's recorded "reason" was actually an LLM context-length crash, not an analysis, but a fresh attempt would hit this same wall). ```
+This rule is purely an operator-aliasing identity: it asserts that two syntactically distinct scalar operators (JSON indirection `[...]` and fetch value `->`) agree on JSON inputs. In RuleScript/QED that forces two *distinct* uninterpreted projection symbols, and QED's theory (bag semantics over uninterpreted functions) contains no axiom relating distinct function symbols — so a countermodel exists even restricted to the guarded (IsJSON) domain, since the guard is itself uninterpreted and the two functions can be instantiated to differ on it. No encoding or DSL extension can close this: the JSON format has no notion of "these two operator names denote the same function," and the prover (the unchangeable arbiter) is the only place such an axiom could live — this is exactly the "backend operator's bespoke internal semantics" limitation, and the porter's complete (non-timeout) SMT refutation on the fixed two-column encoding confirms it. ```

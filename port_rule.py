@@ -702,47 +702,73 @@ def run_one(
             }]
             continue
 
-        claimed_reason = result.reason or "porter exhausted its turn budget without a proof"
-        verdict, reasoning = run_verifier(
-            verifier_llm, rulescript_root, spec, "unsupported", debug_dir,
-            source_text=source_text, claimed_reason=claimed_reason, transcript_tail=result.transcript_tail,
-        )
-        last_verifier_verdict, last_verifier_reasoning = verdict, reasoning
-        if verdict in (NO_VERIFIER, "AGREE"):
-            print(f"   verifier {verdict}: finalizing as SKIPPED — {reasoning}")
-            worker_pipeline.remove_rule(spec.name)
-            if result.code:
-                pipeline.stash_unprovable(spec.name, result.code, reasoning)
-            pipeline.publish(
-                spec.name, result.code, status="SKIPPED", spec_backend=spec.backend,
-                spec_description=spec.description, json_path=result.json_path,
-                result_json=last_stats or None, verifier_verdict=verdict,
-                verifier_reasoning=reasoning, attempts_used=total_turns, rounds_used=round_num,
+        if result.outcome == "UNSUPPORTED":
+            claimed_reason = result.reason or "porter concluded the rule is unsupported"
+            verdict, reasoning = run_verifier(
+                verifier_llm, rulescript_root, spec, "unsupported", debug_dir,
+                source_text=source_text, claimed_reason=claimed_reason, transcript_tail=result.transcript_tail,
             )
-            print(f"   published (reasoning{'' if result.code else ' only, no candidate code'}) under {pipeline.rules_out_dir.relative_to(ROOT_DIR)}/{spec.name}/")
-            clear_all_transcripts(debug_dir, spec.name)
-            cleanup()
-            return RuleAttempt(
-                spec.name, spec.backend, spec.description, "SKIPPED", total_turns,
-                reason=reasoning, prover_stats=last_stats,
-                verification_rounds_used=round_num, verifier_verdict=verdict,
-                verifier_reasoning=reasoning,
+            last_verifier_verdict, last_verifier_reasoning = verdict, reasoning
+            if verdict in (NO_VERIFIER, "AGREE"):
+                print(f"   verifier {verdict}: finalizing as SKIPPED — {reasoning}")
+                worker_pipeline.remove_rule(spec.name)
+                if result.code:
+                    pipeline.stash_unprovable(spec.name, result.code, reasoning)
+                pipeline.publish(
+                    spec.name, result.code, status="SKIPPED", spec_backend=spec.backend,
+                    spec_description=spec.description, json_path=result.json_path,
+                    result_json=last_stats or None, verifier_verdict=verdict,
+                    verifier_reasoning=reasoning, attempts_used=total_turns, rounds_used=round_num,
+                )
+                print(f"   published (reasoning{'' if result.code else ' only, no candidate code'}) under {pipeline.rules_out_dir.relative_to(ROOT_DIR)}/{spec.name}/")
+                clear_all_transcripts(debug_dir, spec.name)
+                cleanup()
+                return RuleAttempt(
+                    spec.name, spec.backend, spec.description, "SKIPPED", total_turns,
+                    reason=reasoning, prover_stats=last_stats,
+                    verification_rounds_used=round_num, verifier_verdict=verdict,
+                    verifier_reasoning=reasoning,
+                )
+            print(f"   verifier {verdict}: {reasoning}")
+            self_summary = summarize_round(
+                llm, system, result.round_log,
+                f"DISAGREE — the reviewer believes this rule IS expressible and the round's own "
+                f"conclusion was wrong: {reasoning}",
+                debug_dir, spec.name, round_num,
             )
-        print(f"   verifier {verdict}: {reasoning}")
-        self_summary = summarize_round(
-            llm, system, result.round_log,
-            f"DISAGREE — the reviewer believes this rule IS expressible and the round's own "
-            f"conclusion was wrong: {reasoning}",
-            debug_dir, spec.name, round_num,
-        )
-        conversation = [{
-            "role": "user",
-            "content": round_continuation_prompt(
-                spec, source_hint, result.code,
-                "An independent reviewer looked at your attempt and believes this rule "
-                "IS expressible in RuleScript:", reasoning, self_summary, backend_name,
-            ),
-        }]
+            conversation = [{
+                "role": "user",
+                "content": round_continuation_prompt(
+                    spec, source_hint, result.code,
+                    "An independent reviewer looked at your attempt and believes this rule "
+                    "IS expressible in RuleScript:", reasoning, self_summary, backend_name,
+                ),
+            }]
+            continue
+
+        # EXHAUSTED: the porter never reached a proof or an UNSUPPORTED claim this
+        # round (ran out of turns, or the LLM call itself kept failing — e.g. a
+        # context-length crash). There's no actual conclusion here for the
+        # verifier to review, so don't let it rubber-stamp a SKIPPED verdict off
+        # nothing. Just retry with a fresh round if any remain; otherwise fall
+        # through to FAILED below.
+        print(f"   round ended without a proof or an UNSUPPORTED claim ({result.reason}); "
+              f"skipping the verifier — there's nothing for it to review")
+        if round_num < max_rounds:
+            self_summary = summarize_round(
+                llm, system, result.round_log,
+                "EXHAUSTED — the round ended without a proof or an UNSUPPORTED claim "
+                f"(likely ran out of turns or hit a repeated LLM error): {result.reason}",
+                debug_dir, spec.name, round_num,
+            )
+            conversation = [{
+                "role": "user",
+                "content": round_continuation_prompt(
+                    spec, source_hint, result.code,
+                    "Your previous attempt ran out of turns before reaching a proof or an "
+                    "UNSUPPORTED conclusion:", result.reason, self_summary, backend_name,
+                ),
+            }]
 
     print("   exhausted all verification rounds; marking FAILED for human follow-up")
     worker_pipeline.remove_rule(spec.name)

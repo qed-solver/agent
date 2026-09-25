@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 20  **Verification rounds used:** 1
+**Porter attempts used:** 21  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -57,4 +57,4 @@ Extracted from `project_set.opt` (which defines multiple rules — implement spe
 
 **Verdict:** AGREE
 
-The porter's stated reason is only an LLM context-length crash (no real analysis was run), but the UNSUPPORTED conclusion is nonetheless correct on the merits. The rule's entire correctness content is list semantics — unnest/json_array_elements expand a list into one row per element, and zip pairs elements index-wise with null-padding of shorter arrays — plus the CanConstructValuesFromZips guard, which depends on the *identity* of those specific functions; QED maps every type to an opaque integer with no list structure and treats all functions as uninterpreted, so it can model neither property. Additionally, the InnerJoinApply's right side is a Values relation *generated from the left row's array values* (data-dependent, correlated row generation), for which RuleScript has no operator — Correlate can only filter a fixed right relation by a predicate over the left row, and no DSL extension could help since QED's serialized Q-expression format and prover have no notion of "the elements of a column" — so even a narrower special case is inexpressible, not merely unprovable.
+The rule's core is a set-returning/row-generating operation — `ProjectSet` expanding an array column (`unnest`/`json_array_elements`) into one row per element — plus a correlated `InnerJoinApply` whose right side is a dynamic Values whose rows are that specific left row's array elements. QED only models bag semantics with *scalar* uninterpreted functions and has no list/array type semantics (all types flatten to integers in `RelType`), no row-generating operator, and `JSONSerializer`/the Q-expression format carry no construct for a Values whose contents are derived from a correlated left row (the DSL's `Correlate` only filters a *fixed* right relation). This is a fundamental QED limitation (unmodelable list/row-generation semantics, and the Rust prover can't be modified), not a missing builder `extend_dsl_file` could close, so no non-vacuous special case is provable.

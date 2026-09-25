@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 26  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/SpatialRules.java
 
 **Verdict:** AGREE
 
-The rewrite's soundness rests on the bespoke internal semantics of Calcite's HilbertCurve2D/SpaceFillingCurve2D and JTS spatial functions (points within distance d of a constant geometry ⇒ Hilbert-8 index in specific numeric ranges), which QED can only model as uninterpreted symbols; under the sole expressible constraint `h = hilbert(lon, lat)` (a UF equality), no entailment from `ST_DWithin(g, pt(lon,lat), d)` to a range predicate on `h` is derivable, and the concrete bounds are computed in Java outside the pattern language, so no DSL extension could close the gap (adding the implication itself as a constraint would be circular and vacuous). The porter's transcript shows it had already independently reached exactly this fundamental point before the HTTP 400 context-length error cut it off, so the UNSUPPORTED conclusion is correct despite the garbled termination reason. ```
+FilterHilbert's soundness is exactly the concrete spatial/Hilbert-curve fact — that every point within distance d of a constant geometry has a HilbertCurve2D(8) index inside the BETWEEN ranges computed from the buffered envelope (plus the ST_DWithin degenerate cases: negative distance ⟹ FALSE, zero distance ⟹ equality) — and in RuleScript ST_DWithin, HILBERT, ST_Point and the range predicate can only be introduced as independent uninterpreted symbols, with no arithmetic, ordering, or axiom mechanism in the core language that could express the coverage implication "DWithin(g,p,d) ∧ h=HILBERT(lon,lat) ⟹ h∈ranges". That implication is refutable by a trivial SMT countermodel (make the range predicate false on a row where DWithin holds), and the only DSL extension that would make it provable is asserting the rule's own geometric claim as an axiom, which would be circular rather than a proof — this is precisely the "backend operator's bespoke internal semantics / no predicate inference between independent symbols" limitation, so the porter's UNSUPPORTED verdict is correct. ```

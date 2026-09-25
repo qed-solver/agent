@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 26  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -16,4 +16,4 @@ Note: MeasureRules.java defines multiple distinct rule variants as separate stat
 
 **Verdict:** AGREE
 
-AggregateMeasure2's validity rests entirely on the Calcite measure-framework identity `AGG_M2V(c) ≡ expand(AGG_M2M(c))`, where `expand` is a `RelMdMeasure` metadata-driven expansion into a correlated `RexSubQuery`. That is an algebraic relation between two *distinct* uninterpreted aggregate symbols (QED only equates an aggregate's input bag; it has no axioms relating different aggregate operators) compounded with correlated-subquery/scoping semantics that QED's semiring model does not capture at all, so no RuleScript encoding — general or narrower special case — is provable.
+The rule's only non-trivial content is the Calcite measure-framework identity that AGG_M2V(c) over a group equals RelMdMeasure's expansion — a correlated subquery built from *different* operators (AGG_M2M, M2X/M2V, measure-specific functions), all of which become distinct uninterpreted symbols in RuleScript. QED's sole aggregate principle is bag-equality of inputs for the *same* operator; it has no axioms relating different operator symbols, so the SMT layer finds countermodels for every instance (even the minimal one-key, one-AGG_M2V case), and no DSL extension (e.g. a scalar-subquery builder) could close this gap without hard-coding the measure's definitional semantics as an axiom, which would make the proof vacuous. ```

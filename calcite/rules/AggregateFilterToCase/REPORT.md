@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 21  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateFilterToCaseRul
 
 **Verdict:** AGREE
 
-The identity f(x) FILTER (WHERE p) ≡ f(CASE WHEN p THEN x END) (including the COUNT() no-arg special case) is valid only by algebra of specific aggregate functions — null-ignoring aggregation over the filtered row subset vs. aggregation over a CASE column that yields NULL on non-matching rows, plus filter/grouping commutation — and QED explicitly knows nothing about an aggregate's algebra beyond input bag equality, so it cannot relate the two uninterpreted aggregate applications whose input bags differ. No DSL extension rescues this: the JSON serializer's `group` node doesn't even carry `filterArg` (and there is no CASE/NULL in the core language), so expressing the filtered side would just lose the filter to the prover rather than reveal the null/CASE interaction it models. There is no non-trivial special case (e.g. restricting to COUNT or a tautological filter) that avoids needing the prover to know null-counting/CASE semantics, so UNSUPPORTED is the correct, fundamental conclusion — the porter's context-length crash merely short-circuited what any real attempt would have reached. ```
+The before-side pattern is an aggregate call carrying a SQL FILTER (WHERE ...) clause, which has no representation in the DSL's AggCall or in QED's JSON aggregate-call schema (operator/operand/distinct/ignoreNulls/type only) — a gap in the Rust prover's model, not something a Java-side builder can fix. Independently, the rule's soundness rests on aggregate NULL-ignoring algebra (agg over {a | cond} ≡ agg over {CASE cond THEN a ELSE NULL}), i.e. an aggregate algebraic identity QED explicitly cannot know: its uninterpreted aggregates only equate plans with identical groupings and bag-equal operand inputs, and these two operand bags differ by NULLs for every non-tautological cond, so no non-trivial special case becomes provable. The Filter-below-Aggregate alternative is correctly rejected since it drops groups with no matching rows, which FILTER semantics preserves. ```

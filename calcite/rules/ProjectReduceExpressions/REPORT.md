@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 27  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -16,4 +16,4 @@ Note: ReduceExpressionsRule.java defines multiple distinct rule variants as sepa
 
 **Verdict:** AGREE
 
-ProjectReduceExpressions works by *evaluating* constant subtrees (e.g. 1+2→3, redundant CAST(x AS T)→x) using a RexExecutor, but QED models every such operator (arithmetic, CAST, CASE, etc.) as an uninterpreted symbol and only proves equivalences valid for *all* instantiations — it has no knowledge of any specific operator's algebra, so it cannot verify that f(const-args) folds to a literal. The porter's stated reason was actually an LLM context-length HTTP 400 (it never wrote the file or ran QED), not a technical judgment, but the UNSUPPORTED conclusion is nonetheless correct: constant folding / redundant-cast removal fundamentally depends on operator-specific internal semantics that QED cannot see through, so no non-trivial special case of this rule is provable. ```
+ProjectReduceExpressions' actual transformation is constant-folding an operator on constant arguments (`f(consts)` → literal) and redundant-cast removal, both of which require the *evaluation/type* semantics of those operators; QED models every such operator as an uninterpreted function over integer-valued symbols, so neither `f(consts) ≡ literal` nor `cast(x) ≡ x` is a theorem in that model, and no DSL extension (even a literal builder) can change that. The only simplifications QED *can* prove (pure Boolean connectives AND/OR/NOT with TRUE/FALSE literals) are a degenerate side-effect of `simplifyPreservingType` on a projected Boolean, not the rule's constant-reduction purpose, and are already exercised by the sibling Filter variant — so a real attempt at the rule's canonical case would just come back not-provable.

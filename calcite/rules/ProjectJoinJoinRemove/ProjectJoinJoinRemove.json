@@ -1,0 +1,91 @@
+{
+  "help" : [ "LogicalProject(col-T=[$0], col-C=[$2])\n  LogicalJoin(condition=[=($0, $2)], joinType=[left])\n    LogicalJoin(condition=[=($0, $1)], joinType=[left])\n      LogicalTableScan(table=[[T]])\n      LogicalTableScan(table=[[T]])\n    LogicalTableScan(table=[[C]])\n", "LogicalJoin(condition=[=($0, $1)], joinType=[left])\n  LogicalTableScan(table=[[T]])\n  LogicalTableScan(table=[[C]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ false ],
+    "name" : "T",
+    "guaranteed" : [ ],
+    "fields" : [ "col-T" ],
+    "key" : [ [ 0 ] ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ false ],
+    "name" : "C",
+    "guaranteed" : [ ],
+    "fields" : [ "col-C" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "project" : {
+      "source" : {
+        "join" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            }, {
+              "column" : 2,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "="
+          },
+          "left" : {
+            "join" : {
+              "condition" : {
+                "type" : "BOOLEAN",
+                "operand" : [ {
+                  "column" : 0,
+                  "type" : "INTEGER"
+                }, {
+                  "column" : 1,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "="
+              },
+              "left" : {
+                "scan" : 0
+              },
+              "kind" : "LEFT",
+              "right" : {
+                "scan" : 0
+              }
+            }
+          },
+          "kind" : "LEFT",
+          "right" : {
+            "scan" : 1
+          }
+        }
+      },
+      "target" : [ {
+        "column" : 0,
+        "type" : "INTEGER"
+      }, {
+        "column" : 2,
+        "type" : "INTEGER"
+      } ]
+    }
+  }, {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "="
+      },
+      "left" : {
+        "scan" : 0
+      },
+      "kind" : "LEFT",
+      "right" : {
+        "scan" : 1
+      }
+    }
+  } ]
+}

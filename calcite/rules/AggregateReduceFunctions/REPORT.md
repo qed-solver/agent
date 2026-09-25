@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 34  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateReduceFunctions
 
 **Verdict:** AGREE
 
-Every reduction branch of this rule — AVG = SUM/COUNT, SUM → SUM0 wrapped in a CASE over COUNT, the STDDEV/VAR/COVAR/REGR expansions, and the MAX/MIN/AVG group-key shortcut — is an algebraic identity about specific aggregate functions, but QED models each aggregate call as an uninterpreted function of its input bag, so no encoding (general or narrowed) can establish before/after equality for arbitrary symbol instantiations; the FIRST_VALUE/LAST_VALUE branches additionally rest on row ordering, which QED does not model at all. Since the gap is in the prover's theory rather than the DSL, `extend_dsl_file` cannot close it, and any variant that avoids the aggregate algebra degenerates into a trivial identity rather than a real reduction. This is the same fundamental limitation already empirically confirmed by the rejected `AggregateReduceFunctionsOnGroupKeys` probe in the UnprovableRRuleInstances directory.
+AggregateReduceFunctions depends on aggregate algebraic identities (e.g. AVG(x) = SUM(x) / COUNT(x)) that QED cannot know, since it treats each aggregate function and scalar operator as an independent uninterpreted symbol with only bag-equality reasoning over a single aggregate's input. Thus no faithful encoding of the rule, including its simplest branch, can be proved.

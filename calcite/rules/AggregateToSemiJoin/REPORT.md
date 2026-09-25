@@ -1,8 +1,10 @@
 # AggregateToSemiJoin
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** Apache Calcite
-**Porter attempts used:** 120  **Verification rounds used:** 4
+**Porter attempts used:** 23  **Verification rounds used:** 2
+**Scope detail:** INNER join only (not the rule's LEFT case), with both aggregates pure GROUP BY (zero aggregate calls) on single equi keys.
+
 
 ## Source rule (as given to the porter)
 
@@ -14,6 +16,47 @@ Note: SemiJoinRule.java defines multiple distinct rule variants as separate stat
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-The rewrite is only valid because a GROUP BY over the right input yields exactly one row per distinct key, making `L INNER JOIN (right aggregate)` equivalent to `L SEMI JOIN (raw right)` — that dedup/partition fact is precisely aggregate algebra, which QED explicitly does not model beyond bag equality of an aggregate's input. Consequently the before-side top aggregate receives an input bag that includes the join's right columns while the after-side does not, and since aggregate calls are uninterpreted functions of their input bag, no encoding can make QED equate the two sides — the porter's "not provable" reflects a genuine QED limitation, not a fixable symbol-sharing or shape bug (the recorded HTTP 400 merely aborted a correctly diagnosed attempt).
+The encoding faithfully captures the rule's INNER transformation — `GROUP BY l.k (L INNER-JOIN (GROUP BY r.k R) ON l.k=r.k)` rewritten to `GROUP BY l.k (L SEMI-JOIN R ON l.k=r.k)` — and before() and after() are genuinely structurally different (inner join over the grouped right vs. semi join over the raw right), so the provable result is non-vacuous and the equi-key, "join keys = right group columns," and INNER-jointype preconditions are all correctly represented; the narrowing to INNER-only, pure group-by (zero agg calls), and single-key is honestly disclosed in the PARTIAL scope line while remaining a meaningful, non-degenerate instance of the real rule.
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": false,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 18802791
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 36925417
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 891625
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 647291
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 39677458
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 37206250
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 92398292
+  }
+}
+```

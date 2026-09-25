@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 28  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -16,4 +16,4 @@ Note: MeasureRules.java defines multiple distinct rule variants as separate stat
 
 **Verdict:** AGREE
 
-The rule matches a `Filter` directly above a `Sort` in order to push down `M2V` (measure-to-value) calls whose values are defined relative to sort position, but QED has no model for list/order semantics (`Sort` has no bag-semantic meaning) and `M2V`/the measure framework carries bespoke backend internal semantics (RelMdMeasure expansion over sorted rows) that QED cannot see through as uninterpreted functions. As written, `onMatch` merely rebuilds the identical `Filter(Sort(X))` tree, so the only encodable form would be a Sort-free tautology that proves nothing about the actual rule — there is no faithful, non-trivial special case to salvage. (The porter's stated reason was only an LLM context-length error, but the UNSUPPORTED conclusion happens to be correct.)
+The rule's match shape (Filter over Sort) and its documented M2V push-down both rest on row-ordering semantics — filtering preserving the sort's collation order — which QED fundamentally does not model (Sort/Limit carry no bag-semantic meaning, and the DSL core language has no sort operator at all), so the rule's real content could never be verified. Compounding this, the code as given performs no rewrite whatsoever: the guard `condition.equals(filter.getCondition())` is a reflexive self-comparison that is always true, so `onMatch` always returns early, and even the dead body would merely rebuild the identical Filter-over-Sort plan. There is therefore no non-vacuous, provable rewrite to encode.

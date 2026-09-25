@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 25  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/IntersectToDistinctRule.
 
 **Verdict:** AGREE
 
-IntersectToDistinct's correctness rests on the counting algebra of COUNT(*) — that aggregating each branch by all columns makes each distinct row appear exactly once per branch, and that a second group-by + count over the UNION ALL then yields the number of branches containing a row, which equals n precisely for set-intersection membership. QED treats aggregate calls as uninterpreted and can only establish aggregate equivalence from bag equality of their inputs (it knows no COUNT/aggregate algebra), so it has no axioms relating the plain set-semantic INTERSECT on the before side to the nested-aggregate pipeline on the after side, regardless of encoding. The porter actually died on an infrastructure error (context-length overflow) before testing anything, but the conclusion holds; the non-pushdown variant is doubly out of reach since its `COUNT(*) FILTER (WHERE ...)` form isn't even expressible in the current AggCall API, and no DSL extension can change QED's aggregate semantics. ```
+The rule's entire correctness content is that a key survives the final `Filter(count_i > 0)` (no-pushdown variant) or `Filter(count(*) = N)` (pushdown variant) exactly when it appears in every branch — i.e. it rests on the identity that `COUNT(*)` (and a filtered `COUNT(*)`) of a group equals that group's cardinality and is positive iff the group is non-empty. QED models every aggregate call as an uninterpreted function of its input bag (equating two results only when their input bags are bag-equal) and has no count/cardinality algebra or constant folding, so it cannot relate the emitted count value to branch membership and cannot prove the tagged UNION ALL + GROUP BY + count-filter `after()` equivalent to the set-`INTERSECT` `before()`. This is a fundamental prover limitation (an aggregate algebraic identity QED cannot know), not a missing DSL operator — the DSL already exposes `aggregate`/`union`/`filter`/`project`/`intersect`, so `extend_dsl_file` cannot change what the trusted prover knows about `COUNT`, and no faithful encoding of this rule avoids the count-based membership test. ```

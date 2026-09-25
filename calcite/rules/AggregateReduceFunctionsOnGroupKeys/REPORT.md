@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 25  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateReduceFunctions
 
 **Verdict:** AGREE
 
-Every reduction branch of this rule (MAX/MIN/AVG/ANY_VALUE applied to a group key becoming the key reference, or a SqlConstantValueAggFunction becoming its declared constant, with NULL-preserving CASE) rests on the algebra of the specific aggregate function, whereas QED models every aggregate call as an uninterpreted function of its input bag — so the before/after equality fails for some instantiation of the aggregate symbol for any encoding, and the porter's probe (not provable, no timeout, complete) was the correct experiment, not a symbol-mismatch bug to diagnose further. No non-trivial special case survives: any provably-correct variant would have to omit the call elimination entirely, which is a trivial identity rather than the rule. This is a genuine QED limitation (no aggregate algebra beyond bag equality of inputs, and QED itself is unmodifiable), not a missing DSL capability, so extend_dsl_file cannot close the gap. ```
+The rule's only semantic premise — that MAX/MIN/AVG/ANY_VALUE (or a `SqlConstantValueAggFunction`) applied to an argument that is constant within each group yields that constant (or its declared constant under a NULL-preserving CASE) — is an algebraic identity about specific aggregate functions, while QED models every aggregate call as an uninterpreted higher-order function of its input bag (qed.pdf §6.2), so for any non-vacuous encoding there exists an instantiation of the aggregate symbol under which before and after differ. No narrower special case survives: any variant provable without that premise must retain the aggregate call, reducing to a trivial identity rather than the call-elimination this rule is about, and the gap cannot be closed with `extend_dsl_file` since the uninterpreted treatment of aggregates lives in the QED prover itself, which is off-limits.

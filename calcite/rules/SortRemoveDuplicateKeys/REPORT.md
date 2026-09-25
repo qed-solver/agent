@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 6  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/SortRemoveDuplicateKeysR
 
 **Verdict:** AGREE
 
-The rule's only nontrivial content is at the sequence level: both sorts emit every input row exactly once, so bag-equivalence holds unconditionally, and what actually needs justification is that collation [k1, k2] induces the same row order as [k1], which follows only from the k1-determines-k2 functional dependency. QED does not model list/ordering semantics — Sort has no bag-semantic meaning in its Q-expression translation, per its own stated limitations — so any encoding (including one via a hypothetical sort builder added to RelRN, whose JSON the serializer already carries) would either be rejected by the prover or degenerate into the vacuous, unconditionally-true identity "sort ≡ its input" that holds for any two collations and verifies none of the rule's actual claim. This is a genuine QED limitation (correctness resting on row order), not a DSL gap to close with extend_dsl_file, so UNSUPPORTED is the correct conclusion even though the porter's stated reason was an API error rather than this analysis.
+The rule's soundness rests entirely on ordering semantics — that collation [k1, k2] induces the same row order as [k1] when k1 functionally determines k2 — and QED explicitly does not model Order By/Sort ordering semantics, operating in pure bag semantics (qed.pdf §6.1 limitations). Under bag semantics a Sort with any two collations over the same input is the identical bag, so any RuleScript encoding of before/after would be trivially true for arbitrary collations and verify none of the rule's content; the FD premise itself (mq.determines) is also beyond QED's reasoning (it cannot infer functional dependencies, and RelRN exposes no sort operator whose ordering the prover could compare). Adding a Sort builder via extend_dsl_file could not close this, since the gap is in the prover's semantics (which must not be modified), not in the DSL — making UNSUPPORTED the correct conclusion. ```

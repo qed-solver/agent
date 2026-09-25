@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 21  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/SortMergeRule.java
 
 **Verdict:** AGREE
 
-SortMerge's entire correctness claim is limit/sort composition — LIMIT_T over (SORT_B, LIMIT_B over X) rewriting to (SORT_B, LIMIT min(T,B) over X) — which requires modeling ordering and top-N row selection, semantics QED explicitly does not have (Sort/Limit/Offset/Window/Sample have no bag-semantic meaning). The core DSL exposes no sort/limit operator at all (RelRN has only scan/filter/project/join/set-ops/aggregate), so the pattern cannot even be written faithfully; adding one would not help, since QED would reduce both sides to the same underlying bag and the literal fetches plus the min(T,B) computation (done at rule-fire time in Java, not in the plan) would remain unexpressible and unprovable. (Note: the porter's logged "reason" was an LLM context-length API error, but its transcript shows it had already converged on exactly this limitation before failing, so the UNSUPPORTED conclusion is substantively correct.) ```
+The rule's entire content is ordering/top-N composition — folding `Sort(fetch=t)` over `Sort(fetch=b)` into a single `Sort(fetch=min(t,b))` on the child's collation — and QED decides bag-semantic equivalence only: it has no model of Sort/Limit/Offset, and top-n under arbitrary (empty-collation) tie-breaking is not even a well-defined bag operation, so the identity is unprovable in principle rather than merely unencoded. Even the narrowest special case (two pure LIMITs with no order-by) reduces only to a subset/cardinality relationship, not a bag equality, and the min(t,b) fetch fold is a numeric relation between literals that the uninterpreted-symbol pattern language cannot express. Extending the DSL with a Sort builder would not help, since the immutable QED prover has no ordering semantics to check such a symbol against.

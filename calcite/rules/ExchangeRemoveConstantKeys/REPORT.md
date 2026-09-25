@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 6  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/ExchangeRemoveConstantKe
 
 **Verdict:** AGREE
 
-ExchangeRemoveConstantKeysRule only rewrites the physical properties of an Exchange/SortExchange (hash-distribution keys and collation fields); under bag semantics both sides of the rewrite are literally the same relation, and the rule's actual correctness argument — that a known-constant key makes hash distribution degenerate to singleton placement and a constant collation field vacuous — is a claim about node placement and row ordering, exactly the physical semantics QED does not model (same category as its unmodeled Sort/Window/list semantics). No faithful encoding exists: the DSL has no Exchange operator and none can be added meaningfully (an identity model would only vacuously prove the *general* removal Calcite deliberately does not do, without ever using the constant-key premise; an uninterpreted-relational model would leave before/after as distinct symbols QED cannot equate), so this is a genuine QED limitation, not a missing-builder gap — the porter's context-overflow error notwithstanding, a real attempt could at best produce a trivial X≡X proof with no content.
+The rule only rewrites the physical properties of Exchange/SortExchange (hash-distribution keys and collation fields), leaving the bag of rows untouched, and the core language exposes no Exchange/SortExchange — or even Sort — operator at all. More fundamentally, QED models only bag semantics with no notion of distribution or row ordering, so the rule's actual content (constant keys degenerating hash placement to SINGLETON, constant collation fields being vacuous) is inexpressible, and its precondition (the constantMap from pulled-up predicates) is a metadata inference QED cannot perform between uninterpreted symbols. Extending the DSL couldn't help, since the gap lies in QED's model itself (the unmodifiable arbiter has no distribution/ordering semantics to check against), so any before/after encoding collapses to the vacuous R = R, confirming the porter's UNSUPPORTED call.

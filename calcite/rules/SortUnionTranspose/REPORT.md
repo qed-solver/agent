@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 8  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/SortUnionTransposeRule.j
 
 **Verdict:** AGREE
 
-SortUnionTranspose's correctness rests entirely on top-N ordering semantics — pushing a Sort(offset O, fetch F) into each UNION ALL branch as a Sort(fetch O+F) and re-sorting only holds because of the sorted top-(O+F) argument. QED explicitly does not model list/ordering semantics (Sort/Limit/Offset have no bag-semantic meaning), and the RuleScript core language exposes no Sort/Limit/Offset operator at all, so the rule cannot even be expressed, let alone genuinely verified; extending the DSL with a Sort builder would only make both sides collapse to the same union (a vacuous proof), not an actual check of the top-N push-down. ```
+SortUnionTranspose's soundness is exactly the top-N order property that the first (offset+fetch) rows of each branch under the sort collation suffice for the final top-(offset,fetch) of the merged result — an ordering/top-k fact that QED's bag-semantic, uninterpreted-domain calculus has no way to express (qed.pdf lists list/ordering semantics as explicitly unsupported, and Sort/Offset/Fetch have no bag-semantic meaning). The DSL indeed exposes no Sort builder, and that is not a closable DSL gap: even a `sort` builder emitting JSONSerializer's existing LogicalSort form would hit a limitation on the prover side itself (the unmodifiable trusted arbiter has no ordering semantics), so at best both sides would collapse to the same bag and prove a vacuous identity that verifies nothing about which rows survive the push-down. ```

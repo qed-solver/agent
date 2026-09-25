@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 60  **Verification rounds used:** 2
+**Porter attempts used:** 65  **Verification rounds used:** 4
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/MarkToSemiOrAntiJoinRule
 
 **Verdict:** AGREE
 
-The blocker is the mark join itself: LEFT_MARK is a Calcite-specific operator whose defining feature — an appended boolean marker column encoding "this left row has a match under the join condition" — is bespoke internal semantics QED's bag-semiring model has no encoding for, and it cannot be reconstructed from the core language (a LEFT join + not-null filter has the wrong bag multiplicities and no null test is expressible; a group-by/exists reconstruction collapses the left bag and would require aggregate algebra QED does not know; an uninterpreted marker symbol would make the semi/anti equivalence an unprovable entailment about an independent symbol), and the anti branch additionally rests on the "join condition is not strong" null-behavior notion QED cannot model. (The porter's recorded "reason" was actually an LLM context-overflow error before it finished checking the LEFT_MARK kind's round-trip through the prover, not a reasoned limitation analysis — but the UNSUPPORTED conclusion is correct for the fundamental reason above.)
+The before() pattern must name an actual LEFT_MARK join, but its marker column — a per-left-row existential summary (∃ right row satisfying the condition, at left-row bag multiplicity) appended as an extra output column — is bespoke operator semantics that no operator in RuleScript's core language can name: the JAR's JoinRelType has no LEFT_MARK (so RelRN/JSONSerializer cannot produce a kind the prover accepts), and the prover's fixed kind vocabulary has no mark-join/EXISTS operator, which extend_dsl_file cannot add since it can only touch the Java DSL layer. Reconstructing the marker from primitives would require an IS NOT NULL/EXISTS predicate the DSL doesn't expose or aggregate-algebra reasoning (count>0 ↔ ∃) that QED is explicitly stated not to have, and in any case the resulting expression would no longer be a pattern that matches a real backend mark-join plan, so a faithful port is genuinely out of reach.

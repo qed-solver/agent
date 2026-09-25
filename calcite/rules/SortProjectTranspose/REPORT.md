@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 12  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/SortProjectTransposeRule
 
 **Verdict:** AGREE
 
-The entire semantic content of SortProjectTranspose is row-ordering: the sort must be remapped through the projection's collation (with offset/limit carried along), which is only valid under structural side conditions — every sort key maps to a plain input reference or a monotonic cast — linking collation fields to specific projection expressions. QED decides bag-semantic equivalence only, where Sort/Limit/Offset have no meaning (the prover models them as identities, and the DSL doesn't even expose a sort builder), so any encoding would either be vacuously "provable" while certifying nothing about ordering, or unable to express the collation↔projection linkage at all. The porter's stated reason was an infrastructure failure (LLM HTTP 400 context-length error, no attempt ever made) rather than an analysis — but the conclusion happens to be correct, since ordering semantics are a fundamental QED limitation per the reference, not a DSL gap closable via extend_dsl_file. ```
+SortProjectTranspose is an ordering claim end to end — its soundness (and its permutation/monotonic-cast side conditions on sort keys) exists solely to guarantee that `Project(P, Sort(C', X))` yields the same *ordered sequence* as `Sort(C, Project(P, X))` under the remapped collation, whereas QED only decides bag-semantic equivalence and explicitly has no model of Sort/Offset/Limit ordering (rulescript.pdf §7.1; qed.pdf §6.2). At the bag level both sides collapse to the same multiset of P applied to the input regardless of collation, so the best achievable encoding would prove a vacuous tautology and could never express or check the collation↔projection remapping or the side conditions — the `LogicalSort` case in JSONSerializer only shows the JSON can carry a sort node, not that the immutable prover models its ordering semantics, so this is a fundamental QED limitation, not a closable DSL gap. The porter's UNSUPPORTED verdict is therefore correct. ```

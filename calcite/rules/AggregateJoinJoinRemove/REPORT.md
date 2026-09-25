@@ -1,8 +1,10 @@
 # AggregateJoinJoinRemove
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** Apache Calcite
-**Porter attempts used:** 60  **Verification rounds used:** 2
+**Porter attempts used:** 50  **Verification rounds used:** 4
+**Scope detail:** one-column scans A, B, C with both joins LEFT; the top join condition is a single uninterpreted predicate over (A's column, C's column), identically instantiated on both sides (index-shifted from fields (0,2) to (0,1) when the bottom join is removed); the bottom join condition is uninterpreted over (A, B); the aggregate is a pure DISTINCT group-by on (A's column, C's column) with no aggregate calls, mirroring the rule's "select distinct s.product_id, pc.product_id" example.
+
 
 ## Source rule (as given to the porter)
 
@@ -12,6 +14,47 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateJoinJoinRemoveR
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-The rule's soundness hinges on the null-extension branch of the bottom left join: rows l with no matching m (¬∃m. PB(l,m)) must be shown to survive via null-extension and then collapse under the distinct group-by, so proving the rewrite requires case-splitting on the existence of a match for an uninterpreted join condition PB — i.e. reasoning about the existential image of an uninterpreted predicate over independent symbols, which QED's bag-semantics normal-form/unification pipeline cannot do (its prover explicitly cannot reason about predicate inference/entailment between independent symbols). The porter's Probe 1 confirms this at the core: even the simplest non-trivial instance, a pure distinct group-by (no aggregate calls) over the nested left join vs. the single left join, was not provable, and no special case can remove that dichotomy without ceasing to be a left-join rule (a true-condition join still leaves the ∃m / M-empty case split over an uninterpreted table). ```
+The encoding is a faithful, honestly-tagged PARTIAL instance of the rule — pure DISTINCT on (A.col, C.col) over single-column inputs, exactly the rule's own doc example — and all of the rule's real preconditions hold structurally in it: the group set and top condition never reference the removed B (BR) column, both joins are LEFT (the rule's only join kinds), and the left-key sets are equal (both {A.col}), with B's uniqueness correctly NOT assumed (plain non-unique scans). Symbol sharing is correct rather than coincidentally over-constraining: top_cond is deliberately shared between before/after with the same index remapping (0,2)→(0,1) that the source rule performs via RexUtil.shift, while bottom_cond remains an independent uninterpreted predicate exactly as the source rule treats it (only its referenced left columns are constrained, its predicate itself is not). before() genuinely contains the extra A ⋈_LEFT B join that after() eliminates, so the QED proof is non-vacuous and establishes the rule's actual claim — distinct(A,C) over (A⋈B)⋈C equals distinct(A,C) over A⋈C under independent uninterpreted conditions — for this non-degenerate fragment, with the narrowing (no aggregate calls, one column per table) specifically and truthfully stated in the SCOPE line. ```
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": false,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 28751374
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 36671917
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 994291
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 1940875
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 61017375
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 36885042
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 115958208
+  }
+}
+```

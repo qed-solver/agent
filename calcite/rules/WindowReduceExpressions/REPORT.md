@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 21  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -16,4 +16,4 @@ Note: ReduceExpressionsRule.java defines multiple distinct rule variants as sepa
 
 **Verdict:** AGREE
 
-WindowReduceExpressions rewrites a Window's spec (constant-folding aggregation operands, dropping constant partition keys, dropping constant order keys), and its correctness rests on two things QED fundamentally lacks: window semantics (partition/order/frame-dependent values are not bag operations, and the DSL and serializer have no Window node to begin with — a listed QED limitation, not a closable DSL gap) and predicate-derived constant inference (QED cannot infer from an uninterpreted predicate that a filtered column takes a single value, and it knows no algebra for the concrete operators constant-folding relies on). Even the narrowest bag-encodable special case — a whole-partition window written as a group-by aggregate joined back to the input — still requires QED to prove a partition key is constant under a pulled-up filter, which is exactly the predicate entailment QED cannot do, leaving only a trivial no-op "rule" with identical before/after.
+The rule's before pattern is a LogicalWindow, but the core language has no Window operator (RelRN exposes only scan/filter/project/join/set-ops/aggregate) and QED's JSONSerializer has no case for LogicalWindow — it falls through to "Not implemented" — so the pattern cannot even be encoded. Window partition/order/frame semantics have no bag-semantic meaning in the unchangeable prover, and the rewrite's per-partition constant elimination (dropping constant partition/order keys and reducing window aggregate operands) is exactly the per-partition aggregate reasoning QED cannot perform, since it models aggregates only up to bag equality of their input. Extending the DSL cannot close this gap because the trusted Rust prover itself lacks window semantics, so no JSON node could carry them. ```

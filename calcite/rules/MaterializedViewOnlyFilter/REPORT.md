@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 24  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/materialize/Materialized
 
 **Verdict:** AGREE
 
-The rule's validity rests on a catalog data-maintenance invariant — the materialized view table's contents must equal the result of its defining plan over the base tables — i.e., a required coupling between two uninterpreted relations that QED cannot assume, since it decides bag-equivalence for *every* instantiation of free table symbols and the DSL/JSON format carries only per-table keys/constraints, with no cross-table "defined-as" relation or hypothesis mechanism. Any encoding that keeps the view as a distinct `Scan` on the after side is unprovable (the view and base tables are independent symbols), while inlining the view definition on both sides — the only way to get a proof — erases the rule's actual content (serving the query from a precomputed artifact without re-scanning the base) and degenerates to the pure relational tautology σ_q(A) ≡ σ_{q∧v}(A) ∪ σ_{q∧¬v}(A), which no longer involves a materialized view at all; the rule's semantic core is therefore outside QED's decision domain, not a missing DSL builder.
+The rule's soundness is exactly the catalog invariant that a materialized view's contents are maintained to equal its defining plan over the base tables — a cross-table "defined-as" hypothesis coupling two otherwise independent free table symbols — and QED decides bag-equivalence universally over *all* instantiations of free tables (schemas carry only per-table keys/constraints, no relational hypotheses between tables), so any after-side that keeps the MV as a distinct scan is not provably equivalent to the query over base tables. This is a limitation of the prover's theory, not of the DSL's surface: no `extend_dsl_file` change to RelRN/JSONSerializer can add an SMT assumption the fixed Rust prover does not read, and the JSON format has no cross-table defined-as field for it to consume. Inlining the MV's defining plan into both patterns would make something provable, but the "rule" degenerates into an ordinary logical rewrite over that plan (e.g. filter composition) with the precomputed artifact erased — i.e. the MV rule's actual content is lost, so UNSUPPORTED is the correct conclusion.

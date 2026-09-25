@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 90  **Verification rounds used:** 3
+**Porter attempts used:** 25  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -16,4 +16,4 @@ Note: MeasureRules.java defines multiple distinct rule variants as separate stat
 
 **Verdict:** AGREE
 
-This rule rewrites Project(Sort(R)) into Project(Sort(Project(R))), so both patterns structurally require a Sort node, and per QED's own evaluation (as stated in the reference) it does not model list/ordering semantics — Sort (like Limit/Offset/Window/Sample) has no bag-semantic meaning, so no encoding, even one that added a Sort builder to the DSL, could be decided. The rewrite's soundness also rests on the Calcite-internal M2V operator being order-independent, which is precisely the kind of bespoke backend-operator internal semantics QED cannot see through as an uninterpreted symbol. Since every instance of this rule contains a Sort in its before/after shapes, no provable narrower special case of the same rule exists — the porter's UNSUPPORTED conclusion is correct (it merely crashed on a context-limit error before articulating the limitation, which is what should be recorded). ```
+The rule rewrites Project-over-Sort into Project-over-Sort-over-Project, so both the before and after patterns structurally require a Sort node, but QED fundamentally does not model row-ordering/collation semantics — Sort has no bag-semantic meaning — and the DSL (RelRN) exposes no Sort builder, so no encoding, even one produced by extending the DSL, can be decided. The rule's genuine soundness additionally rests on the order-independence of Calcite's bespoke M2V operator, which QED can only see as an uninterpreted symbol, so even a Sort-free bag-encoding (which is just a trivially-true Project-Project fusion) would not faithfully verify this rule's ordered-list correctness. ```

@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 23  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateRemoveLiteralAg
 
 **Verdict:** AGREE
 
-The rule's entire correctness argument is the Calcite-internal algebraic identity that LITERAL_AGG(lit) evaluates to lit on every group produced by GROUP BY (every produced group is non-empty), and QED models aggregates as uninterpreted functions whose only known behavior is bag-equality of inputs — it cannot derive that LITERAL_AGG's output equals the literal the after-side re-projects, so an SMT model with LITERAL_AGG ≠ lit is a valid counterexample to any faithful encoding. No narrowing fixes this (the dependency on LITERAL_AGG's bespoke semantics is present even in the minimal one-group-key, one-LITERAL_AGG(true) case), and the gap is not a missing DSL builder — the before/after shapes (scan, Aggregate with an AggCall over a literal operand, ProjectMany restoring fields plus a literal) are fully expressible with the current API — but a genuine limitation of QED's aggregate semantics, with no axiom/interpretation hook (table "guaranteed" constraints only constrain scan columns, and the prover itself is off-limits) that a DSL extension could supply. ```
+The rule's soundness rests entirely on the algebraic identity LITERAL_AGG(c) ≡ c — i.e., the call must evaluate to the constant operand for every group (including the whole-bag group in the no-key case where the rule substitutes COUNT to keep a valid aggregate) — but QED axiomatizes every aggregate call as an uninterpreted bag-functional whose only provable property is that identical calls over bag-equal inputs agree. To the SMT decision procedure, the before-side LITERAL_AGG output column and the after-side projected constant are unrelated terms, so a counter-instantiation (LIT(G) ≠ c for some group) is always admissible, and no RuleScript encoding — constant-valued input column, symbol sharing, empty operand list — can teach the fixed prover a specific aggregate's constant-returning value, which makes this a genuine QED limitation (an aggregate algebraic identity it cannot know) rather than a missing DSL capability. ```

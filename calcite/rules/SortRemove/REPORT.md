@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 27  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/SortRemoveRule.java
 
 **Verdict:** AGREE
 
-SortRemove is fundamentally a row-ordering rule: its subject operator (a Sort with no offset/limit) and its defining precondition (the input already satisfies the sort's collation, i.e. RelCollation trait preservation) both live in list/ordering semantics, which QED's bag-semantic model explicitly does not model — Sort/Limit/Offset/Window/Sample have no bag-semantic meaning — and no bag-level property can stand in for "input is sorted", so any encoding that drops the Sort node or the sortedness condition ceases to be this rule. Extending the DSL (e.g. adding a sort builder, which the JSON serializer could even carry) cannot close the gap because the missing semantics are on the QED prover side, not the DSL side, so UNSUPPORTED is the correct conclusion even though the porter's stated reason was just an LLM context-length error rather than that analysis. ```
+SortRemoveRule is a physical-order (collation trait) rule, not a relational equivalence: its only precondition — the input's row order already satisfies the sort's collation — has no counterpart in QED's bag-semantic model, where no pattern can express ordering properties of a subplan, and the entire soundness content of the rule is that ordering guarantee. The porter's probe against the real prover was also the correct minimal test: an unconditional single-scan `Sort(R) → R` (one shared symbol, no predicates, so no name-mismatch or composition bug was possible) returned a genuine `provable: false` with no panic or timeout, confirming the limitation sits in the prover's treatment of ordering-semantic operators — something no further DSL extension can work around since the QED prover itself may not be modified — and the only remaining expressible special case (e.g. empty input) is vacuous, so no non-trivial encoding of this rule can exist. ```

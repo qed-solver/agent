@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 23  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/materialize/Materialized
 
 **Verdict:** AGREE
 
-The porter's stated reason is just a pipeline crash (context-length HTTP 400), not an analysis, but the UNSUPPORTED conclusion is nonetheless correct on the merits. The rule's soundness rests on aggregate-algebra identities QED by design cannot know: rollup/roll-down re-partitioning (e.g., SUM over a coarser grouping equals the SUM of SUMs over a finer grouping, COUNT(*) rolled up via SUM, idempotent MIN/MAX), and its union-rewriting path additionally needs complementary-filter derivation between independent predicate symbols. QED only equates aggregates that are structurally identical with bag-equal inputs and has no way to constrain an MV's materialized table to equal the result of the MV's defining aggregate over the query's base scan, so the only provable encoding would be the degenerate no-op where the MV aggregate is structurally identical to the query's — not a genuine instance of the rule.
+The rule's soundness is a catalog-level invariant — the stored MV's bag must equal the evaluation of its defining plan over the base tables — i.e. a coupling between two uninterpreted scans, but the DSL/JSON format carries only per-table keys and per-row `guaranteed` constraints, with no cross-table "defined-as" hypothesis mechanism, and QED decides bag-equivalence universally over all instantiations of free symbols, so any encoding keeping the MV as a distinct `Scan` is unprovable; the only alternative that could be decided — inlining the view definition on both sides — erases the rule's identity (there is no precomputed artifact) and degenerates into a two-stage-aggregate identity, which QED also cannot use since it knows nothing about aggregate algebra beyond bag equality of inputs. This matches the fundamental limitation already confirmed for the sibling MaterializedViewOnlyFilter. ```

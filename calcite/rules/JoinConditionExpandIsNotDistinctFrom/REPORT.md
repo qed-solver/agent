@@ -1,8 +1,10 @@
 # JoinConditionExpandIsNotDistinctFrom
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 65  **Verification rounds used:** 5
+**Scope detail:** IS NOT DISTINCT FROM is the entire condition of an inner join between two single-column scans of a single shared type, with the 3-valued-logic expansion on the right-hand side rather than Calcite's COALESCE-based form
+
 
 ## Source rule (as given to the porter)
 
@@ -12,6 +14,47 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/JoinConditionExpandIsNot
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-The rule's correctness rests entirely on the null-aware data semantics of specific backend operators — `IS NOT DISTINCT FROM`, `COALESCE`, and `IS_NULL` (i.e., that `x IS NOT DISTINCT FROM y` iff `COALESCE(x,0)=COALESCE(y,0) AND (x IS NULL)=(y IS NULL)`). QED operates on uninterpreted symbols and "can't reason about predicate inference/entailment between independent symbols or a backend operator's bespoke internal semantics," so with these operators modeled as opaque generic ops the left and right sides are unrelated SMT symbols and no universal proof exists; QED only knows the Boolean `AND`-composition layer, not the operator-null algebra this rewrite depends on. Adding DSL builders for these operators via `extend_dsl_file` cannot close the gap, since a builder only introduces another uninterpreted name and cannot inject SMT semantics into the Rust prover (the unchangeable arbiter) — so even a narrowed special case (e.g., non-null operands) is unprovable. ```
+The encoding is a faithful, non-degenerate special case: before (INNER join on IS_NOT_DISTINCT_FROM) and after (INNER join on the 3-valued-safe expansion (x IS NULL AND y IS NULL) OR IS_TRUE(x=y)) are genuinely different and QED-proven equivalent, with the expansion being semantically identical to IS NOT DISTINCT FROM (a valid alternative to Calcite's COALESCE form, as disclosed). The narrowing to an inner join / whole-condition / single shared column is real, specific, and honestly tagged PARTIAL, with no triviality, symbol-sharing, or missing-precondition defects that would make the proof misleading. ```
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": true,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 347291
+  }
+}
+```

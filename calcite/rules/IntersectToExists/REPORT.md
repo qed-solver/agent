@@ -1,8 +1,10 @@
 # IntersectToExists
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 31  **Verification rounds used:** 2
+**Scope detail:** the 2-input, single-column instance in which both inputs share one row type, so the rule's type-unification casts are identity (the general n-way rule is obtained by repeated application of this binary step)
+
 
 ## Source rule (as given to the porter)
 
@@ -12,6 +14,47 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/IntersectToExistsRule.ja
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-The porter's stated reason was merely an LLM context-length crash, but the conclusion is correct for a real reason: the EXISTS arm of the rewrite depends on per-field IS NOT DISTINCT FROM comparisons (and correlated-subquery semantics), which QED treats as uninterpreted symbols with no built-in equality meaning, while the before side is a bare INTERSECT containing no such symbols — so QED would have to prove equivalence for *every* instantiation of that comparison (e.g. one that is always false, making the result just A rather than A∩B) and fail. The DSL also has no correlate/exists builder at all (only JSONSerializer's output format can carry them), but extending the DSL would not close the gap, since the blocker is QED's inability to see through the comparison operator's row-identity semantics, not a missing builder. ```
+The encoding faithfully mirrors the rule's actual transformation — INTERSECT with all=false ⟹ a SEMI-correlate (the decorrelated EXISTS filter) on IS NOT DISTINCT FROM over the whole row, followed by the rule's final DISTINCT as a group-all/no-aggregate-calls Aggregate — and before() (an INTERSECT node) vs. after() (AGGREGATE over CORRELATE) differ structurally, so the proof is non-vacuous; the concrete IS_NOT_DISTINCT_FROM operator and SEMI kind are exactly what the source rule constructs (an uninterpreted predicate or EQ would have been the unfaithful choice), A and B remain independent non-unique scans, and no hidden preconditions (PK/NOT NULL) are assumed since the rule needs none and nulls are handled by INDF on both sides. The PARTIAL scope is honest and specific — 2 inputs, single column, shared row type so the rule's defensive type-unification casts are identity, with the n-way case obtained compositionally — and it is a genuine, non-degenerate fragment of the real rule rather than a narrowed-to-identical trick.
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": false,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 10728667
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 27373125
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 1110833
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 654792
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 26946041
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 27526875
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 71712292
+  }
+}
+```

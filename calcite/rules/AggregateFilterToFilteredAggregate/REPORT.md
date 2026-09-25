@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 7  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateFilterToFiltere
 
 **Verdict:** AGREE
 
-The rule's validity rests entirely on the algebraic identity `agg(input restricted to rows where P) ≡ agg FILTER (WHERE P)(full input)` — the internal semantics of a *filtered* aggregate call — and QED equates aggregate calls only by same uninterpreted operator plus bag-equality of input, knowing nothing else about aggregate algebra, so it cannot relate the two sides. The "after" side cannot even be faithfully encoded: QED's JSON model of an aggregate (`group.function`) carries only `operator/operand/distinct/ignoreNulls/type` with no `filter` field, and the DSL's `AggCall` has no filter parameter. Extending the Java-side DSL cannot close this gap because the missing semantics lives in the (off-limits) Rust prover, so the only encodable version would be a degenerate identity — UNSUPPORTED is genuinely correct (the porter's recorded HTTP-400 error is a mechanical failure, but its pre-failure analysis had already landed on this exact limitation).
+The after side is a SQL filtered aggregate, and QED's model has no notion of a FILTER attribute on an aggregate call — the aggregate-call JSON schema is exactly {operator, operand, distinct, ignoreNulls, type}, and the unmodifiable prover equates aggregate calls only by identical operator plus bag-equal input, giving it no means to relate "uninterpreted f over the P-filtered bag" to "f-with-filter over the full bag" (different input bags). Every faithful alternative encoding fails: a fresh uninterpreted operator for the filtered call is refutable by SMT, a plain aggregate over the full bag is not equivalent and not provable, and the only provable form is the structurally identical pre-filtered aggregate, which is the identity, not this rule — a genuine limitation in QED's aggregate semantics that no Java-side DSL/serializer extension can close, since the Rust prover lacks the filter semantics regardless of what JSON we emit. ```

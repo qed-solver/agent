@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 22  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/MinusToFilterRule.java
 
 **Verdict:** AGREE
 
-The rewrite's correctness depends on `NOT Q` being the exact complement of `Q` (i.e., rows with `Q = NULL` appearing on neither side), but QED models uninterpreted predicates as 3-valued SQL predicates and universally quantifies over all instantiations, including null-returning ones — so rows with `Q = NULL` remain in the set-minus input but are dropped by `Filter(NOT Q)`, a counterexample no re-encoding can avoid. This is confirmed by the porter's discriminating test (the single-filter variant `MINUS(base, Filter(Q,base))` ⟹ `Distinct(Filter(NOT Q,base))` failed), and it cannot be fixed via `extend_dsl_file`: predicate nullability is not even serialized into the prover's JSON (operator types lose nullability in `JSONSerializer.type()`), so no RuleScript encoding can declare a predicate total, and the QED prover itself is off-limits.
+The rewrite MINUS(base, Filter(Q,base)) → distinct(Filter(NOT Q,base)) is valid only when the right-hand predicate Q is total, because under QED's 3-valued SQL semantics a row with Q=NULL is not in Filter(Q,·) and therefore survives the set-difference MINUS, while NOT Q evaluates to NULL (not TRUE) and is dropped by the rewritten filter. QED decides equivalence by quantifying over every instantiation of the uninterpreted symbol Q, so this NULL interpretation is a genuine counterexample the prover must report, not a sampling artifact. The DSL introduces all filter predicates as uninterpreted symbols with a hardcoded return type and provides no way to declare one total, so no non-degenerate special case closes the gap and the rule as stated is genuinely outside what QED can prove.

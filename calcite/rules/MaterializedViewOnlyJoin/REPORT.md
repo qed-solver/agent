@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 23  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/materialize/Materialized
 
 **Verdict:** AGREE
 
-MaterializedViewOnlyJoinRule is not a closed-form pattern-to-pattern logical rewrite — its validity rests on a side condition that an externally defined materialized-view table (an independent uninterpreted scan symbol in the DSL) is maintained as the bag result of a specific query over the base tables, a table-equals-derived-relation fact that RuleScript's core language has no construct to state (no view/definition operator; "guaranteed" table constraints are only row-wise scalar predicates, not relation equality), and on compensation predicates derived via predicate entailment between uninterpreted predicate symbols, which QED explicitly cannot reason about. The only possible encoding (before: Join over base tables; after: scan of the MV table) is not universally bag-equivalent — the prover would find a trivial countermodel (e.g. empty MV, nonempty join) — so no re-encoding can be proved, and the porter's conclusion (though actually caused by an LLM context-length error rather than a QED verdict) is correct.
+MaterializedViewOnlyJoin is a catalog-driven materialized-view rewrite, not a closed-form algebraic identity: its validity rests on the external fact that a stored MV table's contents are *defined* to equal a particular derived query (the matched join/input) together with predicate/column entailment between that MV's defining query and the join subtree. In RuleScript a `scan` is an atomic uninterpreted symbol with no definitional link to any derived relation, so QED treats the MV scan and the join input as independent symbols and — per its stated limitation of not reasoning about predicate entailment between independent symbols — cannot prove their equivalence; and because the "after" side depends on *which* MV matched and on a per-match column/predicate mapping, there is no single fixed before()/after() pattern pair whose bag-equivalence QED could universally establish, so even a narrower special case is not expressible.

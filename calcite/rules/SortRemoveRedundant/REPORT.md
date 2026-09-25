@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 8  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/SortRemoveRedundantRule.
 
 **Verdict:** AGREE
 
-This rule rewrites `Sort` nodes in both their ORDER BY and LIMIT forms, and QED explicitly does not model list/ordering semantics — `Sort`/`Limit`/`Offset` have no bag-semantic meaning — so the core claims (an ORDER BY is removable when the input has ≤1 row; a LIMIT is removable when the input has ≤fetch rows) are about row order and list truncation, which the prover cannot decide. Adding a `Sort`/`sortLimit` builder to `RelRN` via `extend_dsl_file` would not close the gap, since the limitation is in the prover's semantics rather than the DSL surface, and the JSON serializer's `LogicalSort` support is only about emitting plans QED still cannot reason about. Independently of that, the rule is not a universal equivalence: its validity rests on the optimizer-metadata side condition "input's max row count ≤ threshold," which cannot be expressed as a precondition on uninterpreted relations in RuleScript, so even the special cases (e.g. over a group-less aggregate) cannot be faithfully stated and proved.
+The rule's before-pattern is necessarily a Sort node (ORDER BY, ORDER BY+LIMIT, or pure LIMIT), and its correctness rests on ordered-result preservation, which QED cannot model — per qed.pdf §6.2 it is bag-semantic and has no Sort/Limit/Offset semantics, so the only checkable reading, bag(sort R) = bag R, is a trivial identity true for every R *without* the rule's precondition and would verify nothing of the rule's actual claim; separately, the rule's single soundness precondition — that the input's max row count (optimizer cardinality metadata) is ≤ 1 or ≤ the literal fetch — cannot be stated about an uninterpreted relation, since the DSL exposes no row-count/size constraint (the scan `unique` key flag only forces ≤1 row on a single-column scan, covering neither the general metadata bound nor the fetch-n case, and pure LIMIT is not even a bag identity when |R| > n). No `extend_dsl_file` can close the gap: RelRN has no Sort/Limit builder, and one that merely emits the JSON format's `LogicalSort` encoding would still be judged by the immutable prover, which lacks list semantics — a documented fundamental limitation, not a porter oversight.

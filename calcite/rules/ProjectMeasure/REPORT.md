@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 21  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -16,4 +16,4 @@ Note: MeasureRules.java defines multiple distinct rule variants as separate stat
 
 **Verdict:** AGREE
 
-ProjectMeasureRule's soundness rests on Calcite's measure-calculus law — that SINGLE_VALUE(M2X(M2V(E), SAME_PARTITION(g))) aggregated over a g-partition collapses to the measure value E (e.g. SUM(c)+1) computed over that partition — which is a bespoke internal semantic identity, not a bag-semantic equivalence. QED treats M2V/M2X/V2M/SAME_PARTITION and the aggregates as uninterpreted symbols with only functional-consistency, so it cannot see through or relate them (an adversary can instantiate M2X to a constant to break it), and the before-plan's measure-bearing Project has no clean per-row core-language interpretation to model in the first place. This is a genuine QED limitation (uninterpretable measure/aggregate algebra) rather than a missing builder that extend_dsl_file could close, so no full or narrowed faithful encoding is provable.
+ProjectMeasureRule is sound only via Calcite's measure algebra — that M2X(M2V(E), SAME_PARTITION(g)) on a row of partition g equals E evaluated over that partition, so the outer SINGLE_VALUE over the group collapses to E's own aggregate — and QED models M2X, M2V, SAME_PARTITION, and SINGLE_VALUE as independent uninterpreted symbols with no axioms relating them to each other or to ordinary aggregates (e.g. SUM). The partition-scoped, window-like meaning of M2X is outside QED's bag-semantics model (the prover is fixed and has no such operator), so no encoding — down to the narrowest special case like E being a plain column over unique groups — can make the two sides theorems: SMT can always instantiate the uninterpreted symbols to a counterexample, and a builder-level DSL extension could not supply the missing measure axioms. ```

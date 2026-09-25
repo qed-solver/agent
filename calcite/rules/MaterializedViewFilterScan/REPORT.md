@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 26  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/MaterializedViewFilterSc
 
 **Verdict:** AGREE
 
-The porter's recorded failure was an LLM context-length error, not a real attempt — but the unsupported conclusion is independently correct. The rule's soundness rests on the externally maintained materialization invariant "the MV storage table's contents equal its defining query's result," i.e. a cross-table content equality between two independent uninterpreted tables; QED checks before/after equivalence under *all* instantiations of those tables, and the DSL's only per-table facts are keys (via `unique`) and row-level `guaranteed` predicates (not even exposed by any current `scan` builder), so no encoding can state that one table's bag equals a query over another. Hence every real encoding fails: distinct table names for the base table and the MV are refuted by a counterexample (e.g. an empty MV), while reusing one name degenerates to a vacuous identity — and besides the unstateable premise, the rule emits a catalog-dependent family of substitutions (via `SubstitutionVisitor` plus an internal Hep normalization program) rather than a fixed before/after plan pair.
+The rewrite's soundness rests on the materialization invariant that the MV table's stored bag equals the result of its defining query over the base table, but QED decides equivalence by universally quantifying over all instantiations of uninterpreted table symbols whose only per-table facts are key uniqueness and row-level "guaranteed" predicates, so a cross-table content equality cannot be stated as a premise. Any encoding using distinct symbols for the base table and the MV is therefore refuted by a countermodel (e.g. an empty or differently-populated MV), while identifying the two symbols collapses to a vacuous identity that proves nothing about the actual transformation. This is a limitation of the fixed prover's premise language — no DSL extension can close it, since JSONSerializer carries no inter-table constraint and the Rust prover itself cannot be modified. ```

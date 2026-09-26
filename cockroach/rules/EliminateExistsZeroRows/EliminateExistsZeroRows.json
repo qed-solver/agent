@@ -1,0 +1,34 @@
+{
+  "help" : [ "LogicalFilter(condition=[EXISTS({\nLogicalValues(tuples=[[]])\n})])\n  LogicalTableScan(table=[[Outer]])\n", "LogicalValues(tuples=[[]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Outer",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Outer" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "filter" : {
+      "condition" : {
+        "query" : {
+          "values" : {
+            "schema" : [ "INTEGER" ],
+            "content" : [ ]
+          }
+        },
+        "type" : "BOOLEAN",
+        "operand" : [ ],
+        "operator" : "EXISTS"
+      },
+      "source" : {
+        "scan" : 0
+      }
+    }
+  }, {
+    "values" : {
+      "schema" : [ "INTEGER" ],
+      "content" : [ ]
+    }
+  } ]
+}

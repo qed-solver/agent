@@ -111,8 +111,17 @@ def porter_agent_loop(
     max_turns: int,
     offline_code: str | None,
     debug_dir: Path | None = None,
+    final_round: bool = False,
 ) -> PorterResult:
     tool_specs = tools_obj.specs()
+    if final_round:
+        # Forced-conclusion round: don't even offer the exploratory (read-only)
+        # tools, so the model can't keep burning turns re-reading files it already
+        # has notes on. try_rule and extend_dsl_file (a legitimate proof may
+        # genuinely need a DSL extension) remain callable; the only other legal
+        # move is a plain-text UNSUPPORTED reply (handled below with no tool call
+        # at all).
+        tool_specs = [s for s in tool_specs if s.get("name") in ("try_rule", "extend_dsl_file")]
     last_reason = ""
     last_tried_code: str | None = None
     round_log: list[str] = []
@@ -532,7 +541,7 @@ def summarize_round(
 
 def round_continuation_prompt(
     spec: RuleSpec, source_hint: str, last_code: str | None, feedback_header: str, reasoning: str,
-    self_summary: str = "", backend_name: str = "calcite",
+    self_summary: str = "", backend_name: str = "calcite", force_conclusion: bool = False,
 ) -> str:
     parts = [
         prompts.initial_user_prompt(spec.name, spec.backend, spec.source_path, source_hint, backend_name),
@@ -557,11 +566,29 @@ def round_continuation_prompt(
             f"first (revise it if the fix is targeted; start over if it isn't), then test the "
             f"new version:\n\n```java\n{last_code}\n```"
         )
-    parts.append(
-        "Use your tools again as needed, then call `try_rule` with a "
-        "corrected candidate — or reply with exactly `UNSUPPORTED: <reason>` "
-        "only if you're now confident it's genuinely unsupported."
-    )
+    if force_conclusion:
+        parts.append(
+            "### This is your FINAL round — no exploration tools are available\n\n"
+            "You've already used several full rounds on this rule without reaching a "
+            "definitive conclusion. There will be no round after this one. All read-only "
+            "exploration tools (read_file, search_code, search_docs, read_ported_rule, "
+            "list_directory, etc.) have been disabled for this round — calling one will fail. "
+            "The only tools you have are `try_rule` and `extend_dsl_file` (use the latter only "
+            "if the proof genuinely requires a DSL extension — it still goes through the same "
+            "regression audit as always). Your very next reply must be exactly one of:\n"
+            "1. A `try_rule` call with your best candidate, built from your own notes above "
+            "and your most recent code, corrected for the last feedback you received "
+            "(optionally preceded by one `extend_dsl_file` call if truly needed), or\n"
+            "2. Plain text reading exactly `UNSUPPORTED: <reason>`, giving a precise, "
+            "mechanism-level reason this rule cannot be expressed in RuleScript.\n"
+            "Do not ask clarifying questions and do not attempt to call any other tool."
+        )
+    else:
+        parts.append(
+            "Use your tools again as needed, then call `try_rule` with a "
+            "corrected candidate — or reply with exactly `UNSUPPORTED: <reason>` "
+            "only if you're now confident it's genuinely unsupported."
+        )
     return "\n\n".join(parts)
 
 
@@ -630,10 +657,19 @@ def run_one(
     last_verifier_verdict = ""
     last_verifier_reasoning = ""
 
-    for round_num in range(1, max_rounds + 1):
-        print(f"--- verification round {round_num}/{max_rounds} ---")
+    # One extra round beyond the normal budget: if the porter still hasn't
+    # reached a proof or a genuine UNSUPPORTED claim after max_rounds, it gets
+    # a final round with a sharpened prompt that forces a real conclusion
+    # instead of burning straight to FAILED.
+    total_rounds = max_rounds + 1
+
+    for round_num in range(1, total_rounds + 1):
+        final_round = round_num == total_rounds
+        label = f"{round_num}/{total_rounds}" + ("  (FINAL — must conclude)" if final_round else "")
+        print(f"--- verification round {label} ---")
         clear_reply_transcripts(debug_dir, spec.name)
-        result = porter_agent_loop(spec, llm, tools_obj, system, conversation, max_turns, offline_code, debug_dir)
+        result = porter_agent_loop(spec, llm, tools_obj, system, conversation, max_turns, offline_code, debug_dir,
+                                    final_round=final_round)
         total_turns += result.turns_used
         last_reason = result.reason
         last_stats = result.prover_json or {}
@@ -698,6 +734,7 @@ def run_one(
                     spec, source_hint, result.code,
                     "An independent reviewer examined your proof and found it unfaithful "
                     "to the source rule:", reasoning, self_summary, backend_name,
+                    force_conclusion=(round_num == max_rounds),
                 ),
             }]
             continue
@@ -742,6 +779,7 @@ def run_one(
                     spec, source_hint, result.code,
                     "An independent reviewer looked at your attempt and believes this rule "
                     "IS expressible in RuleScript:", reasoning, self_summary, backend_name,
+                    force_conclusion=(round_num == max_rounds),
                 ),
             }]
             continue
@@ -754,7 +792,7 @@ def run_one(
         # through to FAILED below.
         print(f"   round ended without a proof or an UNSUPPORTED claim ({result.reason}); "
               f"skipping the verifier — there's nothing for it to review")
-        if round_num < max_rounds:
+        if round_num < total_rounds:
             self_summary = summarize_round(
                 llm, system, result.round_log,
                 "EXHAUSTED — the round ended without a proof or an UNSUPPORTED claim "
@@ -767,6 +805,7 @@ def run_one(
                     spec, source_hint, result.code,
                     "Your previous attempt ran out of turns before reaching a proof or an "
                     "UNSUPPORTED conclusion:", result.reason, self_summary, backend_name,
+                    force_conclusion=(round_num == max_rounds),
                 ),
             }]
 
@@ -779,14 +818,14 @@ def run_one(
         spec.name, last_code, status="FAILED", spec_backend=spec.backend,
         spec_description=spec.description, result_json=last_stats or None,
         verifier_verdict=last_verifier_verdict, verifier_reasoning=last_verifier_reasoning,
-        attempts_used=total_turns, rounds_used=max_rounds,
+        attempts_used=total_turns, rounds_used=total_rounds,
     )
     print(f"   published (reasoning{'' if last_code else ' only, no candidate code'}) under {pipeline.rules_out_dir.relative_to(ROOT_DIR)}/{spec.name}/")
     cleanup()
     return RuleAttempt(
         spec.name, spec.backend, spec.description, "FAILED", total_turns,
         reason=last_reason, prover_stats=last_stats,
-        verification_rounds_used=max_rounds, verifier_verdict=last_verifier_verdict,
+        verification_rounds_used=total_rounds, verifier_verdict=last_verifier_verdict,
         verifier_reasoning=last_verifier_reasoning,
     )
 

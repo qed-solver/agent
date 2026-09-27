@@ -1,8 +1,8 @@
 # RuleScript porting progress
 
-_Last updated: 2026-09-26T07:11:56.309924+00:00_
+_Last updated: 2026-09-27T22:20:50.117321+00:00_
 
-**69/113 rules proved** (0 failed, 44 skipped as out of QED's supported fragment).
+**103/167 rules proved** (0 failed, 64 skipped as out of QED's supported fragment).
 
 | Rule | Backend | Status | Scope | Attempts | Notes |
 |---|---|---|---|---|---|
@@ -68,7 +68,41 @@ _Last updated: 2026-09-26T07:11:56.309924+00:00_
 | `FoldNotInEmpty` | CockroachDB | ✅ PROVED | PARTIAL | 22 | The encoding is non-vacuous — before() is an ANTI join of L against a genuine zero-row relation and after() is the bare scan L — and the ... |
 | `FoldNotNull` | CockroachDB | ✅ PROVED | FULL | 10 | The encoding faithfully captures CockroachDB's FoldNotNull rule (`(Not (Null)) => (Null (BoolType))`) by embedding the expression-level b... |
 | `FoldNotTrue` | CockroachDB | ✅ PROVED | FULL | 3 | before() (Filter with condition NOT(TRUE)) and after() (Filter with condition FALSE) are structurally distinct, and the transformation is... |
+| `FoldNullAndOr` | CockroachDB | ✅ PROVED | PARTIAL | 41 | The encoding faithfully captures the And branch of FoldNullAndOr: the hard-coded null literal is correct because the source rule matches ... |
+| `FoldNullComparisonLeft` | CockroachDB | ✅ PROVED | PARTIAL | 26 | before() (`Filter(S, NULL = x)`) and after() (`Filter(S, NULL::bool)`) are structurally different over an arbitrary non-unique, nullable ... |
+| `FoldNullComparisonRight` | CockroachDB | ✅ PROVED | PARTIAL | 32 | `before()` (filter on `EQUALS(left, NULL)`) and `after()` (filter on the bare `NULL` literal) are structurally and semantically distinct,... |
+| `FoldNullInNonEmpty` | CockroachDB | ✅ PROVED | PARTIAL | 22 | The encoding correctly models `NULL IN (a,b)` as `filter(Or(=(null,a), =(null,b)))` and the folded result as `filter(nullBool)`; both sid... |
+| `FoldNullTupleIsTupleNotNull` | CockroachDB | ✅ PROVED | PARTIAL | 23 | The encoding is non-vacuous and on-point: before() carries the real condition AND(IS NOT NULL(NULL), IS NOT NULL(x)) while after() carrie... |
+| `FoldNullTupleIsTupleNull` | CockroachDB | ✅ PROVED | PARTIAL | 7 | The encoding faithfully captures the rule's semantic content: IsTupleNull on a constant all-null tuple is expanded to the conjunction of ... |
+| `FoldNullUnary` | CockroachDB | ✅ PROVED | PARTIAL | 48 | The encoding faithfully captures the rule's structure for the unary-minus instance: `Project(UNARY_MINUS(NULL))` vs `Project(NULL)` over ... |
+| `FoldUnary` | CockroachDB | ✅ PROVED | PARTIAL | 5 | `before()` and `after()` are structurally distinct (`Not(trueLiteral())` vs `falseLiteral()`) and the equivalence proved is exactly the r... |
+| `HoistJoinProjectLeft` | CockroachDB | ✅ PROVED | PARTIAL | 22 | The proved identity is non-vacuous and is exactly the rule's core transformation: `before()` = Join_C(π(L), R) and `after()` = π(Join_{C∘... |
+| `HoistJoinProjectRight` | CockroachDB | ✅ PROVED | PARTIAL | 23 | The encoding faithfully mirrors the source's HoistJoinProjectRight: the right input's passthrough project (a pure column remap here — the... |
+| `HoistJoinSubquery` | CockroachDB | ✅ PROVED | PARTIAL | 65 | The encoding faithfully captures the core transformation of HoistJoinSubquery for the INNER-join case: moving an uncorrelated EXISTS subq... |
+| `HoistSelectAboveUnorderedDistinctOn` | CockroachDB | ✅ PROVED | PARTIAL | 22 | The encoding faithfully models the declared special case: an identity, unordered DistinctOn (output = grouping keys, no aggregate outputs... |
+| `HoistSelectExists` | CockroachDB | ✅ PROVED | PARTIAL | 44 | The encoding faithfully captures the uncorrelated-special-case of HoistSelectExists: before() is Filter(And(EXISTS(Filter(S,sub_pred)), r... |
+| `HoistSelectNotExists` | CockroachDB | ✅ PROVED | PARTIAL | 25 | The encoding faithfully captures the uncorrelated NOT EXISTS → ANTI-join rewrite: before() is σ_{¬EXISTS(σ_{sub_pred}(S)) ∧ rest}(L) and ... |
+| `HoistUnboundFilterFromExistsSubquery` | CockroachDB | ✅ PROVED | PARTIAL | 40 | Manually investigated by Claude (the automated run exhausted both pool attempts). Reused the custom local Exists RexRN (RexSubQuery.exist... |
+| `HoistUnboundJoinFilterFromExistsSubquery` | CockroachDB | ✅ PROVED | PARTIAL | 40 | Manually investigated by Claude (the automated run exhausted both pool attempts). Same identity and technique as HoistUnboundFilterFromEx... |
+| `InlineConstVar` | CockroachDB | ✅ PROVED | PARTIAL | 46 | The proof is non-vacuous and not coincidental: `before()` and `after()` are structurally distinct (same uninterpreted predicate `f` appli... |
+| `InlineJoinConstantsLeft` | CockroachDB | ✅ PROVED | PARTIAL | 24 | The encoding faithfully captures the rule's semantic essence — the original's inlinable constant column maps to `a`, the inlined-to const... |
+| `InlineJoinConstantsRight` | CockroachDB | ✅ PROVED | PARTIAL | 5 | The encoding is non-trivial and faithful: `before()` references right-input column 0 (`r`) in the join condition while `after()` referenc... |
+| `InlineProjectConstants` | CockroachDB | ✅ PROVED | PARTIAL | 21 | The encoding faithfully captures `InlineProjectConstants`' core shape — a `Project` whose input carries an inlinable constant column, wit... |
+| `InlineProjectInProject` | CockroachDB | ✅ PROVED | PARTIAL | 24 | The encoding faithfully captures the rule's semantic core — flattening `Project(Project(Source, F(x)), [T(F(x)), F(x)])` into `Project(So... |
+| `InlineSelectConstants` | CockroachDB | ✅ PROVED | PARTIAL | 49 | The encoding is non-vacuous and faithful: before() filters on field 0 (`a`) and after() on field 1 (`c`), which are distinct columns whos... |
+| `InlineSelectVirtualColumns` | CockroachDB | ✅ PROVED | PARTIAL | 26 | The encoding faithfully mirrors the rule's actual transformation — before() is `Filter(P(v)∧Q(w), Project(F,G,a,b, Scan))` and after() pu... |
+| `LeftAssociateJoinsLeft` | CockroachDB | ✅ PROVED | PARTIAL | 23 | The encoding faithfully captures the core algebraic identity of LeftAssociateJoinsLeft — reassociating ((A×B) ⋈_{P(A,C)∧Q(B,C)} C) into B... |
+| `LeftAssociateJoinsRight` | CockroachDB | ✅ PROVED | FULL | 25 | The encoding faithfully captures the source rule's logical transformation: (A⋈B ON true)⋈C ON (p_ax∧p_bu) reassociates to A⋈(B⋈C ON p_bu)... |
+| `MapEqualityIntoJoinLeftAndRight` | CockroachDB | ✅ PROVED | PARTIAL | 24 | The encoding faithfully captures the rule's core equality-remapping operation for its own documented minimal instance: before() uses the ... |
+| `MapFilterIntoJoinLeft` | CockroachDB | ✅ PROVED | PARTIAL | 41 | The encoding is a faithful, non-vacuous capture of the rule's core transformation — it reproduces the rule's own documented example (`ON ... |
+| `MapFilterIntoJoinRight` | CockroachDB | ✅ PROVED | PARTIAL | 28 | before() (ON = a.x=b.x ∧ f(a.x)) and after() (ON = a.x=b.x ∧ f(b.x)) are structurally distinct, so the proof is not vacuous — it requires... |
+| `MergeProjectWithValues` | CockroachDB | ✅ PROVED | PARTIAL | 100 | Directly encoded using RuleBuilder's real Calcite Values-with-literal-content support (RelBuilder.values(fieldNames, values...)) wrapped ... |
+| `MergeProjects` | CockroachDB | ✅ PROVED | PARTIAL | 61 | The encoding faithfully captures the Optgen rule's shape, precondition, and effect: `before` is Project(Project(Source, [passthrough, Bot... |
+| `MergeSelectInnerJoin` | CockroachDB | ✅ PROVED | PARTIAL | 21 | The proof is non-vacuous and captures the rule's exact logical core — before() is Filter(F, InnerJoin(L, R, ON)) and after() is InnerJoin... |
+| `MergeSelects` | CockroachDB | ✅ PROVED | FULL | 3 | The encoding faithfully captures MergeSelects: `before()` is two nested filters (inner then outer) and `after()` is a single filter on th... |
+| `NegateAnd` | CockroachDB | ✅ PROVED | FULL | 7 | before() is Filter(¬(P∧Q), Source) and after() is Filter(¬P∨¬Q, Source) over the same scan, with P and Q as distinct uninterpreted predic... |
 | `NegateComparison` | CockroachDB | ✅ PROVED | PARTIAL | 21 | The proof is non-vacuous and genuine: `before()` is `Filter(¬(x = y))` vs `after()` `Filter(x <> y)` over the cross-join of two *independ... |
+| `NegateOr` | CockroachDB | ✅ PROVED | FULL | 5 | The encoding faithfully captures NegateOr — `Not(Or(L,R))` ⟹ `And(Not(L),Not(R))` — using two *distinct* uninterpreted predicates (`left`... |
 | `PruneJoinLeftCols` | CockroachDB | ✅ PROVED | PARTIAL | 10 | The encoding faithfully captures `PruneJoinLeftCols` as a specific, honestly-labeled (PARTIAL) instance — an inner join whose left input ... |
 | `PushFilterIntoJoinLeft` | CockroachDB | ✅ PROVED | PARTIAL | 22 | `before()` (inner join with conjuncts `f(L) ∧ g(L,R)`) and `after()` (left filtered by `f(L)`, then joined on `g(L,R)`) are structurally ... |
 | `SimplifyAndFalse` | CockroachDB | ✅ PROVED | FULL | 4 | The encoding faithfully captures `(And * (False)) => (False)`: the left operand is a fully uninterpreted predicate (universally quantifie... |
@@ -119,6 +153,26 @@ _Last updated: 2026-09-26T07:11:56.309924+00:00_
 | `FoldLimits` | CockroachDB | ⏭️ SKIPPED | — | 22 | FoldLimits reduces to the identity Limit(Limit(R, n_in, ord_in), n_out, ord_out) ≡ Limit(R, n_out, ord_in) under n_out ≤ n_in and ord_in ... |
 | `FoldMinusZero` | CockroachDB | ⏭️ SKIPPED | — | 23 | The rule's core is the numeric identity `x - 0 = cast(x)`, which needs QED to (a) name the numeric constant 0 — the DSL only exposes bool... |
 | `FoldMultOne` | CockroachDB | ⏭️ SKIPPED | — | 22 | FoldMultOne depends on the numeric algebra identity `x * 1 = cast(x, T)`, but RuleScript/QED can only express `Mult` and `Cast` as uninte... |
+| `FoldNullBinaryLeft` | CockroachDB | ⏭️ SKIPPED | — | 85 | Manually investigated by Claude (the automated run exhausted all 5 rounds without a usable conclusion). Same root cause as FoldEqualsAnyN... |
+| `FoldNullBinaryRight` | CockroachDB | ⏭️ SKIPPED | — | 49 | FoldNullBinaryRight's correctness rests entirely on the operator-specific axiom "if op does not allow null args, then op(x, NULL) = NULL"... |
+| `FoldNullCast` | CockroachDB | ⏭️ SKIPPED | — | 26 | FoldNullCast's validity rests entirely on the SQL-specific semantic that Cast propagates NULL (with the target type preserved) — a bespok... |
+| `FoldOneMult` | CockroachDB | ⏭️ SKIPPED | — | 23 | The rule's correctness rests entirely on scalar arithmetic axioms — the right-identity law 1·x = x and value-preservation of the cast — b... |
+| `FoldPlusZero` | CockroachDB | ⏭️ SKIPPED | — | 23 | FoldPlusZero's soundness rests on the numeric identity x + 0 = x together with the cast-to-binary-type being a no-op on a correctly typed... |
+| `FoldTupleAccessIntoValues` | CockroachDB | ⏭️ SKIPPED | — | 41 | The rule's validity rests on evaluating tuple-field accesses (e.g. `(tup).@1`) over *constant* tuple literals and baking the resulting co... |
+| `FoldZeroPlus` | CockroachDB | ⏭️ SKIPPED | — | 45 | The rule's correctness rests on the numeric algebra of its operators — the additive identity law `0 + x = x` (plus the cast to the binary... |
+| `HoistProjectSetSubquery` | CockroachDB | ⏭️ SKIPPED | — | 31 | The rule's central operator, ProjectSet (set-returning/zip row generation), has no model in QED's bag-semantic core — a set-returning fun... |
+| `HoistProjectSubquery` | CockroachDB | ⏭️ SKIPPED | — | 100 | Manually investigated by Claude (the automated run exhausted all 5 rounds on repeated context-length crashes, never reaching a real try_r... |
+| `HoistSelectSubquery` | CockroachDB | ⏭️ SKIPPED | — | 40 | Manually investigated by Claude. Same root cause as HoistProjectSubquery: read decorrelate_funcs.go's HoistSelectSubquery (and its doc ex... |
+| `HoistValuesSubquery` | CockroachDB | ⏭️ SKIPPED | — | 2 | Same representational gap as HoistProjectSubquery/HoistSelectSubquery: the rule generically hoists a correlated Subquery, Exists, or Any ... |
+| `InlineAnyProjectSet` | CockroachDB | ⏭️ SKIPPED | — | 41 | The rule's core equivalence — `x OP ANY (unnest($arg))` ⟺ `AnyScalar(x, $arg) AND $arg IS NOT NULL` — depends on a list-valued scalar exp... |
+| `InlineAnyValuesMultiCol` | CockroachDB | ⏭️ SKIPPED | — | 100 | Corrected reasoning: the rule's LHS is `Any(Project(Values, tuple), scalar, cmp)` -- a *relational* ANY-subquery (Calcite's RexSubQuery.s... |
+| `InlineAnyValuesSingleCol` | CockroachDB | ⏭️ SKIPPED | — | 41 | The rule rewrites a subquery-based `x op ANY (VALUES (c1),(c2),…)` into a scalar `x op ANY (c1,c2,…)` — an identity that rests entirely o... |
+| `InlineAnyWithScanOfValues` | CockroachDB | ⏭️ SKIPPED | — | 41 | QED's contract is to prove the two patterns equivalent for *every* instantiation of their uninterpreted symbols, and it has no facility f... |
+| `InlineExistsSelectTuple` | CockroachDB | ⏭️ SKIPPED | — | 44 | The rule's core claim is that one tuple-equality predicate is equivalent to a conjunction of per-column equalities, but QED models every ... |
+| `InlineUDF` | CockroachDB | ⏭️ SKIPPED | — | 26 | InlineUDF's soundness rests entirely on the definitional link between the UDF's call symbol and the subquery derived from its function bo... |
+| `InlineWith` | CockroachDB | ⏭️ SKIPPED | — | 24 | InlineWith is fundamentally a let-substitution rule (`let W = D in Q` ≡ `Q[W:=D]`), and QED's Q-expression language — fixed on the Rust p... |
+| `InvertMinus` | CockroachDB | ⏭️ SKIPPED | — | 24 | In RuleScript, scalar operators like `Minus` and `UnaryMinus` are expressed as uninterpreted projection symbols (`RexRN.Proj` wrapping a ... |
+| `NormCycleTestRelTrueToFalse` | CockroachDB | ⏭️ SKIPPED | — | 23 | The rule rewrites `NormCycleTestRel(True)` to `NormCycleTestRel(False)`, where that operator is an opaque test-only function with no defi... |
 
 ## Details
 
@@ -2609,6 +2663,1694 @@ Extracted from `bool.opt` (which defines multiple rules — implement specifical
 - Reason / notes: before() (Filter with condition NOT(TRUE)) and after() (Filter with condition FALSE) are structurally distinct, and the transformation is exactly the source rule's rewrite, so the proof is non-vacuous. The source rule has no free variables — it is a pure constant fold — so nothing that should be uninterpreted was hard-coded: the scan is fully uninterpreted (arbitrary bag of arbitrary type), the proof covers every relation, and no preconditions or null assumptions are involved since NOT(TRUE)=FALSE holds unconditionally. As a scalar constant-fold rule embedded in a relational DSL that has no expression metavariables, placing the matched expression as the entire filter condition over an arbitrary source is its maximal relational form, so SCOPE: FULL is honest and the encoding is faithful and non-degenerate. ```
 - QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 346250}, panicked=False
 
+### `FoldNullAndOr` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/bool.opt
+
+FoldNullAndOr replaces the operator with null if both operands are null.
+
+Extracted from `bool.opt` (which defines multiple rules — implement specifically `FoldNullAndOr`, not the other rules in that file):
+
+```
+# FoldNullAndOr replaces the operator with null if both operands are null.
+[FoldNullAndOr, Normalize]
+(And | Or (Null) (Null))
+=>
+(Null (BoolType))
+```
+- Attempts used: 41
+- Last updated: 2026-09-26T19:59:46.762575+00:00
+- Reason / notes: The encoding faithfully captures the And branch of FoldNullAndOr: the hard-coded null literal is correct because the source rule matches the Null *constant* (not an uninterpreted operand), reusing one symbol for both operands is right since the rule requires both to be the same constant, and before()/after() are structurally and semantically distinct (an AND call vs. a bare literal), so the proof is non-vacuous; filter-level embedding of a scalar boolean identity follows the DSL's established convention (cf. FilterMerge), and the source rule carries no side conditions (unlike NegateComparison) that the encoding omits. The PARTIAL scope tag is honest and specific — the only narrowing is the absent Or branch (which is expressible as a separate instance via `new RexRN.Or(Seq.of(nullLit, nullLit))`), and the covered instance remains a genuine, useful, non-degenerate rule.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 316667}, panicked=False
+
+### `FoldNullComparisonLeft` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/comp.opt
+
+FoldNullComparisonLeft replaces the comparison operator with null if its
+left input is null.
+
+Extracted from `comp.opt` (which defines multiple rules — implement specifically `FoldNullComparisonLeft`, not the other rules in that file):
+
+```
+# FoldNullComparisonLeft replaces the comparison operator with null if its
+# left input is null.
+[FoldNullComparisonLeft, Normalize]
+(Eq | Ne | Ge | Gt | Le | Lt | Like | NotLike | ILike | NotILike
+        | SimilarTo | NotSimilarTo | RegMatch | NotRegMatch
+        | RegIMatch | NotRegIMatch | Contains | ContainedBy
+        | Overlaps | JsonExists | JsonSomeExists | JsonAllExists
+    $left:(Null)
+    *
+)
+=>
+(Null (BoolType))
+```
+- Attempts used: 26
+- Last updated: 2026-09-26T20:38:56.488308+00:00
+- Reason / notes: before() (`Filter(S, NULL = x)`) and after() (`Filter(S, NULL::bool)`) are structurally different over an arbitrary non-unique, nullable source, so the proof is not vacuous — it verifies the actual content of the rule's Eq branch, namely that a comparison with a null left operand never evaluates true, so both filters admit no rows (had `NULL = x` been able to be true, null-`x` rows would survive on the left side and the proof would fail). Baking in the concrete `SqlStdOperatorTable.EQUALS` is the right call rather than an under-generalization: an uninterpreted predicate symbol carries no null-propagation semantics for QED to reason about, so each of the source rule's 22 operator branches (the SCOPE comment's "18/17" is a miscount, but the stated Eq-only restriction is accurate and specific) requires its own instance with a concrete operator; symbol sharing is correct (same source, same right input `x`, left operand a null literal rather than a shared symbol, matching `$left:(Null) *`), no spurious preconditions are introduced, and the result is a genuine, non-degenerate, honestly-flagged PARTIAL special case in the rule's canonical boolean (filter) position.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 380417}, panicked=False
+
+### `FoldNullComparisonRight` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/comp.opt
+
+FoldNullComparisonRight replaces the comparison operator with null if its
+right input is null.
+
+Extracted from `comp.opt` (which defines multiple rules — implement specifically `FoldNullComparisonRight`, not the other rules in that file):
+
+```
+# FoldNullComparisonRight replaces the comparison operator with null if its
+# right input is null.
+[FoldNullComparisonRight, Normalize]
+(Eq | Ne | Ge | Gt | Le | Lt | Like | NotLike | ILike | NotILike
+        | SimilarTo | NotSimilarTo | RegMatch | NotRegMatch
+        | RegIMatch | NotRegIMatch | Contains | ContainedBy
+        | Overlaps | JsonExists | JsonSomeExists | JsonAllExists
+    *
+    $right:(Null)
+)
+=>
+(Null (BoolType))
+```
+- Attempts used: 32
+- Last updated: 2026-09-26T20:46:31.451699+00:00
+- Reason / notes: `before()` (filter on `EQUALS(left, NULL)`) and `after()` (filter on the bare `NULL` literal) are structurally and semantically distinct, and the proof checks exactly the rule's null-folding content — `x = NULL ≡ NULL` for every instantiation of the uninterpreted left input, including NULL itself — with the NULL constant correctly shared on the right operand and no preconditions in the source rule left out. The restriction to the Eq branch (one of ~23 operators) is genuine: QED cannot derive null propagation for an uninterpreted operator symbol, so each concrete operator would need its own instance (and CockroachDB-specific ones like RegMatch/JsonExists aren't in the prover's model), and it is honestly and specifically declared in the SCOPE line. Embedding the scalar fold in a filter position is the DSL's idiomatic expression of a scalar predicate rule (as in the FilterMerge example), and the encoding is a faithful, non-degenerate special case.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 284958}, panicked=False
+
+### `FoldNullInNonEmpty` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/fold_constants.opt
+
+FoldNullInNonEmpty replaces the In/NotIn with null when the left input is
+null and the right input is not empty. Null is the unknown value, and if the
+set is non-empty, it is unknown whether it's in/not in the set.
+
+Extracted from `fold_constants.opt` (which defines multiple rules — implement specifically `FoldNullInNonEmpty`, not the other rules in that file):
+
+```
+# FoldNullInNonEmpty replaces the In/NotIn with null when the left input is
+# null and the right input is not empty. Null is the unknown value, and if the
+# set is non-empty, it is unknown whether it's in/not in the set.
+[FoldNullInNonEmpty, Normalize]
+(In | NotIn (Null) (Tuple ^[]))
+=>
+(Null (BoolType))
+```
+- Attempts used: 22
+- Last updated: 2026-09-26T21:02:29.425968+00:00
+- Reason / notes: The encoding correctly models `NULL IN (a,b)` as `filter(Or(=(null,a), =(null,b)))` and the folded result as `filter(nullBool)`; both sides reduce to the empty relation under SQL three-valued logic (any comparison with NULL yields NULL, NULL OR NULL is NULL, and a NULL filter condition excludes the row), so the proof is non-vacuous and structurally distinct. The PARTIAL scope is honestly stated — fixed 2-element arity and the In-branch only — but the instance is a genuine, non-degenerate special case of the original rule that exercises the same three-valued-logic reasoning.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 284500}, panicked=False
+
+### `FoldNullTupleIsTupleNotNull` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/comp.opt
+
+FoldNullTupleIsTupleNotNull replaces x IS NOT NULL with False if x is a tuple
+with at least one constant, null element.
+
+Extracted from `comp.opt` (which defines multiple rules — implement specifically `FoldNullTupleIsTupleNotNull`, not the other rules in that file):
+
+```
+# FoldNullTupleIsTupleNotNull replaces x IS NOT NULL with False if x is a tuple
+# with at least one constant, null element.
+[FoldNullTupleIsTupleNotNull, Normalize]
+(IsTupleNotNull $input:(Tuple) & (HasNullElement $input))
+=>
+(False)
+```
+- Attempts used: 23
+- Last updated: 2026-09-26T22:09:39.311518+00:00
+- Reason / notes: The encoding is non-vacuous and on-point: before() carries the real condition AND(IS NOT NULL(NULL), IS NOT NULL(x)) while after() carries the constant FALSE, so the proof establishes exactly the scalar fold the rule states, and the element-conjunction semantics used for IsTupleNotNull is the one forced by all four tuple-folding rules in comp.opt (a constant NULL element makes one conjunct — hence the conjunction — constant FALSE). The arity-2, one-constant-NULL restriction is a genuine, specifically-stated PARTIAL special case rather than a modeling accident: the remaining element is a completely arbitrary nullable column of an uninterpreted table (the maximal generality the DSL can give a free value), and the rule's soundness at any arity rests solely on that single constant-false conjunct, so no additional generality is being hidden; no preconditions are missing (HasNullElement is baked in as the NULL literal) and no symbol is improperly shared or over-constrained. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 306292}, panicked=False
+
+### `FoldNullTupleIsTupleNull` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/comp.opt
+
+FoldNullTupleIsTupleNull replaces x IS NULL with True if x is a tuple with
+only constant, null elements.
+
+Extracted from `comp.opt` (which defines multiple rules — implement specifically `FoldNullTupleIsTupleNull`, not the other rules in that file):
+
+```
+# FoldNullTupleIsTupleNull replaces x IS NULL with True if x is a tuple with
+# only constant, null elements.
+[FoldNullTupleIsTupleNull, Normalize]
+(IsTupleNull $input:(Tuple) & (HasAllNullElements $input))
+=>
+(True)
+```
+- Attempts used: 7
+- Last updated: 2026-09-26T21:09:59.149360+00:00
+- Reason / notes: The encoding faithfully captures the rule's semantic content: IsTupleNull on a constant all-null tuple is expanded to the conjunction of element-wise `IS NULL` predicates (the operator's defining semantics), and since the source side condition HasAllNullElements requires every element to be exactly the NULL constant, reusing a single NULL literal for both elements is correct rather than a symbol-sharing error (independent uninterpreted elements would be a different, unprovable claim). The proof is not vacuous — before() filters on the closed conjunction IS_NULL(NULL) AND IS_NULL(NULL) while after() filters on TRUE, and the provable content is precisely the constant fold the rule performs. The restriction to tuple arity 2 is honestly tagged (SCOPE: PARTIAL) and genuine, since RuleScript has no tuple value constructor or IsTupleNull operator and the QED prover has no tuple-value semantics to model a general-arity version against, so this is a legitimate non-degenerate special case rather than an avoidable gap. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 287209}, panicked=False
+
+### `FoldNullUnary` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/fold_constants.opt
+
+FoldNullUnary discards any unary operator with a null input, and replaces it
+with a null value having the same type as the unary expression would have.
+
+Extracted from `fold_constants.opt` (which defines multiple rules — implement specifically `FoldNullUnary`, not the other rules in that file):
+
+```
+# FoldNullUnary discards any unary operator with a null input, and replaces it
+# with a null value having the same type as the unary expression would have.
+[FoldNullUnary, Normalize]
+(Unary $input:(Null))
+=>
+(FoldNullUnary (OpName) $input)
+```
+- Attempts used: 48
+- Last updated: 2026-09-26T21:30:22.542863+00:00
+- Reason / notes: The encoding faithfully captures the rule's structure for the unary-minus instance: `Project(UNARY_MINUS(NULL))` vs `Project(NULL)` over the same scan, with a null *literal* input (correctly matching `$input:(Null)`, not a column reference), and no dropped preconditions since the source's unary rule (unlike the binary ones) carries no guard. The narrowing to a concrete operator is a genuine QED limitation, not a fixable DSL gap — an uninterpreted unary symbol would require proving `op(NULL) = NULL` for an uninterpreted function, which QED cannot derive — and the PARTIAL scope line states exactly this restriction, so the fast SMT result proves a real, sound, non-degenerate special case (-NULL = NULL), with before()/after() structurally different.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 108959}, panicked=False
+
+### `FoldUnary` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/fold_constants.opt
+
+FoldUnary is similar to FoldBinary, but it involves a unary operation over a
+single constant input. As with FoldBinary, FoldUnary applies as long as the
+evaluation would not cause an error.
+
+Extracted from `fold_constants.opt` (which defines multiple rules — implement specifically `FoldUnary`, not the other rules in that file):
+
+```
+# FoldUnary is similar to FoldBinary, but it involves a unary operation over a
+# single constant input. As with FoldBinary, FoldUnary applies as long as the
+# evaluation would not cause an error.
+[FoldUnary, Normalize]
+(Unary
+    $input:* &
+        (IsConstValueOrGroupOfConstValues $input) &
+        (Let ($result $ok):(FoldUnary (OpName) $input) $ok)
+)
+=>
+$result
+```
+- Attempts used: 5
+- Last updated: 2026-09-26T21:44:58.096385+00:00
+- Reason / notes: `before()` and `after()` are structurally distinct (`Not(trueLiteral())` vs `falseLiteral()`) and the equivalence proved is exactly the rule's content — a unary operator applied to a constant replaced by its folded constant — so the proof is not vacuous. The hard-coding of NOT/TRUE/FALSE is forced rather than lazy: QED treats arbitrary operators as uninterpreted and cannot know that `op(const)` equals any new constant, so this concrete boolean instance is the only provable shape (a DSL extension couldn't close the gap, since the prover is the fixed arbiter of operator semantics). The single-sentence `// SCOPE: PARTIAL` line accurately and specifically discloses the restriction (NOT over TRUE, filter position), and no precondition (constant input, successful evaluation `$ok`) is silently dropped for this instance, making it an honest, non-degenerate special case of FoldUnary.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 289000}, panicked=False
+
+### `HoistJoinProjectLeft` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/join.opt
+
+HoistJoinProjectLeft is the same as HoistJoinProjectRight, but for the left
+input of the join.
+
+Extracted from `join.opt` (which defines multiple rules — implement specifically `HoistJoinProjectLeft`, not the other rules in that file):
+
+```
+# HoistJoinProjectLeft is the same as HoistJoinProjectRight, but for the left
+# input of the join.
+[HoistJoinProjectLeft, Normalize]
+(InnerJoin | InnerJoinApply | LeftJoin | LeftJoinApply
+    $left:(Project
+        $input:*
+        $projections:* & ^(HasVolatileProjection $projections)
+        $passThrough:*
+    )
+    $right:* &
+
+        # For apply-joins, the right input could reference the projected
+        # columns, in which case pulling the Project up would be incorrect.
+        # This isn't an issue for HoistJoinProjectRight because outer column
+        # references cannot be from the left input to the right input.
+        # TODO(drewk): we could remap the right input as well.
+        ^(IsCorrelated $right (ProjectionCols $projections))
+    $on:*
+    $private:* &
+
+        # We can only hoist the projection if each new column is either:
+        # 1. a simple remapping that can be reversed in the join condition, OR
+        # 2. not referenced in the join condition AND
+        # 3. the projection does not reference input columns
+        #
+        # The last condition, (3), is a very conservative heuristic to avoid
+        # hoisting projections that could prevent column pruning. We might be
+        # able to remove it or make it smarter.
+        #
+        # TODO(michae2): we could work around (2) by inlining the projection
+        # expression into the join condition, similar to
+        # PushSelectIntoInlinableProject.
+        (Let
+            ($remap $other $ok):(CanHoistNonRemappingProjections
+                $projections
+            )
+            $ok
+        ) &
+        ^(ColsIntersect
+            (FilterOuterCols $on)
+            (ProjectionCols $other)
+        ) &
+        ^(ColsIntersect
+            (ProjectionOuterCols $other)
+            (OutputCols $input)
+        )
+)
+=>
+(Project
+    ((OpName)
+        $input
+        $right
+        (UnbindFiltersFromProjections $remap $on)
+        $private
+    )
+    $projections
+    (UnionCols $passThrough (OutputCols $right))
+)
+```
+- Attempts used: 22
+- Last updated: 2026-09-26T22:20:08.894673+00:00
+- Reason / notes: The proved identity is non-vacuous and is exactly the rule's core transformation: `before()` = Join_C(π(L), R) and `after()` = π(Join_{C∘π}(L, R)) are structurally different plans (project below vs. above the join) over uninterpreted tables, uninterpreted types, and one shared uninterpreted condition, and the unbinding bookkeeping is consistent — the condition evaluates C on (L1, L0, R) in both encodings (join-row ordinals (0,1,2) before, (1,0,2) after) and the outer project restores the (L1, L0, R) output, so the bags match for every instantiation. Every side condition of the source rule (¬HasVolatileProjection, ¬IsCorrelated on the right input, the ColsIntersect checks on non-remap projections) is vacuously satisfied by a pure column swap on an INNER join, so no precondition is silently missing, and the `SCOPE: PARTIAL` line honestly and specifically names the genuine restrictions (INNER only vs. the rule's InnerJoin/InnerJoinApply/LeftJoin/LeftJoinApply set; a fixed two-column remap swap vs. arbitrary hoistable projections; a single uninterpreted predicate) — a legitimate minimal instance, not a degenerate or misleading one.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 68453042}, panicked=False
+
+### `HoistJoinProjectRight` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/join.opt
+
+HoistJoinProjectRight lifts a passthrough Project operator from within a Join
+operator's right input to outside the join. This often allows the Project
+operator to be merged with an outer Project. Since Project operators tend to
+prevent other rules from matching, this and other rules try to either push
+them down (to prune columns), or else to pull them up (to get them out of the
+way of other operators).
+
+It's not always beneficial to hoist projections above joins, but we need some
+projection hoisting to happen to help join reordering, and doing it all in an
+exploration rule risks creating a huge number of plans when combined with join
+reordering.
+
+Projections are allowed in the case when they are simple remaps from input to
+output column IDs, in which case it is simple to replace the column references
+in the join condition.
+
+TODO(andyk): Add other join types.
+
+Extracted from `join.opt` (which defines multiple rules — implement specifically `HoistJoinProjectRight`, not the other rules in that file):
+
+```
+# HoistJoinProjectRight lifts a passthrough Project operator from within a Join
+# operator's right input to outside the join. This often allows the Project
+# operator to be merged with an outer Project. Since Project operators tend to
+# prevent other rules from matching, this and other rules try to either push
+# them down (to prune columns), or else to pull them up (to get them out of the
+# way of other operators).
+#
+# It's not always beneficial to hoist projections above joins, but we need some
+# projection hoisting to happen to help join reordering, and doing it all in an
+# exploration rule risks creating a huge number of plans when combined with join
+# reordering.
+#
+# Projections are allowed in the case when they are simple remaps from input to
+# output column IDs, in which case it is simple to replace the column references
+# in the join condition.
+#
+# TODO(andyk): Add other join types.
+[HoistJoinProjectRight, Normalize]
+(InnerJoin | InnerJoinApply | LeftJoin | LeftJoinApply
+    $left:*
+    $right:(Project
+        $input:*
+        $projections:* &
+            (AllAreRemappingProjections $projections) &
+
+            # Ensure that there are no outer-column references in the
+            # projections, since otherwise hoisting the Project could change
+            # the result of a left-join due to the NULL-extended rows.
+            # TODO(drewk): we could allow this for inner-joins.
+            (ColsAreSubset
+                (ProjectionOuterCols $projections)
+                (OutputCols $input)
+            )
+        $passThrough:*
+    )
+    $on:*
+    $private:*
+)
+=>
+(Project
+    ((OpName)
+        $left
+        $input
+        (UnbindFiltersFromProjections $projections $on)
+        $private
+    )
+    $projections
+    (UnionCols (OutputCols $left) $passThrough)
+)
+```
+- Attempts used: 23
+- Last updated: 2026-09-26T22:33:33.338573+00:00
+- Reason / notes: The encoding faithfully mirrors the source's HoistJoinProjectRight: the right input's passthrough project (a pure column remap here — the swap (r1,r0)) is hoisted above the join, the same uninterpreted on-predicate C is re-based onto the un-remapped input columns in the correct swapped order (condAfter feeds C the values (l0, r1, r0), matching condBefore), and the extra outer project above the after-join is exactly what the source's `(UnionCols ...)` output-column reconstruction requires under the DSL's positional (not column-ID) model. The SCOPE line is honest about the genuine narrowing (LEFT join only vs. the source's Inner/Left + Apply variants; fixed 1-column left and 2-column right inputs; the remap restricted to the two-column swap), the before/after plans are structurally distinct and non-vacuous, and no precondition from the source (remap-only projection, no outer-column references in the projection) is silently violated.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 95328375}, panicked=False
+
+### `HoistJoinSubquery` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+HoistJoinSubquery extracts subqueries from a join filter and joins them with
+the join's right input. This and other subquery hoisting patterns create a
+single, top-level relational query with no nesting. This rule only applies to
+join types which have a legal apply variant.
+
+This rule is marked as low priority for the same reason as HoistSelectExists.
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `HoistJoinSubquery`, not the other rules in that file):
+
+```
+# HoistJoinSubquery extracts subqueries from a join filter and joins them with
+# the join's right input. This and other subquery hoisting patterns create a
+# single, top-level relational query with no nesting. This rule only applies to
+# join types which have a legal apply variant.
+#
+# This rule is marked as low priority for the same reason as HoistSelectExists.
+[HoistJoinSubquery, Normalize, LowPriority]
+(InnerJoin | LeftJoin | SemiJoin | AntiJoin
+    $left:*
+    $right:*
+    $on:[ ... $item:* & (HasHoistableSubquery $item) ... ]
+    $private:*
+)
+=>
+(HoistJoinSubquery (OpName) $left $right $on $private)
+```
+- Attempts used: 65
+- Last updated: 2026-09-26T23:08:11.467556+00:00
+- Reason / notes: The encoding faithfully captures the core transformation of HoistJoinSubquery for the INNER-join case: moving an uncorrelated EXISTS subquery from the join's ON condition into a pre-filter on the right input, which is semantically equivalent under bag semantics. The before() and after() are structurally distinct (the EXISTS conjunct relocates from the join condition to a Filter node on R), the join kind (INNER) is one of the four the source rule targets and is the one where the transformation is unconditionally valid without additional preconditions, all symbols (L, R, S, on_cond, sub_pred) are correctly uninterpreted and independently shared, and the SCOPE tag honestly and specifically documents both the INNER-only restriction and the uncorrelated-EXISTS restriction. ```
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 77232292}, panicked=False
+
+### `HoistSelectAboveUnorderedDistinctOn` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+HoistSelectAboveUnorderedDistinctOn hoists correlated filter conditions from
+inside an unordered DistinctOn's input Select to above the DistinctOn. This
+is the reverse of PushSelectIntoUnorderedDistinctOn and is valid because an
+unordered DistinctOn can choose any row from each group, so filtering before
+or after the grouping produces equivalent results.
+
+This rule aids decorrelation by moving correlated filters to a position where
+TryDecorrelateSelect can handle them, avoiding the more expensive
+TryDecorrelateGroupBy transformation that requires EnsureKey and additional
+ConstAgg columns.
+
+Uncorrelated filters remain inside the DistinctOn for early filtering. If a
+correlated filter references an input column that is not already in the
+DistinctOn's output, a FirstAgg aggregation is added for that column so
+it becomes available above the DistinctOn.
+
+Example:
+DistinctOn(Select(input, [s = outer.s, i > 0]), aggs, priv)
+=>
+Select(DistinctOn(Select(input, [i > 0]), aggs', priv), [s = outer.s])
+(where aggs' = aggs + FirstAgg(s) if s was not already projected)
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `HoistSelectAboveUnorderedDistinctOn`, not the other rules in that file):
+
+```
+# HoistSelectAboveUnorderedDistinctOn hoists correlated filter conditions from
+# inside an unordered DistinctOn's input Select to above the DistinctOn. This
+# is the reverse of PushSelectIntoUnorderedDistinctOn and is valid because an
+# unordered DistinctOn can choose any row from each group, so filtering before
+# or after the grouping produces equivalent results.
+#
+# This rule aids decorrelation by moving correlated filters to a position where
+# TryDecorrelateSelect can handle them, avoiding the more expensive
+# TryDecorrelateGroupBy transformation that requires EnsureKey and additional
+# ConstAgg columns.
+#
+# Uncorrelated filters remain inside the DistinctOn for early filtering. If a
+# correlated filter references an input column that is not already in the
+# DistinctOn's output, a FirstAgg aggregation is added for that column so
+# it becomes available above the DistinctOn.
+#
+# Example:
+#   DistinctOn(Select(input, [s = outer.s, i > 0]), aggs, priv)
+#   =>
+#   Select(DistinctOn(Select(input, [i > 0]), aggs', priv), [s = outer.s])
+#   (where aggs' = aggs + FirstAgg(s) if s was not already projected)
+[HoistSelectAboveUnorderedDistinctOn, Normalize]
+(DistinctOn
+    (Select $input:* $filters:*)
+    $aggregations:*
+    $groupingPrivate:* &
+        (IsUnorderedGrouping $groupingPrivate) &
+        (CanHoistCorrelatedFiltersAbove
+            $filters
+            (OutputCols $input)
+        )
+)
+=>
+(Select
+    (DistinctOn
+        (Select
+            $input
+            (ExtractBoundConditions $filters (OutputCols $input))
+        )
+        (AddFirstAggsForHoistedFilters
+            $aggregations
+            $filters
+            (OutputCols $input)
+            (GroupingOutputCols $groupingPrivate $aggregations)
+        )
+        $groupingPrivate
+    )
+    (ExtractUnboundConditions $filters (OutputCols $input))
+)
+```
+- Attempts used: 22
+- Last updated: 2026-09-27T00:26:40.598455+00:00
+- Reason / notes: The encoding faithfully models the declared special case: an identity, unordered DistinctOn (output = grouping keys, no aggregate outputs) is correctly represented as a group-by over all input fields with no aggregate calls, and the single hoisted filter is one uninterpreted predicate over exactly those output columns, moved from below the grouping in `before()` to above it in `after()`. The two sides are structurally distinct (filter inside the aggregate vs. filter outside) and their equivalence is a genuine, non-vacuous fact — a group-constant predicate commutes with an unordered grouping — proven universally over all instantiations of the predicate, with correct symbol sharing and no vacuity, wrong operator, or silently dropped precondition. The PARTIAL scope tag is honest and specific (identity DistinctOn, no FirstAgg synthesis, group-key-only filter), and this is a real, non-degenerate narrowing of the source rule rather than a degenerate or over-constrained encoding.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 60043792}, panicked=False
+
+### `HoistSelectExists` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+HoistSelectExists extracts existential subqueries from Select filters,
+turning them into semi-joins. This eliminates the subquery, which is often
+expensive to execute and restricts the optimizer's plan choices.
+
+This rule is marked as low priority so that it runs after other rules like
+filter pushdown. Hoisting a correlated subquery is an expensive operation that
+can't be undone, so do it only once all other work is complete. For example,
+filter pushdown rules might be able to move the subquery nearer to the input
+to which it's correlated before it's hoisted, making it easier to decorrelate.
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `HoistSelectExists`, not the other rules in that file):
+
+```
+# HoistSelectExists extracts existential subqueries from Select filters,
+# turning them into semi-joins. This eliminates the subquery, which is often
+# expensive to execute and restricts the optimizer's plan choices.
+#
+# This rule is marked as low priority so that it runs after other rules like
+# filter pushdown. Hoisting a correlated subquery is an expensive operation that
+# can't be undone, so do it only once all other work is complete. For example,
+# filter pushdown rules might be able to move the subquery nearer to the input
+# to which it's correlated before it's hoisted, making it easier to decorrelate.
+[HoistSelectExists, Normalize, LowPriority]
+(Select
+    $input:*
+    $filters:[
+        ...
+        $item:* &
+            (HasHoistableSubquery $item) &
+            (FiltersItem (Exists $subquery:*))
+        ...
+    ]
+)
+=>
+(Select
+    (SemiJoinApply $input $subquery [] (EmptyJoinPrivate))
+    (RemoveFiltersItem $filters $item)
+)
+```
+- Attempts used: 44
+- Last updated: 2026-09-26T23:37:25.415167+00:00
+- Reason / notes: The encoding faithfully captures the uncorrelated-special-case of HoistSelectExists: before() is Filter(And(EXISTS(Filter(S,sub_pred)), rest), L) and after() is Filter(rest, L SEMI-join Filter(S,sub_pred) ON true), which is structurally distinct (nested subquery vs. flat semi-join), uses correct uninterpreted symbols for input/subquery/remaining-filters, the SEMI+true correctly models SemiJoinApply with empty condition in the uncorrelated case, and the SCOPE:PARTIAL tag accurately names the one assumption (uncorrelated subquery) that the full rule does not require.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 62616292}, panicked=False
+
+### `HoistSelectNotExists` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+HoistSelectNotExists extracts non-existential subqueries from Select filters,
+turning them into anti-joins. This eliminates the subquery, which is often
+expensive to execute and restricts the optimizer's plan choices.
+
+This rule is marked as low priority for the same reason as HoistSelectExists.
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `HoistSelectNotExists`, not the other rules in that file):
+
+```
+# HoistSelectNotExists extracts non-existential subqueries from Select filters,
+# turning them into anti-joins. This eliminates the subquery, which is often
+# expensive to execute and restricts the optimizer's plan choices.
+#
+# This rule is marked as low priority for the same reason as HoistSelectExists.
+[HoistSelectNotExists, Normalize, LowPriority]
+(Select
+    $input:*
+    $filters:[
+        ...
+        $item:* &
+            (HasHoistableSubquery $item) &
+            (FiltersItem (Not (Exists $subquery:*)))
+        ...
+    ]
+)
+=>
+(Select
+    (AntiJoinApply $input $subquery [] (EmptyJoinPrivate))
+    (RemoveFiltersItem $filters $item)
+)
+```
+- Attempts used: 25
+- Last updated: 2026-09-26T23:49:20.124365+00:00
+- Reason / notes: The encoding faithfully captures the uncorrelated NOT EXISTS → ANTI-join rewrite: before() is σ_{¬EXISTS(σ_{sub_pred}(S)) ∧ rest}(L) and after() is σ_{rest}(L ⋈_{ANTI,true} σ_{sub_pred}(S)), which are bag-equivalent because the uncorrelated EXISTS is a constant per row of L; the fixed subquery shape (Filter over a single-column Scan) and single `rest` predicate do not narrow the semantic content (QED treats them as arbitrary uninterpreted relations/conjunctions), and the SCOPE tag accurately identifies the one genuine restriction—uncorrelated subquery, hence constant-true anti-join condition—which is a real DSL limitation since RuleScript's RexRN has no mechanism to embed a correlated EXISTS subquery inside a filter predicate. ```
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 74303917}, panicked=False
+
+### `HoistUnboundFilterFromExistsSubquery` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+HoistUnboundFilterFromExistsSubquery pulls a filter condition out of an
+Exists subquery if the filter condition only depends on columns from the
+outer query. This is useful because it allows other optimization rules to
+apply to the filter which was previously hidden inside the subquery.
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `HoistUnboundFilterFromExistsSubquery`, not the other rules in that file):
+
+```
+# HoistUnboundFilterFromExistsSubquery pulls a filter condition out of an
+# Exists subquery if the filter condition only depends on columns from the
+# outer query. This is useful because it allows other optimization rules to
+# apply to the filter which was previously hidden inside the subquery.
+[HoistUnboundFilterFromExistsSubquery, Normalize]
+(Select
+    $input:* & (CanHoistUnboundFilterFromExistsSubquery)
+    $filters:[
+        ...
+        $item:(FiltersItem
+            (Exists
+                (Select
+                    $innerInput:*
+                    $innerFilters:[
+                        ...
+                        $innerItem:(FiltersItem $unboundCond:*) &
+                            (IsBoundBy
+                                $innerItem
+                                $inputCols:(OutputCols $input)
+                            )
+                        ...
+                    ]
+                )
+                $existsPrivate:*
+            )
+        )
+        ...
+    ]
+)
+=>
+(Select
+    $input
+    (AppendFiltersItem
+        (ReplaceFiltersItem
+            $filters
+            $item
+            (Exists
+                (Select
+                    $innerInput
+                    (RemoveFiltersItem $innerFilters $innerItem)
+                )
+                $existsPrivate
+            )
+        )
+        $unboundCond
+    )
+)
+```
+- Attempts used: 40
+- Last updated: 2026-09-27T03:09:34.695765+00:00
+- Reason / notes: Manually investigated by Claude (the automated run exhausted both pool attempts). Reused the custom local Exists RexRN (RexSubQuery.exists, no shared DSL changes) from EliminateExistsProject/EliminateExistsZeroRows. The rule pulls a filter conjunct out of an EXISTS subquery's own filter list when that conjunct doesn't depend on the subquery's own columns (only on the outer row) — a standard sound identity: EXISTS(sigma_{c AND phi}(R)) == c AND EXISTS(sigma_phi(R)) for any c independent of R's rows, since if c is false both sides are false (LHS: c false makes every row's filter false regardless of phi, so R's filtered set is empty), and if c is true both sides reduce to EXISTS(sigma_phi(R)). Modeled the outer-bound condition c as a global (0-ary) boolean symbol — the same symbol appearing in the subquery's filter (before) and pulled out to the outer filter (after) — rather than a genuinely correlated reference into the outer row (RuleScript has no correlated-EXISTS-subquery construct), which is a faithful narrower instance since the identity holds for ANY c independent of the inner relation, regardless of what c itself depends on. QED proves this with real SMT engagement. Verified non-vacuous with a negative control: dropping the pulled-out conjunct from after() correctly breaks the proof (provable=false).
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 23897833}, panicked=False
+
+### `HoistUnboundJoinFilterFromExistsSubquery` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+HoistUnboundJoinFilterFromExistsSubquery is similar to
+HoistUnboundFilterFromExistsSubquery, but it applies to a join filter.
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `HoistUnboundJoinFilterFromExistsSubquery`, not the other rules in that file):
+
+```
+# HoistUnboundJoinFilterFromExistsSubquery is similar to
+# HoistUnboundFilterFromExistsSubquery, but it applies to a join filter.
+[HoistUnboundJoinFilterFromExistsSubquery, Normalize]
+(Select
+    $input:* & (CanHoistUnboundFilterFromExistsSubquery)
+    $filters:[
+        ...
+        $item:(FiltersItem
+            (Exists
+                $join:(InnerJoin | InnerJoinApply | SemiJoin
+                        | SemiJoinApply
+                    $left:*
+                    $right:*
+                    $joinFilters:[
+                        ...
+                        $innerItem:(FiltersItem $unboundCond:*) &
+                            (IsBoundBy
+                                $innerItem
+                                $inputCols:(OutputCols $input)
+                            )
+                        ...
+                    ]
+                    $joinPrivate:*
+                )
+                $existsPrivate:*
+            )
+        )
+        ...
+    ]
+)
+=>
+(Select
+    $input
+    (AppendFiltersItem
+        (ReplaceFiltersItem
+            $filters
+            $item
+            (Exists
+                ((OpName $join)
+                    $left
+                    $right
+                    (RemoveFiltersItem $joinFilters $innerItem)
+                    $joinPrivate
+                )
+                $existsPrivate
+            )
+        )
+        $unboundCond
+    )
+)
+```
+- Attempts used: 40
+- Last updated: 2026-09-27T03:10:26.970367+00:00
+- Reason / notes: Manually investigated by Claude (the automated run exhausted both pool attempts). Same identity and technique as HoistUnboundFilterFromExistsSubquery, applied to a join's own filter list (inside the EXISTS subquery) instead of a plain Select's: EXISTS(Join(L, R, c AND phi)) == EXISTS(Join(L, R, phi)) AND c, for c independent of L/R's rows (modeled as a global 0-ary boolean symbol, same faithful-narrower-instance rationale as the sibling rule — the identity holds for any c independent of the inner join, regardless of what c itself depends on). Reused the custom local Exists RexRN (no shared DSL changes). QED proves this with real SMT engagement; verified non-vacuous with a negative control (dropping the pulled-out conjunct from after() correctly breaks the proof).
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 28015416}, panicked=False
+
+### `InlineConstVar` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/inline.opt
+
+InlineConstVar inlines variables which are restricted to be constant, as in
+SELECT * FROM foo WHERE a = 4 AND a IN (1, 2, 3, 4).
+=>
+SELECT * FROM foo WHERE a = 4 AND 4 IN (1, 2, 3, 4).
+Note that a single iteration of this rule might not be sufficient to inline
+all variables, in which case it will trigger itself again.
+
+This rule is high priority so that it runs before filter pushdown.
+
+Extracted from `inline.opt` (which defines multiple rules — implement specifically `InlineConstVar`, not the other rules in that file):
+
+```
+# InlineConstVar inlines variables which are restricted to be constant, as in
+#   SELECT * FROM foo WHERE a = 4 AND a IN (1, 2, 3, 4).
+# =>
+#   SELECT * FROM foo WHERE a = 4 AND 4 IN (1, 2, 3, 4).
+# Note that a single iteration of this rule might not be sufficient to inline
+# all variables, in which case it will trigger itself again.
+#
+# This rule is high priority so that it runs before filter pushdown.
+[InlineConstVar, Normalize, HighPriority]
+(Select $input:* $filters:* & (CanInlineConstVar $filters))
+=>
+(Select $input (InlineConstVar $filters))
+```
+- Attempts used: 46
+- Last updated: 2026-09-27T04:25:24.931761+00:00
+- Reason / notes: The proof is non-vacuous and not coincidental: `before()` and `after()` are structurally distinct (same uninterpreted predicate `f` applied to join field 0 vs field 1), and the equivalence genuinely depends on the concrete `EQUALS` join condition `a = c` plus congruence — with an uninterpreted equality symbol it would not prove, so the porter made exactly the right symbol choices. Modeling "a variable restricted to a constant c" as an INNER join against a unique single-column relation is semantically equivalent to the real rule's conjunct-based premise (`Join_{a=c}` ≡ cross-join filtered by `a = c`), so the relational shape faithfully reproduces the source rule's example modulo tagging rows with the constant — a reasonable workaround given the DSL exposes no typed constant literals (only boolean literals in `RexRN`). The narrowing to one variable/one conjunct/one occurrence is a genuine, specific, and honestly disclosed special case that captures precisely the single-substitution step the original rule applies (and re-triggers) on, so the `PARTIAL` scope tag is accurate and the result is a useful, non-degenerate lemma rather than a vacuous identity.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 80385791}, panicked=False
+
+### `InlineJoinConstantsLeft` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/inline.opt
+
+InlineJoinConstantsLeft finds variable references in a join condition that
+refers to constant values projected by the left input. It then inlines those
+constant values in place of the corresponding variable references. This
+sometimes allows further simplifications such as constant folding or filter
+pushdown.
+
+Extracted from `inline.opt` (which defines multiple rules — implement specifically `InlineJoinConstantsLeft`, not the other rules in that file):
+
+```
+# InlineJoinConstantsLeft finds variable references in a join condition that
+# refers to constant values projected by the left input. It then inlines those
+# constant values in place of the corresponding variable references. This
+# sometimes allows further simplifications such as constant folding or filter
+# pushdown.
+[InlineJoinConstantsLeft, Normalize]
+(Join
+    $left:* &
+        ^(ColsAreEmpty $constCols:(FindInlinableConstants $left))
+    $right:*
+    $on:[
+        ...
+        $item:* & (ColsIntersect (OuterCols $item) $constCols)
+        ...
+    ]
+    $private:* & (NoJoinHints $private)
+)
+=>
+((OpName)
+    $left
+    $right
+    (InlineFilterConstants $on $left $constCols)
+    $private
+)
+```
+- Attempts used: 24
+- Last updated: 2026-09-27T05:33:40.063791+00:00
+- Reason / notes: The encoding faithfully captures the rule's semantic essence — the original's inlinable constant column maps to `a`, the inlined-to constant value (a literal the DSL can't express) maps to `c` of a unique 1-row relation, `a = c` is enforced by the INNER join that builds the left input, and the single uninterpreted conjunct `H(a, r)` is rewritten to `H(c, r)`, which is exactly the original's "substitute the constant value for the constant-column reference in the ON condition." `before()` and `after()` genuinely differ (field 0 vs field 1), the `a = c` constraint is load-bearing so the equivalence is non-vacuous, `H` and the three scans are shared/independent correctly, and INNER is a valid instance of the rule's join; the flagged PARTIAL scope (constant realized via a join-with-unique-rel, one conjunct, one occurrence, INNER) is a genuine DSL limitation — the language has no typed constant literals and no way to assert that an opaque column is constant — so this is an honest, non-degenerate special case rather than a vacuous or unsound one.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 72319375}, panicked=False
+
+### `InlineJoinConstantsRight` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/inline.opt
+
+InlineJoinConstantsRight finds variable references in a join condition that
+refers to constant values projected by the right input. It then inlines those
+constant values in place of the corresponding variable references. This
+sometimes allows further simplifications such as constant folding or filter
+pushdown.
+
+Extracted from `inline.opt` (which defines multiple rules — implement specifically `InlineJoinConstantsRight`, not the other rules in that file):
+
+```
+# InlineJoinConstantsRight finds variable references in a join condition that
+# refers to constant values projected by the right input. It then inlines those
+# constant values in place of the corresponding variable references. This
+# sometimes allows further simplifications such as constant folding or filter
+# pushdown.
+[InlineJoinConstantsRight, Normalize]
+(Join
+    $left:*
+    $right:* &
+        ^(ColsAreEmpty
+            $constCols:(FindInlinableConstants $right)
+        )
+    $on:[
+        ...
+        $item:* & (ColsIntersect (OuterCols $item) $constCols)
+        ...
+    ]
+    $private:* & (NoJoinHints $private)
+)
+=>
+((OpName)
+    $left
+    $right
+    (InlineFilterConstants $on $right $constCols)
+    $private
+)
+```
+- Attempts used: 5
+- Last updated: 2026-09-27T05:45:30.280643+00:00
+- Reason / notes: The encoding is non-trivial and faithful: `before()` references right-input column 0 (`r`) in the join condition while `after()` references column 2 (`c`), and QED must genuinely derive their equality from the inner join's `r = c` constraint on the right input — this is a real semantic consequence, not a structural identity. The porter correctly preserves the original rule's structure (same inputs, same join kind, only the condition's column reference changes), uses an uninterpreted `H` for the join predicate (matching the rule's arbitrary `$on`), models the constant via a unique single-column relation (a sound proxy for a literal since the DSL lacks typed constants), and honestly tags the scope as PARTIAL with specific, concrete restrictions (INNER join only, single conjunct, one occurrence, concrete EQUALS for the constant-enforcing inner join).
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 20083000}, panicked=False
+
+### `InlineProjectConstants` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/inline.opt
+
+InlineProjectConstants finds variable references in Projections expressions
+that refer to constant input values, and then inlines those constant values
+in place of the corresponding variable references. This sometimes allows
+further simplifications such as constant folding or Project merging.
+
+Extracted from `inline.opt` (which defines multiple rules — implement specifically `InlineProjectConstants`, not the other rules in that file):
+
+```
+# InlineProjectConstants finds variable references in Projections expressions
+# that refer to constant input values, and then inlines those constant values
+# in place of the corresponding variable references. This sometimes allows
+# further simplifications such as constant folding or Project merging.
+[InlineProjectConstants, Normalize]
+(Project
+    $input:* &
+        ^(ColsAreEmpty
+            $constCols:(FindInlinableConstants $input)
+        )
+    $projections:[
+        ...
+        $item:* & (ColsIntersect (OuterCols $item) $constCols)
+        ...
+    ]
+    $passthrough:*
+)
+=>
+(Project
+    $input
+    (InlineProjectionConstants $projections $input $constCols)
+    $passthrough
+)
+```
+- Attempts used: 21
+- Last updated: 2026-09-27T06:04:37.519915+00:00
+- Reason / notes: The encoding faithfully captures `InlineProjectConstants`' core shape — a `Project` whose input carries an inlinable constant column, with one projection item's reference to that column swapped for the constant — and the rewrite is non-vacuous (over the shared inner-equality join `a=c`, projecting `f(a)` vs `f(c)` differ structurally and are equal only because the join forces `a=c`, so the proof is of a real rewrite, not an identity). It uses the correct relational operator (inlining inside a projection, not the filter-based sibling rules), correctly shares the uninterpreted function `f` and the join across both sides while keeping `a`/`c` as distinct join fields, and encodes the inlinable-constant precondition via the concrete `EQUALS` condition, which is the rule's defining premise rather than an arbitrary hard-coded predicate. The narrowing (the constant modeled as a unique single-column relation joined by equality because the DSL has no typed literals) is specific, genuine, and honestly tagged `SCOPE: PARTIAL`, yielding a useful, non-degenerate result.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 10614958}, panicked=False
+
+### `InlineProjectInProject` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/inline.opt
+
+InlineProjectInProject folds an inner Project operator into an outer Project
+that references each inner synthesized column no more than one time. If there
+are no duplicate references, then there's no benefit to keeping the multiple
+nested projections. This rule simplifies the relational expression tree and
+makes it more likely that other normalization rules will match.
+
+This rule is low priority so that it runs after the MergeProjects rule, since
+that rule is cheaper to match and replace.
+
+Example:
+SELECT x2*2 FROM (SELECT x+1 AS x2 FROM xy)
+=>
+SELECT (x+1)*2 FROM xy
+
+Extracted from `inline.opt` (which defines multiple rules — implement specifically `InlineProjectInProject`, not the other rules in that file):
+
+```
+# InlineProjectInProject folds an inner Project operator into an outer Project
+# that references each inner synthesized column no more than one time. If there
+# are no duplicate references, then there's no benefit to keeping the multiple
+# nested projections. This rule simplifies the relational expression tree and
+# makes it more likely that other normalization rules will match.
+#
+# This rule is low priority so that it runs after the MergeProjects rule, since
+# that rule is cheaper to match and replace.
+#
+# Example:
+#   SELECT x2*2 FROM (SELECT x+1 AS x2 FROM xy)
+#   =>
+#   SELECT (x+1)*2 FROM xy
+#
+[InlineProjectInProject, Normalize, LowPriority]
+(Project
+    $input:(Project * $innerProjections:*)
+    $projections:*
+    $passthrough:* &
+        ^(HasDuplicateRefs
+            $projections
+            $passthrough
+            (ProjectionCols $innerProjections)
+        )
+)
+=>
+(InlineProjectProject $input $projections $passthrough)
+```
+- Attempts used: 24
+- Last updated: 2026-09-27T05:59:25.588963+00:00
+- Reason / notes: The encoding faithfully captures the rule's semantic core — flattening `Project(Project(Source, F(x)), [T(F(x)), F(x)])` into `Project(Source, [T(F(x)), F(x)])` — with `F` and `T` fully uninterpreted and correctly shared between both sides (the equivalence only holds because the same operator symbols are reused, so the proof is non-vacuous and not a structural-identity artifact), and it exercises both substitution paths the real rule performs (a computed outer expression and a passthrough reference to the inner synthesized column). The source rule's `HasDuplicateRefs` guard is a cost-based matching criterion (avoid computing an expression twice), not a bag-semantic precondition, so its absence from the encoding — the encoded instance even references the inner column twice — does not change the validity claim; if anything the proved instance is a semantically stronger claim than the guarded one, and the `SCOPE: PARTIAL` line honestly and specifically discloses the fixed 1-inner-column / 1-computed / 1-passthrough arity rather than claiming full generality.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 103167}, panicked=False
+
+### `InlineSelectConstants` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/inline.opt
+
+InlineSelectConstants finds variable references in Filters expressions that
+refer to constant input values, and then inlines those constant values in
+place of the corresponding variable references. This sometimes allows further
+simplifications such as constant folding or generation of constrained scans.
+
+Extracted from `inline.opt` (which defines multiple rules — implement specifically `InlineSelectConstants`, not the other rules in that file):
+
+```
+# InlineSelectConstants finds variable references in Filters expressions that
+# refer to constant input values, and then inlines those constant values in
+# place of the corresponding variable references. This sometimes allows further
+# simplifications such as constant folding or generation of constrained scans.
+[InlineSelectConstants, Normalize]
+(Select
+    $input:* &
+        ^(ColsAreEmpty
+            $constCols:(FindInlinableConstants $input)
+        )
+    $filters:[
+        ...
+        $item:* & (ColsIntersect (OuterCols $item) $constCols)
+        ...
+    ]
+)
+=>
+(Select
+    $input
+    (InlineFilterConstants $filters $input $constCols)
+)
+```
+- Attempts used: 49
+- Last updated: 2026-09-27T07:05:22.420732+00:00
+- Reason / notes: The encoding is non-vacuous and faithful: before() filters on field 0 (`a`) and after() on field 1 (`c`), which are distinct columns whose equivalence follows solely from the INNER join condition `a = c`, so the proof captures exactly the rule's core soundness claim — substituting an equal constant value for a column reference inside a filter predicate — with the constant legitimately modeled as a unique single-column relation joined by concrete EQUALS since the DSL lacks typed constant literals. The uninterpreted predicate `g` is correctly shared across both sides (inlining changes the referenced column, not the predicate), the symbol sharing between the join condition and the filter references is semantically right (same physical columns), and no missing precondition changes the claim (the join invariant `a = c` on every input row is precisely what inlining requires, and the original's "inlinable constant" case is a special case of it). The `SCOPE: PARTIAL` line is honest and specific: it narrows to one uninterpreted filter item with one occurrence of one argument and one constant column, which is a genuine, non-degenerate special case of CockroachDB's `InlineSelectConstants` rather than a structural identity. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 67750542}, panicked=False
+
+### `InlineSelectVirtualColumns` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/inline.opt
+
+InlineSelectVirtualColumns pushes Select filters referencing virtual columns
+into a Project by inlining the virtual column expressions. This makes the
+Select independent of the Project. Because these filters are pushed below the
+Project, exploration rules that match on the (Select (Scan)) pattern can
+generate plans that use indexes on virtual columns.
+
+Filters on non-virtual projected columns are not inlined because the
+expression would be executed twice (once in the filter and once in the
+projection), adding overhead without any chance of a secondary index on a
+virtual column being used in the optimized plan.
+
+Notice that this rule is similar to PushSelectIntoInlinableProject. The key
+difference is that PushSelectIntoInlinableProject only inlines simple
+expressions that will add negligible overhead when computing twice.
+Conversely, InlineSelectVirtualColumns does not discriminate by the type of
+expression. It will inline all virtual columns in the hopes that inlining will
+lead to a query plan that uses a virtual column index.
+
+Also, PushSelectIntoInlinableProject will inline filters if and only if all of
+the filter items are inlinable (by its definition), whereas
+InlineSelectVirtualColumns will split the input filters into two groups: one
+to inline below the Project, and one to leave above the Project. This allows
+filters on virtual columns to be pushed down in more cases.
+
+For example, consider the table and query:
+
+CREATE TABLE t (
+a INT,
+b INT,
+v INT AS (abs(a)) VIRTUAL,
+INDEX (v)
+)
+SELECT v, w FROM (
+SELECT v, abs(b) AS w FROM t
+) WHERE v = 5 AND w = 10
+
+The partially normalized expression for the SELECT query before
+InlineSelectVirtualColumns is applied is:
+
+select
+├── columns: v:3 w:6
+├── project
+│    ├── columns: w:6 v:3
+│    ├── scan t
+│    │    └── columns: a:1 b:2
+│    └── projections
+│         ├── abs(b:2) [as=w:6]
+│         └── abs(a:1) [as=v:3]
+└── filters
+├── v:3 = 5
+└── w:6 = 10
+
+InlineSelectVirtualColumns will push only the (v = 5) filter below the Project
+as (abs(a) = 5) because v is a virtual column. The (w = 10) filter remains
+above the Project. Notice the (Select (Scan)) pattern that will allow a
+constrained scan over the secondary index to be generated.
+
+select
+├── columns: v:3 w:6
+├── project
+│    ├── columns: w:6 v:3
+│    ├── select
+│    │    ├── columns: a:1 b:2
+│    │    ├── scan t
+│    │    │    └── columns: a:1 b:2
+│    │    └── filters
+│    │         └── abs(a:1) = 5
+│    └── projections
+│         ├── abs(b:2) [as=w:6]
+│         └── abs(a:1) [as=v:3]
+└── filters
+└── w:6 = 10
+
+This rule has no explicit priority so that it runs before
+PushSelectIntoInlinableProject (which is low priority). It must run before
+PushSelectIntoInlinableProject in order to match the (Select (Project (Scan)))
+pattern which is produced by optbuilder for a filter on a table with virtual
+columns.
+
+Extracted from `inline.opt` (which defines multiple rules — implement specifically `InlineSelectVirtualColumns`, not the other rules in that file):
+
+```
+# InlineSelectVirtualColumns pushes Select filters referencing virtual columns
+# into a Project by inlining the virtual column expressions. This makes the
+# Select independent of the Project. Because these filters are pushed below the
+# Project, exploration rules that match on the (Select (Scan)) pattern can
+# generate plans that use indexes on virtual columns.
+#
+# Filters on non-virtual projected columns are not inlined because the
+# expression would be executed twice (once in the filter and once in the
+# projection), adding overhead without any chance of a secondary index on a
+# virtual column being used in the optimized plan.
+#
+# Notice that this rule is similar to PushSelectIntoInlinableProject. The key
+# difference is that PushSelectIntoInlinableProject only inlines simple
+# expressions that will add negligible overhead when computing twice.
+# Conversely, InlineSelectVirtualColumns does not discriminate by the type of
+# expression. It will inline all virtual columns in the hopes that inlining will
+# lead to a query plan that uses a virtual column index.
+#
+# Also, PushSelectIntoInlinableProject will inline filters if and only if all of
+# the filter items are inlinable (by its definition), whereas
+# InlineSelectVirtualColumns will split the input filters into two groups: one
+# to inline below the Project, and one to leave above the Project. This allows
+# filters on virtual columns to be pushed down in more cases.
+#
+# For example, consider the table and query:
+#
+#   CREATE TABLE t (
+#     a INT,
+#     b INT,
+#     v INT AS (abs(a)) VIRTUAL,
+#     INDEX (v)
+#   )
+#   SELECT v, w FROM (
+#     SELECT v, abs(b) AS w FROM t
+#   ) WHERE v = 5 AND w = 10
+#
+# The partially normalized expression for the SELECT query before
+# InlineSelectVirtualColumns is applied is:
+#
+#   select
+#    ├── columns: v:3 w:6
+#    ├── project
+#    │    ├── columns: w:6 v:3
+#    │    ├── scan t
+#    │    │    └── columns: a:1 b:2
+#    │    └── projections
+#    │         ├── abs(b:2) [as=w:6]
+#    │         └── abs(a:1) [as=v:3]
+#    └── filters
+#         ├── v:3 = 5
+#         └── w:6 = 10
+#
+# InlineSelectVirtualColumns will push only the (v = 5) filter below the Project
+# as (abs(a) = 5) because v is a virtual column. The (w = 10) filter remains
+# above the Project. Notice the (Select (Scan)) pattern that will allow a
+# constrained scan over the secondary index to be generated.
+#
+#   select
+#    ├── columns: v:3 w:6
+#    ├── project
+#    │    ├── columns: w:6 v:3
+#    │    ├── select
+#    │    │    ├── columns: a:1 b:2
+#    │    │    ├── scan t
+#    │    │    │    └── columns: a:1 b:2
+#    │    │    └── filters
+#    │    │         └── abs(a:1) = 5
+#    │    └── projections
+#    │         ├── abs(b:2) [as=w:6]
+#    │         └── abs(a:1) [as=v:3]
+#    └── filters
+#         └── w:6 = 10
+#
+# This rule has no explicit priority so that it runs before
+# PushSelectIntoInlinableProject (which is low priority). It must run before
+# PushSelectIntoInlinableProject in order to match the (Select (Project (Scan)))
+# pattern which is produced by optbuilder for a filter on a table with virtual
+# columns.
+[InlineSelectVirtualColumns, Normalize]
+(Select
+    (Project
+        $scan:(Scan $scanPrivate:*)
+        $projections:*
+        $passthrough:*
+    )
+    $filters:* &
+        ^(ColsAreEmpty
+            $virtualColumns:(VirtualColumns $scanPrivate)
+        ) &
+        ^(IsFilterEmpty
+            $inlinableFilters:(InlinableVirtualColumnFilters
+                $filters
+                $virtualColumns
+            )
+        )
+)
+=>
+(Select
+    (Project
+        (Select
+            $scan
+            (InlineSelectProject $inlinableFilters $projections)
+        )
+        $projections
+        $passthrough
+    )
+    (DiffFilters $filters $inlinableFilters)
+)
+```
+- Attempts used: 26
+- Last updated: 2026-09-27T06:34:35.819791+00:00
+- Reason / notes: The encoding faithfully mirrors the rule's actual transformation — before() is `Filter(P(v)∧Q(w), Project(F,G,a,b, Scan))` and after() pushes only the virtual-column filter as `P(F(a,b))` (now referencing solely scan columns) below the Project while keeping the non-virtual filter `Q(G(a,b))` above, exactly what InlineSelectVirtualColumns does; predicates P/Q and expressions F/G are all uninterpreted, and the inlined filter correctly reuses the same symbol P on the defining expression as it did on the virtual column, so the equivalence is non-vacuous rather than structurally identical. The scope is honestly and specifically declared PARTIAL (fixed to one virtual + one non-virtual synthesized + two passthrough columns, one inlinable and one non-inlinable filter, with the Optgen ColsAreEmpty/IsFilterEmpty guards omitted as non-bag-semantic preconditions), a genuine non-degenerate special case whose before/after genuinely differ.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 67466750}, panicked=False
+
+### `LeftAssociateJoinsLeft` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/join.opt
+
+LeftAssociateJoinsLeft reorders InnerJoins so that join filters can be brought
+closer to the relations they reference. This in done in hopes of allowing
+other rules (for example, limit push-down) to fire. It also has the effect of
+pushing cross joins up the operator tree. LeftAssociateJoinsLeft matches when
+the following conditions are true:
+1. The inside InnerJoin is the left input of the outside InnerJoin.
+2. The outside InnerJoin's ON condition has an equality between the right input
+of the outside InnerJoin and the left input of the inside InnerJoin.
+3. The inside InnerJoin's ON condition is empty.
+
+The transformation:
+
+SELECT * FROM (SELECT * FROM xy INNER JOIN uv ON True)
+INNER JOIN ab
+ON a=x AND b=u
+=>
+SELECT * FROM uv
+INNER JOIN (SELECT * FROM xy INNER JOIN ab ON a=x)
+ON b=u
+
+In this example, neither of the filters in the original query could be pushed
+down because they both reference ab. With the joins reordered, the a=x filter
+can be pushed down closer to xy.
+
+There are three variants of LeftAssociateJoinsLeft below this rule definition.
+
+In the worst case scenario, LeftAssociateJoinsLeft and its variants will
+be fired (n^2)/4 times, where n is the number of joins in the join tree.
+
+LeftAssociateJoinsLeft and its variants are LowPriority so that other rules
+(such as filter push-down) have a chance to fire first.
+
+Extracted from `join.opt` (which defines multiple rules — implement specifically `LeftAssociateJoinsLeft`, not the other rules in that file):
+
+```
+# LeftAssociateJoinsLeft reorders InnerJoins so that join filters can be brought
+# closer to the relations they reference. This in done in hopes of allowing
+# other rules (for example, limit push-down) to fire. It also has the effect of
+# pushing cross joins up the operator tree. LeftAssociateJoinsLeft matches when
+# the following conditions are true:
+# 1. The inside InnerJoin is the left input of the outside InnerJoin.
+# 2. The outside InnerJoin's ON condition has an equality between the right input
+#    of the outside InnerJoin and the left input of the inside InnerJoin.
+# 3. The inside InnerJoin's ON condition is empty.
+#
+# The transformation:
+#
+#   SELECT * FROM (SELECT * FROM xy INNER JOIN uv ON True)
+#   INNER JOIN ab
+#   ON a=x AND b=u
+# =>
+#   SELECT * FROM uv
+#   INNER JOIN (SELECT * FROM xy INNER JOIN ab ON a=x)
+#   ON b=u
+#
+# In this example, neither of the filters in the original query could be pushed
+# down because they both reference ab. With the joins reordered, the a=x filter
+# can be pushed down closer to xy.
+#
+# There are three variants of LeftAssociateJoinsLeft below this rule definition.
+#
+# In the worst case scenario, LeftAssociateJoinsLeft and its variants will
+# be fired (n^2)/4 times, where n is the number of joins in the join tree.
+#
+# LeftAssociateJoinsLeft and its variants are LowPriority so that other rules
+# (such as filter push-down) have a chance to fire first.
+[LeftAssociateJoinsLeft, Normalize, LowPriority]
+(InnerJoin
+    (InnerJoin
+        $insideLeft:*
+        $insideRight:*
+        []
+        $insidePrivate:* & (NoJoinHints $insidePrivate)
+    )
+    $outsideRight:*
+    $outsideOn:[
+        ...
+        $item:* &
+            (IsBoundBy
+                $item
+                $cols:(OutputCols2 $insideLeft $outsideRight)
+            )
+        ...
+    ]
+    $outsidePrivate:* & (NoJoinHints $outsidePrivate)
+)
+=>
+(InnerJoin
+    $insideRight
+    (InnerJoin
+        $insideLeft
+        $outsideRight
+        (ExtractBoundConditions $outsideOn $cols)
+        (EmptyJoinPrivate)
+    )
+    (ExtractUnboundConditions $outsideOn $cols)
+    (EmptyJoinPrivate)
+)
+```
+- Attempts used: 23
+- Last updated: 2026-09-27T07:21:54.446339+00:00
+- Reason / notes: The encoding faithfully captures the core algebraic identity of LeftAssociateJoinsLeft — reassociating ((A×B) ⋈_{P(A,C)∧Q(B,C)} C) into B ⋈_{Q(B,C)} (A ⋈_{P(A,C)} C) up to column reordering — with correct inner-join kinds, a true-literal cross join for the empty inner ON, properly shared uninterpreted predicates (bound over (A,C), unbound over (B,C)) whose argument positions are consistently mapped across both sides, and a projection to equalize output column order. The SCOPE line honestly flags the main narrowing (fixed two-conjunct ON with unbound restricted to (B,C) rather than the fully general ExtractBound/Unbound split which could also reference A in the unbound conjunct), and the proof is non-vacuous since before and after are structurally distinct join trees whose equivalence is a genuine universal algebraic identity over arbitrary instantiations of the uninterpreted symbols. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 70874625}, panicked=False
+
+### `LeftAssociateJoinsRight` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/join.opt
+
+LeftAssociateJoinsRight is a variant on LeftAssociateJoinsLeft.
+The transformation:
+
+SELECT * FROM (SELECT * FROM xy INNER JOIN uv ON True)
+INNER JOIN ab
+ON a=x AND b=u
+=>
+SELECT * FROM xy
+INNER JOIN (SELECT * FROM uv INNER JOIN ab ON b=u)
+ON a=x
+
+Extracted from `join.opt` (which defines multiple rules — implement specifically `LeftAssociateJoinsRight`, not the other rules in that file):
+
+```
+# LeftAssociateJoinsRight is a variant on LeftAssociateJoinsLeft.
+# The transformation:
+#
+#   SELECT * FROM (SELECT * FROM xy INNER JOIN uv ON True)
+#   INNER JOIN ab
+#   ON a=x AND b=u
+# =>
+#   SELECT * FROM xy
+#   INNER JOIN (SELECT * FROM uv INNER JOIN ab ON b=u)
+#   ON a=x
+#
+[LeftAssociateJoinsRight, Normalize, LowPriority]
+(InnerJoin
+    (InnerJoin
+        $insideLeft:*
+        $insideRight:*
+        []
+        $insidePrivate:* & (NoJoinHints $insidePrivate)
+    )
+    $outsideRight:*
+    $outsideOn:[
+        ...
+        $item:* &
+            (IsBoundBy
+                $item
+                $cols:(OutputCols2 $insideRight $outsideRight)
+            )
+        ...
+    ]
+    $outsidePrivate:* & (NoJoinHints $outsidePrivate)
+)
+=>
+(InnerJoin
+    $insideLeft
+    (InnerJoin
+        $insideRight
+        $outsideRight
+        (ExtractBoundConditions $outsideOn $cols)
+        (EmptyJoinPrivate)
+    )
+    (ExtractUnboundConditions $outsideOn $cols)
+    (EmptyJoinPrivate)
+)
+```
+- Attempts used: 25
+- Last updated: 2026-09-27T07:37:04.515789+00:00
+- Reason / notes: The encoding faithfully captures the source rule's logical transformation: (A⋈B ON true)⋈C ON (p_ax∧p_bu) reassociates to A⋈(B⋈C ON p_bu) ON p_ax, where p_bu (bound by B,C) is pushed into the new inner join and p_ax (referencing all three) remains at the outer level. The two uninterpreted predicates correctly model the source rule's partition of $outsideOn into ExtractBoundConditions and ExtractUnboundConditions, the join kinds (INNER) and the empty inner condition (true) match the source, and the column contexts in joinField ordinals are consistent across both sides. The only omissions are backend-specific join-hint metadata (NoJoinHints/EmptyJoinPrivate) which have no bearing on logical equivalence and are inexpressible in the DSL, so SCOPE: FULL is appropriate. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 69396084}, panicked=False
+
+### `MapEqualityIntoJoinLeftAndRight` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/join.opt
+
+MapEqualityIntoJoinLeftAndRight checks whether it is possible to map
+equality conditions in a join to use different variables so that the
+number of conditions crossing both sides of a join are minimized. If so,
+the MapEqualityConditions function performs this mapping to construct new
+filters.
+
+For example, consider this query:
+
+SELECT * FROM a, b WHERE a.x = b.x AND b.x = a.y;
+
+As written, both equality conditions contain variables from both sides of
+the join. We can rewrite this query, however, so that only one condition
+spans both sides:
+
+SELECT * FROM a, b WHERE a.x = a.y AND b.x = a.y;
+
+Now the condition a.x = a.y is fully bound by the left side of the join,
+and is available to be pushed down by PushFilterIntoJoinLeft.
+
+See the MapEqualityConditions function for more details.
+
+Extracted from `join.opt` (which defines multiple rules — implement specifically `MapEqualityIntoJoinLeftAndRight`, not the other rules in that file):
+
+```
+# MapEqualityIntoJoinLeftAndRight checks whether it is possible to map
+# equality conditions in a join to use different variables so that the
+# number of conditions crossing both sides of a join are minimized. If so,
+# the MapEqualityConditions function performs this mapping to construct new
+# filters.
+#
+# For example, consider this query:
+#
+#   SELECT * FROM a, b WHERE a.x = b.x AND b.x = a.y;
+#
+# As written, both equality conditions contain variables from both sides of
+# the join. We can rewrite this query, however, so that only one condition
+# spans both sides:
+#
+#   SELECT * FROM a, b WHERE a.x = a.y AND b.x = a.y;
+#
+# Now the condition a.x = a.y is fully bound by the left side of the join,
+# and is available to be pushed down by PushFilterIntoJoinLeft.
+#
+# See the MapEqualityConditions function for more details.
+[MapEqualityIntoJoinLeftAndRight, Normalize]
+(InnerJoin | InnerJoinApply | LeftJoin | LeftJoinApply | SemiJoin
+        | SemiJoinApply | AntiJoin | AntiJoinApply
+    $left:* & ^(HasOuterCols $left)
+    $right:* & ^(HasOuterCols $right)
+    $on:* &
+        (CanMapJoinOpEqualities
+            $on
+            $leftCols:(OutputCols $left)
+            $rightCols:(OutputCols $right)
+        )
+    $private:*
+)
+=>
+((OpName)
+    $left
+    $right
+    (MapJoinOpEqualities $on $leftCols $rightCols)
+    $private
+)
+```
+- Attempts used: 24
+- Last updated: 2026-09-27T07:41:26.624182+00:00
+- Reason / notes: The encoding faithfully captures the rule's core equality-remapping operation for its own documented minimal instance: before() uses the two cross-boundary equalities (a.x=b.x ∧ b.x=a.y) and after() the remapped set (b.x=a.y ∧ a.x=a.y), which are structurally different and whose equivalence (all three columns equal) is a genuine equality-transitivity/symmetry fact QED actually had to prove via real EQUALS (not an uninterpreted symbol, whose equivalence would fail), with the join columns and the shared b.x=a.y condition wired correctly and the base-scan inputs satisfying the rule's no-outer-columns guard. The under-generalization (INNER only, fixed two-equality/three-column shape versus the rule's 8 join kinds and arbitrary MapJoinOpEqualities FD-closure remapping) is forced by RuleScript's single before/after pattern expressiveness rather than laziness, and is honestly flagged SCOPE: PARTIAL, so this is a genuine, non-degenerate special case—not a vacuous or misleading proof. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 69539584}, panicked=False
+
+### `MapFilterIntoJoinLeft` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/join.opt
+
+MapFilterIntoJoinLeft maps a filter that is not bound by the left side of
+the join to use the columns from the left side. This will allow
+the filter to be pushed down by the PushFilterIntoJoinLeft rule.
+For example, consider this query:
+
+SELECT * FROM a INNER JOIN b ON a.x = b.x AND b.x + a.y < 5
+
+In this case, we can map b.x + a.y < 5 to the left side by replacing b.x
+with the equivalent column a.x.
+NOTE: This rule only applies to cases where it is not possible or not safe
+to map the filter to both sides. If it can be mapped to both sides, it
+will be handled by PushFilterIntoJoinLeftAndRight (which must be
+ordered above this rule). For performance reasons, this rule should
+be ordered before PushFilterIntoJoinLeft (otherwise,
+PushFilterIntoJoinLeft might need to be applied multiple times).
+
+Extracted from `join.opt` (which defines multiple rules — implement specifically `MapFilterIntoJoinLeft`, not the other rules in that file):
+
+```
+# MapFilterIntoJoinLeft maps a filter that is not bound by the left side of
+# the join to use the columns from the left side. This will allow
+# the filter to be pushed down by the PushFilterIntoJoinLeft rule.
+# For example, consider this query:
+#
+#   SELECT * FROM a INNER JOIN b ON a.x = b.x AND b.x + a.y < 5
+#
+# In this case, we can map b.x + a.y < 5 to the left side by replacing b.x
+# with the equivalent column a.x.
+# NOTE: This rule only applies to cases where it is not possible or not safe
+#       to map the filter to both sides. If it can be mapped to both sides, it
+#       will be handled by PushFilterIntoJoinLeftAndRight (which must be
+#       ordered above this rule). For performance reasons, this rule should
+#       be ordered before PushFilterIntoJoinLeft (otherwise,
+#       PushFilterIntoJoinLeft might need to be applied multiple times).
+[MapFilterIntoJoinLeft, Normalize]
+(InnerJoin | InnerJoinApply | SemiJoin | SemiJoinApply
+    $left:* & ^(HasOuterCols $left)
+    $right:*
+    $on:[
+        ...
+        $item:* &
+            ^(FiltersItem (Eq (Variable) (Variable))) &
+            ^(IsBoundBy $item $leftCols:(OutputCols $left)) &
+            (CanMapJoinOpFilter
+                $item
+                $leftCols
+                $equivSet:(GetEquivGroups $on $left $right)
+            )
+        ...
+    ]
+    $private:*
+)
+=>
+((OpName)
+    $left
+    $right
+    (ReplaceFiltersItem
+        $on
+        $item
+        (MapJoinOpFilter $item $leftCols $equivSet)
+    )
+    $private
+)
+```
+- Attempts used: 41
+- Last updated: 2026-09-27T08:02:17.883550+00:00
+- Reason / notes: The encoding is a faithful, non-vacuous capture of the rule's core transformation — it reproduces the rule's own documented example (`ON a.x=b.x AND b.x+a.y<5` → `ON a.x=b.x AND a.x+a.y<5`) as an INNER join where a right-bound filter item `g(r0,y)` is rebound to the left key `g(l0,y)` while the equi conjunct is retained; the proof is genuine (not structural) because it hinges on congruence of the shared uninterpreted predicate `g` under the *concrete* `EQUALS` conjunct, which is exactly the semantic content the rule relies on. The field indices, join kind, ON-list shape, and symbol sharing (one shared `g`, distinct l0/y/r0 fields) are all correct, no real semantic precondition (not-left-bound, mappable-via-equality, no outer cols) is silently dropped, and the narrowing to INNER-only with a single equi conjunct and a single 2-ary item is specific, honestly disclosed in the SCOPE line, and largely inherent to what the DSL can express — a legitimate, useful special case rather than a degenerate or misleading one. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 71800916}, panicked=False
+
+### `MapFilterIntoJoinRight` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/join.opt
+
+MapFilterIntoJoinRight is symmetric with MapFilterIntoJoinLeft. It maps
+Join filter conditions to use columns from the right side of the join rather
+than the left side. See that rule's comments for more details.
+
+Extracted from `join.opt` (which defines multiple rules — implement specifically `MapFilterIntoJoinRight`, not the other rules in that file):
+
+```
+# MapFilterIntoJoinRight is symmetric with MapFilterIntoJoinLeft. It maps
+# Join filter conditions to use columns from the right side of the join rather
+# than the left side. See that rule's comments for more details.
+[MapFilterIntoJoinRight, Normalize]
+(InnerJoin | InnerJoinApply | LeftJoin | LeftJoinApply | SemiJoin
+        | SemiJoinApply | AntiJoin | AntiJoinApply
+    $left:*
+    $right:* & ^(HasOuterCols $right)
+    $on:[
+        ...
+        $item:* &
+            ^(FiltersItem (Eq (Variable) (Variable))) &
+            ^(IsBoundBy $item $rightCols:(OutputCols $right)) &
+            (CanMapJoinOpFilter
+                $item
+                $rightCols
+                $equivSet:(GetEquivGroups $on $left $right)
+            )
+        ...
+    ]
+    $private:*
+)
+=>
+((OpName)
+    $left
+    $right
+    (ReplaceFiltersItem
+        $on
+        $item
+        (MapJoinOpFilter $item $rightCols $equivSet)
+    )
+    $private
+)
+```
+- Attempts used: 28
+- Last updated: 2026-09-27T08:09:57.771492+00:00
+- Reason / notes: before() (ON = a.x=b.x ∧ f(a.x)) and after() (ON = a.x=b.x ∧ f(b.x)) are structurally distinct, so the proof is not vacuous — it requires genuine congruence reasoning (under the eq conjunct, f(a.x) ≡ f(b.x)), which is exactly the equivalence-class column remapping that MapFilterIntoJoinRight performs, and the symbol handling is correct: one shared uninterpreted conjunct f, the shared equality kept in place, and two distinct same-type columns. The restriction to INNER join, single equality, and a single one-argument conjunct is real (the source pattern also covers Left/Semi/Anti joins and multi-equality equiv sets), but it is specific, non-degenerate, and honestly tagged on the SCOPE line — and since MetaJoinType desugars to INNER for the prover, no more general single-rule encoding was available. No preconditions are silently missing: the CanMapJoinOpFilter condition is structurally satisfied by the one equality, no unique keys or nullability assumptions were added (unique=false), and the rule's remap is self-contained (the downstream push-down is a separate rule the porter correctly did not conflate).
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 19848750}, panicked=False
+
+### `MergeProjectWithValues` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Merges an outer Project with an inner single-row Values operator.
+- Attempts used: 100
+- Last updated: 2026-09-27T10:24:27.314891+00:00
+- Reason / notes: Directly encoded using RuleBuilder's real Calcite Values-with-literal-content support (RelBuilder.values(fieldNames, values...)) wrapped in a small local RelRN record -- QED's prover core already has a real interpreted Values{schema, content} variant (relation.rs) and JSONSerializer.java already serializes LogicalValues with its actual row content, so this isn't a DSL gap at all, just needed a custom local RelRN to reach the existing Calcite API (same trick class as the Exists RexRN record). Modeled as a representative single-row, 2-column Values with one passthrough column and one input-independent synthesized (literal) column; verified non-vacuous with a negative control (wrong synthesized literal) correctly failing to prove.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 13622833}, panicked=False
+
+### `MergeProjects` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/project.opt
+
+MergeProjects merges an outer Project operator with an inner Project operator
+if there are no references to the inner synthesized columns. This has the
+side effect of pruning unused synthesized columns of the inner Project.
+
+Extracted from `project.opt` (which defines multiple rules — implement specifically `MergeProjects`, not the other rules in that file):
+
+```
+# MergeProjects merges an outer Project operator with an inner Project operator
+# if there are no references to the inner synthesized columns. This has the
+# side effect of pruning unused synthesized columns of the inner Project.
+[MergeProjects, Normalize]
+(Project
+    $input:(Project $innerInput:* $innerProjections:*)
+    $projections:* &
+        (CanMergeProjections $projections $innerProjections)
+    $passthrough:*
+)
+=>
+(Project
+    $innerInput
+    (MergeProjections
+        $projections
+        $innerProjections
+        $passthrough
+    )
+    (DifferenceCols
+        $passthrough
+        (ProjectionCols $innerProjections)
+    )
+)
+```
+- Attempts used: 61
+- Last updated: 2026-09-27T08:42:06.641595+00:00
+- Reason / notes: The encoding faithfully captures the Optgen rule's shape, precondition, and effect: `before` is Project(Project(Source, [passthrough, Bottom(passthrough)]), [Top(passthrough)]) — the outer project references only the inner passthrough column, exactly the `CanMergeProjections` condition — and `after` flattens to a single Project over Source, pruning the inner's unused synthesized column, which is the rule's stated purpose. Nothing that should be symbolic is concretized (Top/Bottom operators and all types are uninterpreted; the passthrough symbol is shared consistently), and `before` and `after` are structurally distinct (an extra project layer and a dead computed column), so the proof is non-vacuous. The only restriction is the one-column arity fixed by the fixed-shape DSL, which is honestly disclosed in the SCOPE line and is a genuine, non-degenerate special case rather than a degenerate or vacuous one.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 99584}, panicked=False
+
+### `MergeSelectInnerJoin` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/select.opt
+
+MergeSelectInnerJoin merges a Select operator with an InnerJoin input by
+AND'ing the filter conditions of each and creating a new InnerJoin with that
+On condition. This is only safe to do with InnerJoin in the general case
+where the conditions could filter either left or right rows. The special case
+where a condition filters only one or the other is already taken care of by
+the PushSelectIntoJoin rules.
+NOTE: Keep this rule ordered before the PushSelectIntoJoin rules to avoid
+missing out on the potential for new filter inference based on
+equivalent columns.
+
+Extracted from `select.opt` (which defines multiple rules — implement specifically `MergeSelectInnerJoin`, not the other rules in that file):
+
+```
+# MergeSelectInnerJoin merges a Select operator with an InnerJoin input by
+# AND'ing the filter conditions of each and creating a new InnerJoin with that
+# On condition. This is only safe to do with InnerJoin in the general case
+# where the conditions could filter either left or right rows. The special case
+# where a condition filters only one or the other is already taken care of by
+# the PushSelectIntoJoin rules.
+# NOTE: Keep this rule ordered before the PushSelectIntoJoin rules to avoid
+#       missing out on the potential for new filter inference based on
+#       equivalent columns.
+[MergeSelectInnerJoin, Normalize]
+(Select
+    $input:(InnerJoin | InnerJoinApply
+        $left:*
+        $right:*
+        $on:*
+        $private:*
+    )
+    $filters:*
+)
+=>
+((OpName $input)
+    $left
+    $right
+    (ConcatFilters $on $filters)
+    $private
+)
+```
+- Attempts used: 21
+- Last updated: 2026-09-27T08:29:08.551392+00:00
+- Reason / notes: The proof is non-vacuous and captures the rule's exact logical core — before() is Filter(F, InnerJoin(L, R, ON)) and after() is InnerJoin(L, R, ON ∧ F), with ON and F as distinct uninterpreted predicates over the full joined (L++R) row, the correct INNER join kind (the source rule is by design restricted to inner joins), and no silently-added preconditions, since Optgen's rule has none either (and abstracting the filter *list* as one uninterpreted predicate is harmless, as the rule's claim is only about relocating the conjunction). The single genuine narrowing — omitting the InnerJoinApply (correlated) variant — is explicitly and specifically tagged in the SCOPE line, is a real limitation of the current DSL (Correlate's right-side filter is one monolithic condition and cannot AND in an independently built predicate without an extension), and leaves a useful, fully general, non-degenerate rule, so the "provable" result is neither vacuous nor misleading.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 68062375}, panicked=False
+
+### `MergeSelects` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/select.opt
+
+MergeSelects combines two nested Select operators into a single Select that
+ANDs the filter conditions of the two Selects.
+
+Extracted from `select.opt` (which defines multiple rules — implement specifically `MergeSelects`, not the other rules in that file):
+
+```
+# MergeSelects combines two nested Select operators into a single Select that
+# ANDs the filter conditions of the two Selects.
+[MergeSelects, Normalize]
+(Select (Select $input:* $innerFilters:*) $filters:*)
+=>
+(Select $input (ConcatFilters $innerFilters $filters))
+```
+- Attempts used: 3
+- Last updated: 2026-09-27T22:05:42.862499+00:00
+- Reason / notes: The encoding faithfully captures MergeSelects: `before()` is two nested filters (inner then outer) and `after()` is a single filter on the AND of the two uninterpreted predicates, which is exactly the source rule `(Select (Select $input $innerFilters) $filters) => (Select $input (ConcatFilters $innerFilters $filters))` since a Select's filter list is semantically the conjunction of its items. The two predicates are independent uninterpreted symbols (no spurious sharing), the input is a single uninterpreted scan (the standard stand-in for "any relation" in this DSL, with the row domain abstracted away so column count is irrelevant to the logical identity), and the source rule has no side conditions, so nothing is missing. SCOPE: FULL is honest — the proof covers arbitrary predicates over arbitrary relations, which subsumes the real rule's "any filter lists" generality. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 66762250}, panicked=False
+
+### `NegateAnd` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/bool.opt
+
+NegateAnd converts the negation of a conjunction into a disjunction of
+negations.
+
+Extracted from `bool.opt` (which defines multiple rules — implement specifically `NegateAnd`, not the other rules in that file):
+
+```
+# NegateAnd converts the negation of a conjunction into a disjunction of
+# negations.
+[NegateAnd, Normalize]
+(Not (And $left:* $right:*))
+=>
+(Or (Not $left) (Not $right))
+```
+- Attempts used: 7
+- Last updated: 2026-09-27T22:06:41.543781+00:00
+- Reason / notes: before() is Filter(¬(P∧Q), Source) and after() is Filter(¬P∨¬Q, Source) over the same scan, with P and Q as distinct uninterpreted predicates — a structurally different, non-vacuous embedding of Optgen's (Not (And l r)) ⇒ (Or (Not l) (Not r)). The filter-over-scan context is the canonical most-general relational host for a boolean rewrite: the proven row-level identity ∀r. ¬(P(r)∧Q(r)) ↔ ¬P(r)∨Q(r) is precisely the scalar rule itself (and De Morgan holds under both 2VL and SQL three-valued logic), so the FULL scope tag is accurate. Nothing is hard-coded, the two predicate symbols are correctly independent (not coincidentally unified), and the source rule carries no preconditions (no keys/NOT-NULL) that the encoding omits. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 349666}, panicked=False
+
 ### `NegateComparison` — ✅ PROVED
 
 - Source backend: CockroachDB
@@ -2636,6 +4378,29 @@ Extracted from `bool.opt` (which defines multiple rules — implement specifical
 - Last updated: 2026-09-25T07:31:01.548614+00:00
 - Reason / notes: The proof is non-vacuous and genuine: `before()` is `Filter(¬(x = y))` vs `after()` `Filter(x <> y)` over the cross-join of two *independent* single-column scans, so x and y are universally quantified independent values and the equivalence (which holds even under null semantics, where both sides share the same three-valued truth table) is a real theorem covering the Eq→Ne instance of the source rule's operator map for all value pairs. Using the concrete `EQUALS`/`NOT_EQUALS` operators is correct here, not hard-coding: the rule's entire content is the semantic link between those two operators, which would be unprovable — and false as stated — with independent uninterpreted predicate symbols, and the filter context is the natural relational home for this expression-level rule in a RelRN-based DSL. There are no symbol-sharing or missing-precondition issues (the source's `CanNegateComparison` guard only excludes JSON/geospatial operators, irrelevant to Eq), and the SCOPE line honestly and specifically discloses the narrowing to one of the 12 operator pairs.
 - QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 363500}, panicked=False
+
+### `NegateOr` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/bool.opt
+
+NegateOr converts the negation of a disjunction into a conjunction of
+negations.
+
+Extracted from `bool.opt` (which defines multiple rules — implement specifically `NegateOr`, not the other rules in that file):
+
+```
+# NegateOr converts the negation of a disjunction into a conjunction of
+# negations.
+[NegateOr, Normalize]
+(Not (Or $left:* $right:*))
+=>
+(And (Not $left) (Not $right))
+```
+- Attempts used: 5
+- Last updated: 2026-09-27T22:07:10.180491+00:00
+- Reason / notes: The encoding faithfully captures NegateOr — `Not(Or(L,R))` ⟹ `And(Not(L),Not(R))` — using two *distinct* uninterpreted predicates (`left`, `right`) over an uninterpreted base table, so `before()` and `after()` are structurally different and the proof is a genuine universal De Morgan proof rather than a vacuous identity. The source rule is a pure scalar rewrite with no preconditions (and the duality holds even under 3-valued null logic), so nothing is missing; the single-column scan + filter wrapper is the DSL's standard idiom for boolean rewrites (as in the FilterMerge example), and since the identity is row-wise and independent of the predicate's argument structure, the one-column/uninterpreted-predicate setup does not narrow the logical claim — hence `// SCOPE: FULL` is honest. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 355959}, panicked=False
 
 ### `PruneJoinLeftCols` — ✅ PROVED
 
@@ -4594,4 +6359,638 @@ Extracted from `numeric.opt` (which defines multiple rules — implement specifi
 - Attempts used: 22
 - Last updated: 2026-09-26T05:49:40.931537+00:00
 - Reason / notes: FoldMultOne depends on the numeric algebra identity `x * 1 = cast(x, T)`, but RuleScript/QED can only express `Mult` and `Cast` as uninterpreted scalar functions with no numeric-axiom knowledge, and the DSL cannot faithfully name the constant `1`. Even if a DSL extension introduced a numeric literal, it would lower to an uninterpreted constant in the immutable prover, and the mult-by-one identity would still be unprovable.
+
+### `FoldNullBinaryLeft` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/fold_constants.opt
+
+FoldNullBinaryLeft replaces the binary operator with null if its left input
+is null and it does not allow null arguments.
+
+Extracted from `fold_constants.opt` (which defines multiple rules — implement specifically `FoldNullBinaryLeft`, not the other rules in that file):
+
+```
+# FoldNullBinaryLeft replaces the binary operator with null if its left input
+# is null and it does not allow null arguments.
+[FoldNullBinaryLeft, Normalize]
+(Binary
+    $left:(Null)
+    $right:* & ^(AllowNullArgs (OpName) $left $right)
+)
+=>
+(FoldNullBinary (OpName) $left $right)
+```
+- Attempts used: 85
+- Last updated: 2026-09-26T22:02:43.792916+00:00
+- Reason / notes: Manually investigated by Claude (the automated run exhausted all 5 rounds without a usable conclusion). Same root cause as FoldEqualsAnyNull/FoldInNull: the rule needs Binary(op, NULL, right) == NULL for any op/right that doesn't specifically allow null arguments — an uninterpreted operator forced to NULL based on ONE argument being NULL, independent of the other. QED's prover core has no general null-propagation rule for uninterpreted function/predicate applications (qed-prover/src/pipeline/shared.rs: is_null() is just equality against a fresh uninterpreted NULL sentinel, with no strictness tied to any operator's arguments) — only a small hardcoded set of operators (COUNT, EXISTS, IS NULL/IS NOT NULL, boolean AND/OR/NOT) get real interpreted semantics. No CASE/conditional construct exists in the DSL to manually encode the null-forcing branch either. Genuinely outside QED's supported fragment for the same reason as the other Fold*Null* rules in this family (FoldEqualsAnyNull, FoldInNull) — likely applies to FoldNullBinaryRight and other siblings in fold_constants.opt too.
+
+### `FoldNullBinaryRight` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/fold_constants.opt
+
+FoldNullBinaryRight replaces the binary operator with null if its right input
+is null and it does not allow null arguments.
+
+Extracted from `fold_constants.opt` (which defines multiple rules — implement specifically `FoldNullBinaryRight`, not the other rules in that file):
+
+```
+# FoldNullBinaryRight replaces the binary operator with null if its right input
+# is null and it does not allow null arguments.
+[FoldNullBinaryRight, Normalize]
+(Binary
+    $left:*
+    $right:(Null) & ^(AllowNullArgs (OpName) $left $right)
+)
+=>
+(FoldNullBinary (OpName) $left $right)
+```
+- Attempts used: 49
+- Last updated: 2026-09-26T20:23:05.933707+00:00
+- Reason / notes: FoldNullBinaryRight's correctness rests entirely on the operator-specific axiom "if op does not allow null args, then op(x, NULL) = NULL"; in RuleScript/QED that binary op is an uninterpreted function with no behavioral axioms, and the only constraint channel (table `guaranteed` clauses) expresses row-wise predicates over scan contents, not universal function-level identities over flowing columns — so the SMT layer has no way to derive f(x,NULL)=NULL and the equivalence is genuinely unprovable, not a missing builder. ```
+
+### `FoldNullCast` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/fold_constants.opt
+
+FoldNullCast discards the cast operator if it has a null input. The resulting
+null value has the same type as the Cast operator would have had.
+
+Extracted from `fold_constants.opt` (which defines multiple rules — implement specifically `FoldNullCast`, not the other rules in that file):
+
+```
+# FoldNullCast discards the cast operator if it has a null input. The resulting
+# null value has the same type as the Cast operator would have had.
+[FoldNullCast, Normalize]
+(Cast $input:(Null) $targetTyp:*)
+=>
+(Null $targetTyp)
+```
+- Attempts used: 26
+- Last updated: 2026-09-26T20:17:11.023236+00:00
+- Reason / notes: FoldNullCast's validity rests entirely on the SQL-specific semantic that Cast propagates NULL (with the target type preserved) — a bespoke internal behavior of a specific scalar operator, which is exactly the kind of operator-internal semantics QED's theory of uninterpreted functions cannot model. Cast is expressible in RuleScript only as an uninterpreted projection symbol, and f(NULL) = NULL is not a first-order consequence for an uninterpreted function (nor could it be a sound global axiom, since such symbols must stand in for non-null-propagating functions like COALESCE), and the JSON format offers no mechanism for scalar-function side conditions — only table-level key/guaranteed constraints — so no `extend_dsl_file` extension can supply the missing axiom without altering the trusted prover. The observed refutation (a complete model in which the uninterpreted cast maps the null constant to a non-null value) is the expected outcome, confirming a genuine QED limitation rather than an encoding mistake.
+
+### `FoldOneMult` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/numeric.opt
+
+FoldOneMult folds 1 * $right for numeric types.
+
+Extracted from `numeric.opt` (which defines multiple rules — implement specifically `FoldOneMult`, not the other rules in that file):
+
+```
+# FoldOneMult folds 1 * $right for numeric types.
+[FoldOneMult, Normalize]
+(Mult $left:(Const 1) $right:*)
+=>
+(Cast $right (BinaryType Mult $left $right))
+```
+- Attempts used: 23
+- Last updated: 2026-09-26T21:35:36.321045+00:00
+- Reason / notes: The rule's correctness rests entirely on scalar arithmetic axioms — the right-identity law 1·x = x and value-preservation of the cast — but QED's SMT encoding lowers Mult and Cast to uninterpreted functions (with no arithmetic axioms anywhere in the prover; the only interpreted scalar logic is boolean connectives/equality), so the required statement ∀x. Mult(1, x) = Cast(x) has a trivial countermodel and no DSL extension can help, since the trusted Rust prover's encoding cannot be changed and adding a numeric literal to the DSL would still leave both operators uninterpreted. The only provable "encoding" would be a vacuous one (reusing a single symbol on both sides, or reinterpreting the rule as a boolean AND-with-TRUE identity), neither of which is a faithful port of the numeric rule — the same fundamental limitation that justifies the SKIPPED status of the structurally identical siblings FoldMultOne and FoldDivOne. ```
+
+### `FoldPlusZero` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/numeric.opt
+
+FoldPlusZero folds $left + 0 for numeric types.
+
+Note: It is necessary to cast $left to the column type of the binary
+operation since the type of $left may not match the column type. For example,
+1::int + 0::decimal should result in 1::decimal, not 1::int. The execution
+engine panics when it expects one type but receives another, so this cast is
+essential. If $left is already of the correct type, the cast will be removed
+by the EliminateCast rule. Otherwise, if $left is a constant, the cast will
+be folded away by the FoldCast rule.
+
+Extracted from `numeric.opt` (which defines multiple rules — implement specifically `FoldPlusZero`, not the other rules in that file):
+
+```
+# FoldPlusZero folds $left + 0 for numeric types.
+#
+# Note: It is necessary to cast $left to the column type of the binary
+# operation since the type of $left may not match the column type. For example,
+# 1::int + 0::decimal should result in 1::decimal, not 1::int. The execution
+# engine panics when it expects one type but receives another, so this cast is
+# essential. If $left is already of the correct type, the cast will be removed
+# by the EliminateCast rule. Otherwise, if $left is a constant, the cast will
+# be folded away by the FoldCast rule.
+[FoldPlusZero, Normalize]
+(Plus $left:* $right:(Const 0))
+=>
+(Cast $left (BinaryType Plus $left $right))
+```
+- Attempts used: 23
+- Last updated: 2026-09-26T21:39:18.613449+00:00
+- Reason / notes: FoldPlusZero's soundness rests on the numeric identity x + 0 = x together with the cast-to-binary-type being a no-op on a correctly typed operand, but QED encodes Plus and Cast as uninterpreted function symbols over uninterpreted types, exposes no numeric zero literal (only boolean literals), and has no arithmetic axioms linking distinct operators — so the before and after expressions are not equal under arbitrary instantiation of those symbols, which is exactly the "operator's bespoke internal semantics" limitation. This is not a closable DSL gap: even a `extend_dsl_file` addition of a zero-constant builder would yield merely an uninterpreted constant in the prover, which still lacks any axiom equating plus(x, 0) with cast(x), and the QED prover itself is off-limits. The conclusion matches the already-verified sibling rules FoldMinusZero and FoldDivOne from the same numeric.opt file, which fail for the identical fundamental reason. ```
+
+### `FoldTupleAccessIntoValues` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/project.opt
+
+FoldTupleAccessIntoValues replaces a Values that has a single tuple column and
+at least one row with a new Values that has a column for each tuple index.
+This works as long as the surrounding Project does not reference the original
+tuple column itself, since then it would be invalid to eliminate that
+reference. However, references to fields within the tuple are allowed, and are
+translated to the new unnested Values columns.
+
+This rule simplifies access to the Values operator in hopes of allowing other
+rules to fire.
+
+Example:
+
+SELECT (tup).@1, (tup).@2 FROM (VALUES ((1,2)), ((3,4))) AS v(tup)
+=>
+SELECT tup_1, tup_2 FROM (VALUES (1, 2), (3, 4)) AS v(tup_1, tup_2)
+
+Extracted from `project.opt` (which defines multiple rules — implement specifically `FoldTupleAccessIntoValues`, not the other rules in that file):
+
+```
+# FoldTupleAccessIntoValues replaces a Values that has a single tuple column and
+# at least one row with a new Values that has a column for each tuple index.
+# This works as long as the surrounding Project does not reference the original
+# tuple column itself, since then it would be invalid to eliminate that
+# reference. However, references to fields within the tuple are allowed, and are
+# translated to the new unnested Values columns.
+#
+# This rule simplifies access to the Values operator in hopes of allowing other
+# rules to fire.
+#
+# Example:
+#
+#   SELECT (tup).@1, (tup).@2 FROM (VALUES ((1,2)), ((3,4))) AS v(tup)
+#   =>
+#   SELECT tup_1, tup_2 FROM (VALUES (1, 2), (3, 4)) AS v(tup_1, tup_2)
+#
+[FoldTupleAccessIntoValues, Normalize]
+(Project
+    $input:(Values [ * ... ]) &
+        (ColsAreLenOne (OutputCols $input)) &
+        (CanUnnestTuplesFromValues $input)
+    $projections:* &
+        (HasNoDirectTupleReferences
+            $projections
+            $col:(SingleColFromSet (OutputCols $input))
+        )
+    $passthrough:* & (ColsAreEmpty $passthrough)
+)
+=>
+(Project
+    (UnnestTuplesFromValues
+        $input
+        $tupleCols:(MakeColsForUnnestTuples $col)
+    )
+    (FoldTupleColumnAccess $projections $tupleCols $col)
+    $passthrough
+)
+```
+- Attempts used: 41
+- Last updated: 2026-09-26T22:38:51.437343+00:00
+- Reason / notes: The rule's validity rests on evaluating tuple-field accesses (e.g. `(tup).@1`) over *constant* tuple literals and baking the resulting components into new constant rows of the replacement Values, but QED's object language only has flat rows over uninterpreted sorts (`RelType.VarType` all serialize to the single "INTEGER" sort, and `JSONSerializer` has no product/record type), so a tuple column, its `@i` access operators, and the before/after row constants are all mutually unrelated uninterpreted symbols — QED has no axiom that `access_i(<tuple-const>) = <component-const>`, which no `extend_dsl_file` can add since that axiom must live in the fixed prover's SMT translation (a Values-with-expressions encoding only yields the trivially true identity, not the rule). This is precisely the "operator whose specific internal semantics QED cannot see through as an uninterpreted function" limitation, and the porter's diagnosis of the missing composite sort / component-extraction semantics is accurate.
+
+### `FoldZeroPlus` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/numeric.opt
+
+FoldZeroPlus folds 0 + $right for numeric types.
+
+Extracted from `numeric.opt` (which defines multiple rules — implement specifically `FoldZeroPlus`, not the other rules in that file):
+
+```
+# FoldZeroPlus folds 0 + $right for numeric types.
+[FoldZeroPlus, Normalize]
+(Plus $left:(Const 0) $right:*)
+=>
+(Cast $right (BinaryType Plus $left $right))
+```
+- Attempts used: 45
+- Last updated: 2026-09-26T22:10:25.522259+00:00
+- Reason / notes: The rule's correctness rests on the numeric algebra of its operators — the additive identity law `0 + x = x` (plus the cast to the binary result type) — but in QED's encoding `Plus` and `Cast` are uninterpreted function symbols over lifted data values, and its oracle theory (equality with uninterpreted functions/predicates, with arithmetic only on the internal natural-number multiplicity sort) contains no axioms relating them, so `plus(0, x) = cast(x, T)` is not entailed under arbitrary instantiation. This is not a closable DSL gap: even a zero-literal builder added via `extend_dsl_file` would only introduce another uninterpreted constant, since the missing identity axioms would have to live in the (untouchable) prover. It is exactly the "operator-specific internal semantics QED cannot see through as an uninterpreted function" limitation, consistent with the verified mirror rule FoldPlusZero and its siblings in numeric.opt. ```
+
+### `HoistProjectSetSubquery` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+HoistProjectSetSubquery extracts subqueries from zipped functions and joins
+them with the ProjectSet operator's input. This and other subquery hoisting
+patterns create a single, top-level relational query with no nesting.
+
+This rule is marked as low priority for the same reason as HoistSelectExists.
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `HoistProjectSetSubquery`, not the other rules in that file):
+
+```
+# HoistProjectSetSubquery extracts subqueries from zipped functions and joins
+# them with the ProjectSet operator's input. This and other subquery hoisting
+# patterns create a single, top-level relational query with no nesting.
+#
+# This rule is marked as low priority for the same reason as HoistSelectExists.
+[HoistProjectSetSubquery, Normalize, LowPriority]
+(ProjectSet
+    $input:*
+    $zip:[ ... $item:* & (HasHoistableSubquery $item) ... ]
+)
+=>
+(HoistProjectSetSubquery $input $zip)
+```
+- Attempts used: 31
+- Last updated: 2026-09-26T22:53:13.877414+00:00
+- Reason / notes: The rule's central operator, ProjectSet (set-returning/zip row generation), has no model in QED's bag-semantic core — a set-returning function maps one input row to a variable number of output rows, which is list semantics QED explicitly does not support, and the JSON theory carries no ProjectSet operator. Because both sides depend on it (the before side is a ProjectSet over a zip function containing the subquery; the after side hoists that subquery into a join but still feeds the same row-generating ProjectSet), the row-count-preserving equivalence is unprovable — a genuine QED limitation, not a missing DSL builder.
+
+### `HoistProjectSubquery` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+HoistProjectSubquery extracts subqueries from a projections list and joins
+them with the Project input. This and other subquery hoisting patterns create
+a single, top-level relational query with no nesting.
+
+This rule is marked as low priority for the same reason as HoistSelectExists.
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `HoistProjectSubquery`, not the other rules in that file):
+
+```
+# HoistProjectSubquery extracts subqueries from a projections list and joins
+# them with the Project input. This and other subquery hoisting patterns create
+# a single, top-level relational query with no nesting.
+#
+# This rule is marked as low priority for the same reason as HoistSelectExists.
+[HoistProjectSubquery, Normalize, LowPriority]
+(Project
+    $input:*
+    $projections:[
+        ...
+        $item:* & (HasHoistableSubquery $item)
+        ...
+    ]
+    $passthrough:*
+)
+=>
+(HoistProjectSubquery $input $projections $passthrough)
+```
+- Attempts used: 100
+- Last updated: 2026-09-27T00:53:09.740480+00:00
+- Reason / notes: Manually investigated by Claude (the automated run exhausted all 5 rounds on repeated context-length crashes, never reaching a real try_rule call). Read the actual implementation (decorrelate_funcs.go's HoistProjectSubquery + subqueryHoister): it hoists a scalar-valued correlated subquery used inside a Project's projection list (e.g. (SELECT max(u) FROM uv WHERE u=x) AS m) out into an INNER or LEFT JOIN LATERAL, choosing the join type based on the subquery's cardinality guarantees, then references the join's own output column in place of the original subquery expression. Checked whether the EXISTS trick used for EliminateExistsProject/EliminateExistsZeroRows extends here: Calcite does provide RexSubQuery.scalar(RelNode), but grepping the entire qed-prover core turns up zero handling for it ($SCALAR_QUERY) — unlike EXISTS (which has a real interpreted match arm in relation.rs's eval_logic), a scalar subquery used as a value falls through to a fully opaque HOp(op, args, rel, ty) with no defined relationship between 'this subquery's value, expressed as an opaque function of its embedded relation' and 'the same relation's column, referenced directly once joined in via Correlate.' There is no representational bridge connecting those two forms for QED to reason across — the same class of fundamental gap as CorrelateUncollectOuter (a missing operator concept), not a narrow-encoding opportunity like the EXISTS-boolean case.
+
+### `HoistSelectSubquery` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+HoistSelectSubquery extracts subqueries from a Select filter and joins them
+with the Select input. This and other subquery hoisting patterns create a
+single, top-level relational query with no nesting.
+
+NOTE: Keep this ordered after the HoistSelectExists and HoistSelectNotExists
+rules. This rule will hoist any existential subqueries using
+LeftJoinApply, which is equivalent to, but not as efficient as, using
+SemiJoinApply and AntiJoinApply.
+
+This rule is marked as low priority for the same reason as HoistSelectExists.
+
+Citations: [4]
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `HoistSelectSubquery`, not the other rules in that file):
+
+```
+# HoistSelectSubquery extracts subqueries from a Select filter and joins them
+# with the Select input. This and other subquery hoisting patterns create a
+# single, top-level relational query with no nesting.
+#
+# NOTE: Keep this ordered after the HoistSelectExists and HoistSelectNotExists
+#       rules. This rule will hoist any existential subqueries using
+#       LeftJoinApply, which is equivalent to, but not as efficient as, using
+#       SemiJoinApply and AntiJoinApply.
+#
+# This rule is marked as low priority for the same reason as HoistSelectExists.
+#
+# Citations: [4]
+[HoistSelectSubquery, Normalize, LowPriority]
+(Select
+    $input:*
+    $filters:[ ... $item:* & (HasHoistableSubquery $item) ... ]
+)
+=>
+(HoistSelectSubquery $input $filters)
+```
+- Attempts used: 40
+- Last updated: 2026-09-27T01:47:44.931934+00:00
+- Reason / notes: Manually investigated by Claude. Same root cause as HoistProjectSubquery: read decorrelate_funcs.go's HoistSelectSubquery (and its doc example, 'WHERE (SELECT u FROM uv WHERE u=x LIMIT 1) IS NULL') — the hoisted subquery here is a general scalar subquery embedded in a filter comparison (not a boolean EXISTS), which gets hoisted into a LeftJoinApply/InnerJoinApply and its column referenced directly in place of the original subquery expression. QED's prover core has no handling for scalar subqueries ($SCALAR_QUERY) at all — confirmed by grep, zero hits anywhere in qed-prover's Rust source — so any such subquery used as a value falls through to a fully opaque HOp(op, args, rel, ty) with no defined relationship to 'the same relation's column, referenced directly once joined in.' There is no representational bridge for QED to reason across between those two forms — same fundamental gap as CorrelateUncollectOuter and HoistProjectSubquery, not a narrow-encoding opportunity like the EXISTS-boolean case (EliminateExistsProject/EliminateExistsZeroRows).
+
+### `HoistValuesSubquery` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Extracts subqueries from row tuples and joins them with the Values operator.
+- Attempts used: 2
+- Last updated: 2026-09-27T10:24:27.307199+00:00
+- Reason / notes: Same representational gap as HoistProjectSubquery/HoistSelectSubquery: the rule generically hoists a correlated Subquery, Exists, or Any expression out of a scalar position (here, a VALUES row tuple) into a join; the rule's own canonical example is a *scalar* subquery used as a value (VALUES ((SELECT u FROM uv WHERE u=x LIMIT 1))). QED's prover core has no interpreted semantics for a scalar subquery's value (Calcite's $SCALAR_QUERY / RexSubQuery.scalar) -- it falls through to a fully opaque HOp with no defined relationship to 'the same column, once the subquery's relation is joined in.' Only EXISTS has real interpreted semantics in relation.rs (eval_logic's Logic::squash(UExpr::sum(...)) case), and this rule's row-tuple-value use case is not an EXISTS/boolean position, so the Exists-record trick doesn't apply here.
+
+### `InlineAnyProjectSet` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/scalar.opt
+
+InlineAnyProjectSet replaces an "unnest" subquery used for an ANY comparison
+with the "unnest" argument. We only match when the ProjectSet has an empty
+input and only projects the result of a single unnest function.
+
+There is some subtlety if the unnest argument evaluates to NULL. In that case,
+the result of unnest is empty, and the Any filter evaluates to false. However,
+AnyScalar with a NULL second argument evaluates to NULL. To handle this, we
+AND the result of AnyScalar with an IsNot NULL check on the argument.
+
+Extracted from `scalar.opt` (which defines multiple rules — implement specifically `InlineAnyProjectSet`, not the other rules in that file):
+
+```
+# InlineAnyProjectSet replaces an "unnest" subquery used for an ANY comparison
+# with the "unnest" argument. We only match when the ProjectSet has an empty
+# input and only projects the result of a single unnest function.
+#
+# There is some subtlety if the unnest argument evaluates to NULL. In that case,
+# the result of unnest is empty, and the Any filter evaluates to false. However,
+# AnyScalar with a NULL second argument evaluates to NULL. To handle this, we
+# AND the result of AnyScalar with an IsNot NULL check on the argument.
+[InlineAnyProjectSet, Normalize]
+(Any
+    (ProjectSet
+            (Values [ (Tuple []) ])
+            [
+                (ZipItem
+                    (Function
+                        [ $arg:* ]
+                        $fnPrivate:(FunctionPrivate "unnest")
+                    )
+                )
+            ]
+        ) &
+        (CanInlineAnyUnnestSubquery)
+    $scalar:*
+    $private:*
+)
+=>
+(And
+    (AnyScalar $scalar $arg (SubqueryCmp $private))
+    (IsNot $arg (Null (TypeOf $arg)))
+)
+```
+- Attempts used: 41
+- Last updated: 2026-09-27T02:40:36.689235+00:00
+- Reason / notes: The rule's core equivalence — `x OP ANY (unnest($arg))` ⟺ `AnyScalar(x, $arg) AND $arg IS NOT NULL` — depends on a list-valued scalar expanding into row values, i.e. the subquery's relation being exactly the elements of a list cell; QED's bag-of-tuples semantics over uninterpreted sorts has no list type or set-returning operator, and no Java-side DSL extension can supply that meaning since it would have to live in the fixed Rust prover. The NULL fixup (`AND $arg IS NOT NULL`) is itself 3-valued logic — NULL arg gives empty subquery → FALSE on the LHS vs AnyScalar → NULL on the RHS — while QED models only total, two-valued uninterpreted predicates with no NULL literal or IS/IS NOT primitive in the DSL. Moreover the LHS isn't even expressible: the DSL has no scalar-subquery builder (only relation-level Correlate), so Any/AnyScalar would have to be independent uninterpreted symbols that QED can never relate, making the equivalence undecidable rather than merely unproven. ```
+
+### `InlineAnyValuesMultiCol` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Converts Any with Values input (multi-column) to AnyScalar.
+- Attempts used: 100
+- Last updated: 2026-09-27T10:24:27.311369+00:00
+- Reason / notes: Corrected reasoning: the rule's LHS is `Any(Project(Values, tuple), scalar, cmp)` -- a *relational* ANY-subquery (Calcite's RexSubQuery.some(rel, nodes, ...)). Grepped QED's eval_logic (relation.rs): only EXISTS has real interpreted semantics for a subquery-shaped relation (Logic::squash(UExpr::sum(...))); SOME/IN/scalar all fall through to an opaque HOp with no defined boolean meaning, so the LHS itself isn't representable regardless of the RHS's encodability. (Note: an earlier version of this reasoning also claimed RuleScript has no literal-Values-with-constants construct -- that claim was WRONG and has been retracted; RuleBuilder.values(fields, literals...) plus JSONSerializer's existing LogicalValues case plus QED's real Values{schema,content} variant in relation.rs do support literal Values fully, as directly confirmed while proving the sibling rule MergeProjectWithValues. The literal-Values gap was never the real blocker here -- the missing relational-ANY interpreted semantics is.)
+
+### `InlineAnyValuesSingleCol` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/scalar.opt
+
+InlineAnyValuesSingleCol converts Any with Values input to AnyScalar.
+This version handles the case where there is a single column.
+
+Extracted from `scalar.opt` (which defines multiple rules — implement specifically `InlineAnyValuesSingleCol`, not the other rules in that file):
+
+```
+# InlineAnyValuesSingleCol converts Any with Values input to AnyScalar.
+# This version handles the case where there is a single column.
+[InlineAnyValuesSingleCol, Normalize]
+(Any $values:(Values) $scalar:* $private:*)
+=>
+(AnyScalar $scalar (InlineValues $values) (SubqueryCmp $private))
+```
+- Attempts used: 41
+- Last updated: 2026-09-27T05:44:27.484082+00:00
+- Reason / notes: The rule rewrites a subquery-based `x op ANY (VALUES (c1),(c2),…)` into a scalar `x op ANY (c1,c2,…)` — an identity that rests entirely on (1) the specific constant tuples inside the `Values` and (2) the backend-defined scalar semantics of `Any`/`AnyScalar`. RuleScript has no way to express constant relations or numeric literals (scans are uninterpreted; only boolean literals exist), and QED's bag-semantics SMT core cannot see into or relate backend-specific scalar operators, so no non-vacuous encoding is possible. ```
+
+### `InlineAnyWithScanOfValues` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/scalar.opt
+
+InlineAnyWithScanOfValues matches on an ANY or NOT ANY expression which was
+generated from expressions like `column IN (WithScan)` or `column NOT IN
+(WithScan)`, where the WITH clause definition was normalized into a VALUES
+clause with constants or placeholders. Inlining the Values expression allows
+other optimizations to trigger.
+
+Extracted from `scalar.opt` (which defines multiple rules — implement specifically `InlineAnyWithScanOfValues`, not the other rules in that file):
+
+```
+# InlineAnyWithScanOfValues matches on an ANY or NOT ANY expression which was
+# generated from expressions like `column IN (WithScan)` or `column NOT IN
+# (WithScan)`, where the WITH clause definition was normalized into a VALUES
+# clause with constants or placeholders. Inlining the Values expression allows
+# other optimizations to trigger.
+[InlineAnyWithScanOfValues, Normalize]
+(Any
+    (WithScan $withScanPrivate:*)
+    $scalar:* &
+        (Let ($values $ok):(BoundValues $withScanPrivate) $ok) &
+        (CanInlineWithScanOfValues
+            $values
+            $withScanPrivate
+            $scalar
+        )
+    $anyPrivate:*
+)
+=>
+(Any
+    (InlineWithScanOfValues $values $withScanPrivate)
+    $scalar
+    $anyPrivate
+)
+```
+- Attempts used: 41
+- Last updated: 2026-09-27T03:42:46.742327+00:00
+- Reason / notes: QED's contract is to prove the two patterns equivalent for *every* instantiation of their uninterpreted symbols, and it has no facility for definitional side-conditions. This rule is only sound under the premise that the CTE `W` is *defined as* a specific constant VALUES — i.e., that the `WithScan(W)` symbol equals that Values expression — but QED's table model (an uninterpreted scan plus only per-row "guaranteed" constraints such as keys/uniqueness) cannot express "this scan's rows are exactly these constants", so QED will always admit an instantiation where `Scan(W) ≠` the inlined Values, making before and after non-equivalent. Hence the blocker is in QED's semantics rather than the DSL surface, and adding a scalar ANY/IN subquery operator or a Values-with-constants operator via `extend_dsl_file` could not close the gap. ```
+
+### `InlineExistsSelectTuple` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/scalar.opt
+
+InlineExistsSelectTuple splits a tuple equality filter into multiple
+(per-column) equalities, in the case where the tuple on one side is being
+projected.
+
+We are specifically handling the case when this is under Exists because we
+don't have to keep the same output columns for the Select. This case is
+important because it is produced for an IN subquery:
+
+SELECT * FROM ab WHERE (a, b) IN (SELECT c, d FROM cd)
+
+Without this rule, we would not be able to produce a lookup join plan for such
+a query.
+
+Extracted from `scalar.opt` (which defines multiple rules — implement specifically `InlineExistsSelectTuple`, not the other rules in that file):
+
+```
+# InlineExistsSelectTuple splits a tuple equality filter into multiple
+# (per-column) equalities, in the case where the tuple on one side is being
+# projected.
+#
+# We are specifically handling the case when this is under Exists because we
+# don't have to keep the same output columns for the Select. This case is
+# important because it is produced for an IN subquery:
+#
+#   SELECT * FROM ab WHERE (a, b) IN (SELECT c, d FROM cd)
+#
+# Without this rule, we would not be able to produce a lookup join plan for such
+# a query.
+#
+[InlineExistsSelectTuple, Normalize]
+(Exists
+    (Select
+        (Project
+            $input:*
+            [
+                ...
+                (ProjectionsItem $tuple:(Tuple) $tupleCol:*)
+                ...
+            ]
+        )
+        $filters:[
+            ...
+            $item:(FiltersItem
+                (Eq
+                    # CommuteVar ensures that the variable is on the left.
+                    (Variable
+                        $varCol:* &
+                            (EqualsColumn $varCol $tupleCol)
+                    )
+                    $rhs:(Tuple) &
+                        (TuplesHaveSameLength $tuple $rhs)
+                )
+            )
+            ...
+        ]
+    )
+    $existsPrivate:*
+)
+=>
+(Exists
+    (Select
+        $input
+        (ConcatFilters
+            (RemoveFiltersItem $filters $item)
+            (SplitTupleEq $tuple $rhs)
+        )
+    )
+    $existsPrivate
+)
+```
+- Attempts used: 44
+- Last updated: 2026-09-27T07:49:27.195139+00:00
+- Reason / notes: The rule's core claim is that one tuple-equality predicate is equivalent to a conjunction of per-column equalities, but QED models every scalar value as a flat (integer) value and every comparison as an uninterpreted predicate, with no tuple/row value node and no axiom decomposing a composite value's equality into its components — so the before-side tuple-eq is an independent uninterpreted symbol that QED cannot entail from (or to) the after-side conjunction, which is exactly its documented "predicate inference/entailment between independent symbols" limitation. Because the prover's value model is flat and it is the unchanging trusted arbiter, no `extend_dsl_file` change can add tuple-decomposition semantics, and the only degenerate special case (an arity-1 tuple) collapses to before == after, so no non-trivial provable instance exists. ```
+
+### `InlineUDF` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/inline.opt
+
+InlineUDF converts a UDF to a subquery. A UDF can only be inlined if it is
+non-volatile and has a single statement in the function body. See
+IsInlinableUDF for more details.
+
+Extracted from `inline.opt` (which defines multiple rules — implement specifically `InlineUDF`, not the other rules in that file):
+
+```
+# InlineUDF converts a UDF to a subquery. A UDF can only be inlined if it is
+# non-volatile and has a single statement in the function body. See
+# IsInlinableUDF for more details.
+[InlineUDF, Normalize]
+(UDFCall $args:* $private:* & (IsInlinableUDF $args $private))
+=>
+(ConvertUDFToSubquery $args $private)
+```
+- Attempts used: 26
+- Last updated: 2026-09-27T06:51:07.149208+00:00
+- Reason / notes: InlineUDF's soundness rests entirely on the definitional link between the UDF's call symbol and the subquery derived from its function body — i.e. a backend operator's bespoke internal semantics that QED models as uninterpreted, and QED cannot reason about entailment between independent uninterpreted symbols or axiomatize a function definition. Extending the DSL with a scalar-subquery term (which JSONSerializer can already carry) would not close the gap, because the missing piece is a definitional axiom `f(args) = subquery(body)`, not a term: any encoding either bakes that axiom in by modeling the call as the subquery (making before/after the same expression, a vacuous identity "proof" of nothing about the actual rule) or keeps `f` and the subquery as independent symbols that SMT can never relate. ```
+
+### `InlineWith` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/with.opt
+
+InlineWith replaces use of a With which is referenced at most one time with
+the contents of the With itself.
+
+Extracted from `with.opt` (which defines multiple rules — implement specifically `InlineWith`, not the other rules in that file):
+
+```
+# InlineWith replaces use of a With which is referenced at most one time with
+# the contents of the With itself.
+[InlineWith, Normalize]
+(With
+    $binding:*
+    $input:*
+    $withPrivate:* & (CanInlineWith $binding $input $withPrivate)
+)
+=>
+(InlineWith $binding $input $withPrivate)
+```
+- Attempts used: 24
+- Last updated: 2026-09-27T07:02:34.459926+00:00
+- Reason / notes: InlineWith is fundamentally a let-substitution rule (`let W = D in Q` ≡ `Q[W:=D]`), and QED's Q-expression language — fixed on the Rust prover side, whose JSON contract exposes only scan/values/filter/project/join/correlate/union/intersect/except/distinct/group/sort — has no With/let-binding operator and no mechanism to assert definitional equality between two relation symbols, so the CTE reference and its body can only be modeled as independent uninterpreted symbols for which the substitution is not universally valid. No `extend_dsl_file` attempt can close this gap, because a `With` builder would have to emit a JSON operator the unmodifiable prover cannot interpret, and no meaningful special case survives (identifying the two symbols collapses the rule to a tautological identity; the sibling rules in the file additionally require Limit and recursive-CTE semantics that QED does not model).
+
+### `InvertMinus` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/numeric.opt
+
+InvertMinus rewrites -(a - b) to (b - a) if the operand types allow it.
+
+Extracted from `numeric.opt` (which defines multiple rules — implement specifically `InvertMinus`, not the other rules in that file):
+
+```
+# InvertMinus rewrites -(a - b) to (b - a) if the operand types allow it.
+[InvertMinus, Normalize]
+(UnaryMinus
+    (Minus $left:* $right:*) &
+        (CanConstructBinary Minus $right $left)
+)
+=>
+(Minus $right $left)
+```
+- Attempts used: 24
+- Last updated: 2026-09-27T07:13:27.200253+00:00
+- Reason / notes: In RuleScript, scalar operators like `Minus` and `UnaryMinus` are expressed as uninterpreted projection symbols (`RexRN.Proj` wrapping a `SqlOperator`), and QED's SMT theory (equality + uninterpreted functions + bag counts) carries no arithmetic axioms connecting distinct function symbols, so the identity `UnaryMinus(Minus(a,b)) = Minus(b,a)` is not a theorem — a countermodel exists where the two uninterpreted functions are independently defined. No DSL extension can close this gap because the missing knowledge lives in the prover's theory (the JSON format only supports table-level "guaranteed" constraints, not function-level algebraic axioms), and the prover is the unmodifiable trusted arbiter. ```
+
+### `NormCycleTestRelTrueToFalse` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/cycle.opt
+
+The following two rules create a normalization rule cycle for the
+NormCycleTestRel expression. This rule cycle is used to test that the cycle
+can be detected and a stack overflow does not occur. See the cycle test file.
+
+Extracted from `cycle.opt` (which defines multiple rules — implement specifically `NormCycleTestRelTrueToFalse`, not the other rules in that file):
+
+```
+# The following two rules create a normalization rule cycle for the
+# NormCycleTestRel expression. This rule cycle is used to test that the cycle
+# can be detected and a stack overflow does not occur. See the cycle test file.
+[NormCycleTestRelTrueToFalse, Normalize]
+(NormCycleTestRel (True))
+=>
+(NormCycleTestRel (False))
+```
+- Attempts used: 23
+- Last updated: 2026-09-27T22:20:50.106686+00:00
+- Reason / notes: The rule rewrites `NormCycleTestRel(True)` to `NormCycleTestRel(False)`, where that operator is an opaque test-only function with no defined algebraic semantics, so the two sides are distinct applications of an uninterpreted function to different constants. QED is a universal bag-equivalence prover: for any honest encoding, an SMT counterexample instantiation (f(true) ≠ f(false), one row) refutes the equivalence, so no proof can exist, and the only encodings that would pass are ones that silently erase the difference the rule is defined to make. This is a fundamental limitation, not a missing DSL capability — the rule is deliberately non-equivalence-preserving (a cycle-detection test fixture), so there is nothing for QED to certify and UNSUPPORTED is the correct conclusion. ```
 

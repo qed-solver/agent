@@ -6108,5 +6108,1535 @@
     "scope": "",
     "scope_detail": "",
     "timestamp": "2026-09-27T22:20:50.106686+00:00"
+  },
+  {
+    "rule_name": "NormCycleTestRelFalseToTrue",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/cycle.opt\n\nExtracted from `cycle.opt` (which defines multiple rules \u2014 implement specifically `NormCycleTestRelFalseToTrue`, not the other rules in that file):\n\n```\n[NormCycleTestRelFalseToTrue, Normalize]\n(NormCycleTestRel (False))\n=>\n(NormCycleTestRel (True))\n```",
+    "status": "SKIPPED",
+    "attempts_used": 23,
+    "reason": "The rule rewrites between two parameterizations of a test-only leaf operator with no input, so its entire validity rests on the operator's internal, stipulated semantics that its output does not depend on the boolean parameter \u2014 a \"bespoke internal semantics\" of an uninterpreted operator that QED fundamentally cannot reason about: the only leaf forms QED's model admits are uninterpreted scans (where the same symbol reduces the rule to the vacuous identity X = X, and distinct symbols are unrelated bags QED correctly refuses to equate) or concrete `values` (where a \"proof\" would require hard-coding the False \u2261 True conclusion into the encoding). Since QED's JSON format offers no leaf relation form that carries a scalar parameter, and the prover itself is off-limits, this is a genuine QED limitation rather than a closable DSL gap \u2014 no alternative encoding yields a non-vacuous, non-circular proof. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule rewrites between two parameterizations of a test-only leaf operator with no input, so its entire validity rests on the operator's internal, stipulated semantics that its output does not depend on the boolean parameter \u2014 a \"bespoke internal semantics\" of an uninterpreted operator that QED fundamentally cannot reason about: the only leaf forms QED's model admits are uninterpreted scans (where the same symbol reduces the rule to the vacuous identity X = X, and distinct symbols are unrelated bags QED correctly refuses to equate) or concrete `values` (where a \"proof\" would require hard-coding the False \u2261 True conclusion into the encoding). Since QED's JSON format offers no leaf relation form that carries a scalar parameter, and the prover itself is off-limits, this is a genuine QED limitation rather than a closable DSL gap \u2014 no alternative encoding yields a non-vacuous, non-circular proof. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-27T22:25:46.609832+00:00"
+  },
+  {
+    "rule_name": "NormalizeArrayFlattenToAgg",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/scalar.opt\n\nArrayFlattenToAgg converts a correlated ArrayFlatten to an aggregation.\nThis rule exists because:\n\n1. We cannot do the aggregation method if we don't have a scalar type\n(for instance, if we have a tuple type).\n2. We cannot decorrelate an ArrayFlatten directly (but we can decorrelate\nan aggregation). So it's desirable to perform this conversion in the\ninterest of decorrelation.\n\nSo the outcome is that we can perform uncorrelated ARRAY(...)s over any\ndatatype, and correlated ones only over the types that array_agg supports.\n\nNote that optbuilder should have already verified that if the input is\ncorrelated, then we can array_agg over the input type.\n\nExtracted from `scalar.opt` (which defines multiple rules \u2014 implement specifically `NormalizeArrayFlattenToAgg`, not the other rules in that file):\n\n```\n# ArrayFlattenToAgg converts a correlated ArrayFlatten to an aggregation.\n# This rule exists because:\n#\n#     1. We cannot do the aggregation method if we don't have a scalar type\n#        (for instance, if we have a tuple type).\n#     2. We cannot decorrelate an ArrayFlatten directly (but we can decorrelate\n#        an aggregation). So it's desirable to perform this conversion in the\n#        interest of decorrelation.\n#\n# So the outcome is that we can perform uncorrelated ARRAY(...)s over any\n# datatype, and correlated ones only over the types that array_agg supports.\n#\n# Note that optbuilder should have already verified that if the input is\n# correlated, then we can array_agg over the input type.\n[NormalizeArrayFlattenToAgg, Normalize]\n(ArrayFlatten\n    $input:*\n    $private:* & (CanNormalizeArrayFlatten $input $private)\n)\n=>\n(Coalesce\n    [\n        (Subquery\n            (ScalarGroupBy\n                $input\n                [\n                    (AggregationsItem\n                        (ArrayAgg\n                            (Variable\n                                $requestedCol:(SubqueryRequestedCol\n                                    $private\n                                )\n                            )\n                        )\n                        (MakeArrayAggCol\n                            (ArrayType $requestedCol)\n                        )\n                    )\n                ]\n                (MakeGrouping\n                    (MakeEmptyColSet)\n                    (SubqueryOrdering $private)\n                )\n            )\n            (MakeUnorderedSubquery)\n        )\n        (Array [] (ArrayType $requestedCol))\n    ]\n)\n```",
+    "status": "SKIPPED",
+    "attempts_used": 25,
+    "reason": "The rule's correctness rests entirely on semantics QED's model lacks: array_agg returning NULL over an empty input (aggregate algebra beyond bag equality of its input), COALESCE's \"first non-NULL\" behavior, and array/list value semantics (an array is a list whose contents and, for ordered subqueries, ordering matter \u2014 list/ordering semantics QED explicitly does not model). Even extending the DSL with ArrayFlatten/Coalesce/scalar-subquery builders would only let the rule be *stated*: the left side's flatten and the right side's coalesce\u2218array_agg would serialize as independent uninterpreted symbols over an opaque array value type the SMT solver cannot decompose or relate, so no instantiation-independent proof \u2014 including the non-empty-input special case \u2014 is possible. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's correctness rests entirely on semantics QED's model lacks: array_agg returning NULL over an empty input (aggregate algebra beyond bag equality of its input), COALESCE's \"first non-NULL\" behavior, and array/list value semantics (an array is a list whose contents and, for ordered subqueries, ordering matter \u2014 list/ordering semantics QED explicitly does not model). Even extending the DSL with ArrayFlatten/Coalesce/scalar-subquery builders would only let the rule be *stated*: the left side's flatten and the right side's coalesce\u2218array_agg would serialize as independent uninterpreted symbols over an opaque array value type the SMT solver cannot decompose or relate, so no instantiation-independent proof \u2014 including the non-empty-input special case \u2014 is possible. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-27T22:28:46.805440+00:00"
+  },
+  {
+    "rule_name": "NormalizeCmpMinusConst",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/comp.opt\n\nNormalizeCmpMinusConst builds up constant expression trees on one side of the\ncomparison, in cases like this:\ncmp         cmp\n/  \\        /  \\\n[-]   2  ->  a  [+]\n/   \\           /   \\\na     1         2     1\n\nSee NormalizeCmpPlusConst for more details.\n\nExtracted from `comp.opt` (which defines multiple rules \u2014 implement specifically `NormalizeCmpMinusConst`, not the other rules in that file):\n\n```\n# NormalizeCmpMinusConst builds up constant expression trees on one side of the\n# comparison, in cases like this:\n#      cmp         cmp\n#      /  \\        /  \\\n#    [-]   2  ->  a  [+]\n#   /   \\           /   \\\n#  a     1         2     1\n#\n# See NormalizeCmpPlusConst for more details.\n[NormalizeCmpMinusConst, Normalize]\n(Eq | Ge | Gt | Le | Lt\n    (Minus $leftLeft:^(ConstValue) $leftRight:(Const))\n    $right:(Const) &\n        (ArithmeticErrorsOnOverflow\n            (TypeOf $right)\n            (TypeOf $leftRight)\n        ) &\n        (CanConstructBinary Plus $right $leftRight) &\n        (Let\n            ($result $ok):(FoldBinary Plus $right $leftRight) $ok\n        )\n)\n=>\n((OpName) $leftLeft $result)\n```",
+    "status": "SKIPPED",
+    "attempts_used": 21,
+    "reason": "The rule's validity rests on the ordered-arithmetic identity (a \u2212 c\u2081) cmp c\u2082 \u27fa a cmp (c1 + c2), which QED cannot derive because it models Plus/Minus and the comparison operators as uninterpreted symbols with no additive algebra, no typed integer constants, and no way to fold c1 + c2 into a concrete value \u2014 an SMT countermodel (arbitrary interpretations of the uninterpreted functions/predicate) breaks the equivalence for any encoding. Closing the gap would require the prover itself to interpret these operators arithmetically, which is off-limits (the QED prover is unchangeable), and the side guards (overflow policy, overload/volatility checks, foldability) are equally backend-specific and unmodelable. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's validity rests on the ordered-arithmetic identity (a \u2212 c\u2081) cmp c\u2082 \u27fa a cmp (c1 + c2), which QED cannot derive because it models Plus/Minus and the comparison operators as uninterpreted symbols with no additive algebra, no typed integer constants, and no way to fold c1 + c2 into a concrete value \u2014 an SMT countermodel (arbitrary interpretations of the uninterpreted functions/predicate) breaks the equivalence for any encoding. Closing the gap would require the prover itself to interpret these operators arithmetically, which is off-limits (the QED prover is unchangeable), and the side guards (overflow policy, overload/volatility checks, foldability) are equally backend-specific and unmodelable. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-27T22:44:52.770733+00:00"
+  },
+  {
+    "rule_name": "NormalizeCmpConstMinus",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/comp.opt\n\nNormalizeCmpConstMinus builds up constant expression trees on one side of the\ncomparison, in cases like this:\ncmp          cmp\n/  \\         /  \\\n[-]   2  ->  [-]   a\n/   \\        /   \\\n1     a      1     2\n\nSee NormalizeCmpPlusConst for more details.\n\nExtracted from `comp.opt` (which defines multiple rules \u2014 implement specifically `NormalizeCmpConstMinus`, not the other rules in that file):\n\n```\n# NormalizeCmpConstMinus builds up constant expression trees on one side of the\n# comparison, in cases like this:\n#      cmp          cmp\n#      /  \\         /  \\\n#    [-]   2  ->  [-]   a\n#   /   \\        /   \\\n#  1     a      1     2\n#\n# See NormalizeCmpPlusConst for more details.\n[NormalizeCmpConstMinus, Normalize]\n(Eq | Ge | Gt | Le | Lt\n    (Minus $leftLeft:(Const) $leftRight:^(ConstValue))\n    $right:(Const) &\n        (ArithmeticErrorsOnOverflow\n            (TypeOf $leftLeft)\n            (TypeOf $right)\n        ) &\n        (CanConstructBinary Minus $leftLeft $right) &\n        (Let\n            ($result $ok):(FoldBinary Minus $leftLeft $right) $ok\n        )\n)\n=>\n((OpName) $result $leftRight)\n```",
+    "status": "SKIPPED",
+    "attempts_used": 44,
+    "reason": "The rule's validity rests on ordered-arithmetic cancellation ((c1\u2212a) cmp c2 \u27fa (c1\u2212c2) cmp a) plus constant folding of c1\u2212c2 to a concrete value, but QED decides equivalence over bag semantics with uninterpreted functions \u2014 Minus and the comparison operators are uninterpreted symbols with no additive/ordered algebra, and the DSL has no typed numeric constants to express c1, c2, or the folded result. SMT therefore admits interpretations (e.g. Minus as an arbitrary function) where the two filter predicates disagree, and no extend_dsl_file change can close this: a new builder would only emit another uninterpreted symbol, since interpreting arithmetic would require modifying the QED prover itself, which is off-limits. The independently verified AGREE-SKIPPED on the mirror rule NormalizeCmpMinusConst (21 attempts) corroborates that this is a fundamental prover limitation, not a symbol-sharing or encoding bug. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 3,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's validity rests on ordered-arithmetic cancellation ((c1\u2212a) cmp c2 \u27fa (c1\u2212c2) cmp a) plus constant folding of c1\u2212c2 to a concrete value, but QED decides equivalence over bag semantics with uninterpreted functions \u2014 Minus and the comparison operators are uninterpreted symbols with no additive/ordered algebra, and the DSL has no typed numeric constants to express c1, c2, or the folded result. SMT therefore admits interpretations (e.g. Minus as an arbitrary function) where the two filter predicates disagree, and no extend_dsl_file change can close this: a new builder would only emit another uninterpreted symbol, since interpreting arithmetic would require modifying the QED prover itself, which is off-limits. The independently verified AGREE-SKIPPED on the mirror rule NormalizeCmpMinusConst (21 attempts) corroborates that this is a fundamental prover limitation, not a symbol-sharing or encoding bug. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-27T22:52:00.882760+00:00"
+  },
+  {
+    "rule_name": "NormalizeCmpPlusConst",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/comp.opt\n\nNormalizeCmpPlusConst builds up constant expression trees on one side of the\ncomparison, in cases like this:\ncmp          cmp\n/   \\        /   \\\n[+]    2  ->  a   [-]\n/   \\             /   \\\na     1           2     1\n\nThe rule can only perform this transformation if all of the following criteria\nare met:\n\n1. The generated Minus expression will error if there is an overflow (see\nArithmeticErrorsOnOverflow).\n2. A Minus overload for the given input types exists and has an appropriate\nvolatility.\n2. There is no error when evaluating the new binary expression.\n\nNOTE: Ne is not part of the operator choices because it wasn't handled in\nnormalize.go either. We can add once we've proved it's OK to do so.\n\nExtracted from `comp.opt` (which defines multiple rules \u2014 implement specifically `NormalizeCmpPlusConst`, not the other rules in that file):\n\n```\n# NormalizeCmpPlusConst builds up constant expression trees on one side of the\n# comparison, in cases like this:\n#       cmp          cmp\n#      /   \\        /   \\\n#    [+]    2  ->  a   [-]\n#   /   \\             /   \\\n#  a     1           2     1\n#\n# The rule can only perform this transformation if all of the following criteria\n# are met:\n#\n#   1. The generated Minus expression will error if there is an overflow (see\n#      ArithmeticErrorsOnOverflow).\n#   2. A Minus overload for the given input types exists and has an appropriate\n#      volatility.\n#  2. There is no error when evaluating the new binary expression.\n#\n# NOTE: Ne is not part of the operator choices because it wasn't handled in\n#       normalize.go either. We can add once we've proved it's OK to do so.\n[NormalizeCmpPlusConst, Normalize]\n(Eq | Ge | Gt | Le | Lt\n    (Plus $leftLeft:^(ConstValue) $leftRight:(Const))\n    $right:(Const) &\n        (ArithmeticErrorsOnOverflow\n            (TypeOf $right)\n            (TypeOf $leftRight)\n        ) &\n        (CanConstructBinary Minus $right $leftRight) &\n        (Let\n            ($result $ok):(FoldBinary Minus $right $leftRight)\n            $ok\n        )\n)\n=>\n((OpName) $leftLeft $result)\n```",
+    "status": "SKIPPED",
+    "attempts_used": 41,
+    "reason": "The rule's correctness rests on the arithmetic identity (a + b) \u22d6 c \u27fa a \u22d6 (c \u2212 b), which ties together the Plus, Minus, and comparison symbols \u2014 but in QED's SMT encoding these are independent uninterpreted symbols with no axioms relating them, so the equivalence is not a logical validity (e.g., a countermodel with plus/minus mapped arbitrarily over a small domain refutes it), and the prover is exactly the kind of system that \"can't reason about entailment between independent symbols or an operator's bespoke internal semantics.\" Additionally, the DSL itself (RexRN) provides no numeric literal constructor \u2014 only boolean True/False \u2014 so the rule's defining features, the ConstValue operands b, c and the folded constant result = c \u2212 b, cannot even be expressed; any encoding degenerates to claiming equality between structurally different applications of independent symbols, for which no full or non-trivial special case (including modeling b, c as scan columns) is provable. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 3,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's correctness rests on the arithmetic identity (a + b) \u22d6 c \u27fa a \u22d6 (c \u2212 b), which ties together the Plus, Minus, and comparison symbols \u2014 but in QED's SMT encoding these are independent uninterpreted symbols with no axioms relating them, so the equivalence is not a logical validity (e.g., a countermodel with plus/minus mapped arbitrarily over a small domain refutes it), and the prover is exactly the kind of system that \"can't reason about entailment between independent symbols or an operator's bespoke internal semantics.\" Additionally, the DSL itself (RexRN) provides no numeric literal constructor \u2014 only boolean True/False \u2014 so the rule's defining features, the ConstValue operands b, c and the folded constant result = c \u2212 b, cannot even be expressed; any encoding degenerates to claiming equality between structurally different applications of independent symbols, for which no full or non-trivial special case (including modeling b, c as scan columns) is provable. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-27T22:57:04.473455+00:00"
+  },
+  {
+    "rule_name": "NormalizeCmpTimeZoneFunctionTZ",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/comp.opt\n\nNormalizeCmpTimeZoneFunctionTZ normalizes timezone functions within\ncomparison operators. It only matches expressions when:\n\n1. The left side of the comparison is a timezone() function.\n2. The second argument to timezone() is a variable of type TIMESTAMPTZ.\n3. The right side of the comparison is a constant value TIMESTAMP.\n\nHere's an example:\n\ntimezone('America/Denver', tz) = '2020-06-01 12:35:55'\n=>\ntz = timezone('America/Denver', '2020-06-01 12:35:55')\n\nThis normalization is possible because the overloaded function timezone(zone,\nTIMESTAMPTZ) is the inverse of timezone(zone, TIMESTAMP).\n\nExtracted from `comp.opt` (which defines multiple rules \u2014 implement specifically `NormalizeCmpTimeZoneFunctionTZ`, not the other rules in that file):\n\n```\n# NormalizeCmpTimeZoneFunctionTZ normalizes timezone functions within\n# comparison operators. It only matches expressions when:\n#\n#   1. The left side of the comparison is a timezone() function.\n#   2. The second argument to timezone() is a variable of type TIMESTAMPTZ.\n#   3. The right side of the comparison is a constant value TIMESTAMP.\n#\n# Here's an example:\n#\n#   timezone('America/Denver', tz) = '2020-06-01 12:35:55'\n#   =>\n#   tz = timezone('America/Denver', '2020-06-01 12:35:55')\n#\n# This normalization is possible because the overloaded function timezone(zone,\n# TIMESTAMPTZ) is the inverse of timezone(zone, TIMESTAMP).\n[NormalizeCmpTimeZoneFunctionTZ, Normalize]\n(Eq | Ge | Gt | Le | Lt\n    (Function $args:* $private:(FunctionPrivate \"timezone\"))\n    $right:(ConstValue) &\n        (IsTimestamp $right) &\n        (Let ($zone $tz $ok):(ScalarPair $args) $ok) &\n        (IsTimestampTZ $tz) &\n        ^(IsConstValueOrGroupOfConstValues $tz)\n)\n=>\n((OpName) $tz (MakeTimeZoneFunction $zone $right))\n```",
+    "status": "SKIPPED",
+    "attempts_used": 26,
+    "reason": "The rule's soundness requires the two timezone overloads (zone,TIMESTAMPTZ\u2192TIMESTAMP and zone,TIMESTAMP\u2192TIMESTAMPTZ) to be mutual inverses, but QED's SMT encoding treats each uninterpreted scalar function as an independent symbol and proves equivalence only for *all* instantiations\u2014since F(z,x) op c \u27fa x op G(z,c) is not a valid identity for arbitrary uninterpreted F and G (the solver will produce a countermodel with unrelated functions), no encoding can make QED verify the rewrite; the DSL also provides no axiom/constraint channel to assert the inverse relationship, making this a genuine fundamental limitation rather than a missed encoding trick. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's soundness requires the two timezone overloads (zone,TIMESTAMPTZ\u2192TIMESTAMP and zone,TIMESTAMP\u2192TIMESTAMPTZ) to be mutual inverses, but QED's SMT encoding treats each uninterpreted scalar function as an independent symbol and proves equivalence only for *all* instantiations\u2014since F(z,x) op c \u27fa x op G(z,c) is not a valid identity for arbitrary uninterpreted F and G (the solver will produce a countermodel with unrelated functions), no encoding can make QED verify the rewrite; the DSL also provides no axiom/constraint channel to assert the inverse relationship, making this a genuine fundamental limitation rather than a missed encoding trick. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-27T23:08:38.512677+00:00"
+  },
+  {
+    "rule_name": "NormalizeCmpTimeZoneFunction",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/comp.opt\n\nNormalizeCmpTimeZoneFunction normalizes timezone functions within\ncomparison operators. It only matches expressions when:\n\n1. The left side of the comparison is a timezone() function.\n2. The second argument to timezone() is a variable of type TIMESTAMP.\n3. The right side of the comparison is a constant value TIMESTAMPTZ.\n\nHere's an example:\n\ntimezone('America/Denver', ts) = '2020-06-01 12:35:55-07'\n=>\nts = timezone('America/Denver', '2020-06-01 12:35:55-07')\n\nThis normalization is valid because the overloaded function timezone(zone,\nTIMESTAMP) is the inverse of timezone(zone, TIMESTAMPTZ).\n\nExtracted from `comp.opt` (which defines multiple rules \u2014 implement specifically `NormalizeCmpTimeZoneFunction`, not the other rules in that file):\n\n```\n# NormalizeCmpTimeZoneFunction normalizes timezone functions within\n# comparison operators. It only matches expressions when:\n#\n#   1. The left side of the comparison is a timezone() function.\n#   2. The second argument to timezone() is a variable of type TIMESTAMP.\n#   3. The right side of the comparison is a constant value TIMESTAMPTZ.\n#\n# Here's an example:\n#\n#   timezone('America/Denver', ts) = '2020-06-01 12:35:55-07'\n#   =>\n#   ts = timezone('America/Denver', '2020-06-01 12:35:55-07')\n#\n# This normalization is valid because the overloaded function timezone(zone,\n# TIMESTAMP) is the inverse of timezone(zone, TIMESTAMPTZ).\n[NormalizeCmpTimeZoneFunction, Normalize]\n(Eq | Ge | Gt | Le | Lt\n    (Function $args:* $private:(FunctionPrivate \"timezone\"))\n    $right:(ConstValue) &\n        (IsTimestampTZ $right) &\n        (Let ($zone $ts $ok):(ScalarPair $args) $ok) &\n        (IsTimestamp $ts)\n)\n=>\n((OpName) $ts (MakeTimeZoneFunction $zone $right))\n```",
+    "status": "SKIPPED",
+    "attempts_used": 25,
+    "reason": "The rule's correctness depends on the inverse relationship between CockroachDB's two timezone overloads (timezone(zone, TIMESTAMP) \u2194 timezone(zone, TIMESTAMPTZ)), which is a bespoke algebraic property of a backend-specific operator; QED models all non-built-in operators as uninterpreted functions with no axiom mechanism, and no encoding (shared or independent symbols) can make cmp(f(z,x), c) \u27fa cmp(x, g(z,c)) provable without asserting f\u2218g = id, which the DSL cannot express and the Rust prover cannot be modified to accept. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's correctness depends on the inverse relationship between CockroachDB's two timezone overloads (timezone(zone, TIMESTAMP) \u2194 timezone(zone, TIMESTAMPTZ)), which is a bespoke algebraic property of a backend-specific operator; QED models all non-built-in operators as uninterpreted functions with no axiom mechanism, and no encoding (shared or independent symbols) can make cmp(f(z,x), c) \u27fa cmp(x, g(z,c)) provable without asserting f\u2218g = id, which the DSL cannot express and the Rust prover cannot be modified to accept. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-27T23:11:46.643933+00:00"
+  },
+  {
+    "rule_name": "NormalizeInConst",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/scalar.opt\n\nNormalizeInConst ensures that the In operator's tuple operand is sorted with\nduplicates removed (since duplicates do not change the result).\n\nExtracted from `scalar.opt` (which defines multiple rules \u2014 implement specifically `NormalizeInConst`, not the other rules in that file):\n\n```\n# NormalizeInConst ensures that the In operator's tuple operand is sorted with\n# duplicates removed (since duplicates do not change the result).\n[NormalizeInConst, Normalize]\n(In | NotIn\n    $left:*\n    $right:(Tuple $elems:*) & (NeedSortedUniqueList $elems)\n)\n=>\n((OpName) $left (Tuple (ConstructSortedUniqueList $elems)))\n```",
+    "status": "PROVED",
+    "attempts_used": 21,
+    "reason": "before() (x IN (a,b,a,b), a 4-operand OR of EQUALS) and after() (x IN (a,b), a 2-operand OR) differ structurally by exactly the duplicate disjuncts, so the proof is non-vacuous and captures the rule's actual justification \u2014 dedup of the IN list, i.e. OR-idempotency (order/sorting is absorbed by OR-commutativity in the prover). Symbol sharing is correct: x, a, b are independent uninterpreted columns of a constraint-free scan as in reality, eqA/eqB are reused at the duplicate positions, and modeling the tuple elements as source columns is a safe over-generalization that subsumes the rule's constant-tuple case, so the proved claim transfers to real queries. The declared SCOPE is honest and specific \u2014 only the In branch with the fixed duplicated shape (a,b,a,b) is encoded, with NotIn and other arities omitted but following the same idempotency fact \u2014 making this a faithful, non-degenerate special case of NormalizeInConst. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 362667
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "before() (x IN (a,b,a,b), a 4-operand OR of EQUALS) and after() (x IN (a,b), a 2-operand OR) differ structurally by exactly the duplicate disjuncts, so the proof is non-vacuous and captures the rule's actual justification \u2014 dedup of the IN list, i.e. OR-idempotency (order/sorting is absorbed by OR-commutativity in the prover). Symbol sharing is correct: x, a, b are independent uninterpreted columns of a constraint-free scan as in reality, eqA/eqB are reused at the duplicate positions, and modeling the tuple elements as source columns is a safe over-generalization that subsumes the rule's constant-tuple case, so the proved claim transfers to real queries. The declared SCOPE is honest and specific \u2014 only the In branch with the fixed duplicated shape (a,b,a,b) is encoded, with NotIn and other arities omitted but following the same idempotency fact \u2014 making this a faithful, non-degenerate special case of NormalizeInConst. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "encodes only the In branch with a fixed-shape tuple (a, b, a, b) over two distinct values modeled as source columns; the NotIn branch and arbitrary arities follow the same disjunction-idempotency argument.",
+    "timestamp": "2026-09-27T23:17:40.924568+00:00"
+  },
+  {
+    "rule_name": "NormalizeLikeAny",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/select.opt\n\nNormalizeLikeAny replaces `x LIKE '%'` with `x IS NOT NULL`.\n\nExtracted from `select.opt` (which defines multiple rules \u2014 implement specifically `NormalizeLikeAny`, not the other rules in that file):\n\n```\n# NormalizeLikeAny replaces `x LIKE '%'` with `x IS NOT NULL`.\n[NormalizeLikeAny, Normalize]\n(Select\n    $input:*\n    $filters:[\n        ...\n        $item:(FiltersItem\n            (Like | ILike\n                $left:*\n                $pattern:(Const) &\n                    (ConstStringEquals $pattern \"%\")\n            )\n        )\n        ...\n    ]\n)\n=>\n(Select\n    $input\n    (ReplaceFiltersItem\n        $filters\n        $item\n        (IsNot $left (Null (AnyType)))\n    )\n)\n```",
+    "status": "SKIPPED",
+    "attempts_used": 29,
+    "reason": "The rule's entire semantic content is the axiom that the pattern '%' matches every non-NULL string, i.e. that `LIKE(x, '%')` \u2261 `x IS NOT NULL`. In QED's translation both expressions become independent uninterpreted predicate symbols over the same scan, and QED's SMT theory has no string/glob reasoning to connect them \u2014 this is the explicitly stated limitation that QED \"can't reason about predicate inference/entailment between independent symbols.\" No DSL extension can close this gap because the missing knowledge is a theory axiom in the (unmodifiable) prover, not a missing operator shape. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's entire semantic content is the axiom that the pattern '%' matches every non-NULL string, i.e. that `LIKE(x, '%')` \u2261 `x IS NOT NULL`. In QED's translation both expressions become independent uninterpreted predicate symbols over the same scan, and QED's SMT theory has no string/glob reasoning to connect them \u2014 this is the explicitly stated limitation that QED \"can't reason about predicate inference/entailment between independent symbols.\" No DSL extension can close this gap because the missing knowledge is a theory axiom in the (unmodifiable) prover, not a missing operator shape. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-27T23:43:58.018724+00:00"
+  },
+  {
+    "rule_name": "NormalizeNestedAnds",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/bool.opt\n\nNormalizeNestedAnds ensures that And expressions are normalized into a left-\ndeep tree. For example, the expression:\n\nA AND (B AND (C AND D))\n\nwould be normalized to:\n\nAnd\n/   \\\nAnd   D\n/   \\\nAnd   C\n/   \\\nA     B\n\nThis normalization makes conjuncts easier to traverse for other rules, such as\nthe ExtractRedundantConjunct rule.\n\nExtracted from `bool.opt` (which defines multiple rules \u2014 implement specifically `NormalizeNestedAnds`, not the other rules in that file):\n\n```\n# NormalizeNestedAnds ensures that And expressions are normalized into a left-\n# deep tree. For example, the expression:\n#\n#   A AND (B AND (C AND D))\n#\n# would be normalized to:\n#\n#         And\n#        /   \\\n#       And   D\n#      /   \\\n#     And   C\n#    /   \\\n#   A     B\n#\n# This normalization makes conjuncts easier to traverse for other rules, such as\n# the ExtractRedundantConjunct rule.\n[NormalizeNestedAnds, Normalize]\n(And $left:* (And $innerLeft:* $innerRight:*))\n=>\n(And (ConcatLeftDeepAnds $left $innerLeft) $innerRight)\n```",
+    "status": "PROVED",
+    "attempts_used": 21,
+    "reason": "The encoding is a faithful, non-vacuous base case of the rule \u2014 `before()` = `p \u2227 (q \u2227 r)` and `after()` = `(p \u2227 q) \u2227 r` are structurally distinct trees (so the proof isn't trivial), the three slots use three independent uninterpreted predicates exactly as the source pattern's three `$:*` slots require, and the source rule carries no side conditions that could be silently dropped. It is a special case rather than the full rule: the Optgen rule is a recursive left-deep flattening where any slot may itself be an `And`, which no single finite RuleScript pattern can express (the DSL has no expression-level metavariables, and the after-side shape recursively depends on the before-side's structure via `ConcatLeftDeepAnds` \u2014 a genuine DSL/prover limitation, not a missing builder, since an expression \"hole\" would semantically reduce to what `pred` already provides), so the honest `// SCOPE: PARTIAL` tag with a specific condition (atomic conjuncts, fixed depth-2 shape) is appropriate, and the proved claim \u2014 that the left-deep re-association preserves bag semantics for all instantiations of uninterpreted (i.e., maximally general boolean) conjuncts \u2014 is exactly the semantic content the optimizer must trust.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 348625
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is a faithful, non-vacuous base case of the rule \u2014 `before()` = `p \u2227 (q \u2227 r)` and `after()` = `(p \u2227 q) \u2227 r` are structurally distinct trees (so the proof isn't trivial), the three slots use three independent uninterpreted predicates exactly as the source pattern's three `$:*` slots require, and the source rule carries no side conditions that could be silently dropped. It is a special case rather than the full rule: the Optgen rule is a recursive left-deep flattening where any slot may itself be an `And`, which no single finite RuleScript pattern can express (the DSL has no expression-level metavariables, and the after-side shape recursively depends on the before-side's structure via `ConcatLeftDeepAnds` \u2014 a genuine DSL/prover limitation, not a missing builder, since an expression \"hole\" would semantically reduce to what `pred` already provides), so the honest `// SCOPE: PARTIAL` tag with a specific condition (atomic conjuncts, fixed depth-2 shape) is appropriate, and the proved claim \u2014 that the left-deep re-association preserves bag semantics for all instantiations of uninterpreted (i.e., maximally general boolean) conjuncts \u2014 is exactly the semantic content the optimizer must trust.",
+    "scope": "PARTIAL",
+    "scope_detail": "assumes $left, $innerLeft, $innerRight are each atomic (non-And) predicates",
+    "timestamp": "2026-09-27T23:58:29.503051+00:00"
+  },
+  {
+    "rule_name": "NormalizeJoinAnyFilter",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/decorrelate.opt\n\nNormalizeJoinAnyFilter is similar to NormalizeSelectAnyFilter, except that it\noperates on Any expressions within Join filters rather than Select filters.\n\nExtracted from `decorrelate.opt` (which defines multiple rules \u2014 implement specifically `NormalizeJoinAnyFilter`, not the other rules in that file):\n\n```\n# NormalizeJoinAnyFilter is similar to NormalizeSelectAnyFilter, except that it\n# operates on Any expressions within Join filters rather than Select filters.\n[NormalizeJoinAnyFilter, Normalize]\n(Join\n    $left:*\n    $right:*\n    $on:[\n        ...\n        $item:(FiltersItem\n            (Any $anyInput:* $scalar:* $anyPrivate:*)\n        )\n        ...\n    ]\n    $private:*\n)\n=>\n((OpName)\n    $left\n    $right\n    (ReplaceFiltersItem\n        $on\n        $item\n        (Exists\n            (Select\n                $anyInput\n                [\n                    (FiltersItem\n                        (ConstructAnyCondition\n                            $anyInput\n                            $scalar\n                            $anyPrivate\n                        )\n                    )\n                ]\n            )\n            (ConvertSubToExistsPrivate $anyPrivate)\n        )\n    )\n    $private\n)\n```",
+    "status": "SKIPPED",
+    "attempts_used": 111,
+    "reason": "The rule's entire content is a scalar-level predicate swap `x = ANY(subquery)` \u2192 `EXISTS(SELECT \u2026 WHERE x = scalar)` inside a join's ON condition, but the DSL's scalar language (RexRN: Pred/Proj/And/Or/Not/Field/literals) offers no subquery/Any/Exists/IN predicate node \u2014 predicates are only flat uninterpreted symbols over the current row. QED's Q-expression model is flat bag semantics over a fixed schema with no nested/correlated-relation predicate, so it cannot represent either side nor prove the Any\u2194Exists entailment between independent uninterpreted symbols (a documented limitation). Since the Join wrapper is unchanged on both sides, the subquery predicate swap *is* the whole rule, leaving no relational structure to salvage as a narrower provable special case. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 6,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's entire content is a scalar-level predicate swap `x = ANY(subquery)` \u2192 `EXISTS(SELECT \u2026 WHERE x = scalar)` inside a join's ON condition, but the DSL's scalar language (RexRN: Pred/Proj/And/Or/Not/Field/literals) offers no subquery/Any/Exists/IN predicate node \u2014 predicates are only flat uninterpreted symbols over the current row. QED's Q-expression model is flat bag semantics over a fixed schema with no nested/correlated-relation predicate, so it cannot represent either side nor prove the Any\u2194Exists entailment between independent uninterpreted symbols (a documented limitation). Since the Join wrapper is unchanged on both sides, the subquery predicate swap *is* the whole rule, leaving no relational structure to salvage as a narrower provable special case. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-28T00:43:35.847347+00:00"
+  },
+  {
+    "rule_name": "NormalizeSelectNotAnyFilter",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/decorrelate.opt\n\nNormalizeSelectNotAnyFilter rewrites a Not Any expression that is a top-level\nconjunct in Select filters, turning it into a Not Exists expression. Not Any\ncan be rewritten as Not Exists in this context because a NULL return value is\ntreated as False by the filter.\n\nNot Exists is more efficient than Not Any, since its null handling is much\nsimpler. In addition, the Not Exists can be transformed into an anti-join.\n\nCitations: [5] (section 3.5)\n\nExtracted from `decorrelate.opt` (which defines multiple rules \u2014 implement specifically `NormalizeSelectNotAnyFilter`, not the other rules in that file):\n\n```\n# NormalizeSelectNotAnyFilter rewrites a Not Any expression that is a top-level\n# conjunct in Select filters, turning it into a Not Exists expression. Not Any\n# can be rewritten as Not Exists in this context because a NULL return value is\n# treated as False by the filter.\n#\n# Not Exists is more efficient than Not Any, since its null handling is much\n# simpler. In addition, the Not Exists can be transformed into an anti-join.\n#\n# Citations: [5] (section 3.5)\n[NormalizeSelectNotAnyFilter, Normalize]\n(Select\n    $input:*\n    $filters:[\n        ...\n        $item:(FiltersItem\n            (Not (Any $anyInput:* $scalar:* $anyPrivate:*))\n        )\n        ...\n    ]\n)\n=>\n(Select\n    $input\n    (ReplaceFiltersItem\n        $filters\n        $item\n        (Not\n            (Exists\n                (Select\n                    $anyInput\n                    [\n                        (FiltersItem\n                            (IsNot\n                                (ConstructAnyCondition\n                                    $anyInput\n                                    $scalar\n                                    $anyPrivate\n                                )\n                                (False)\n                            )\n                        )\n                    ]\n                )\n                (ConvertSubToExistsPrivate $anyPrivate)\n            )\n        )\n    )\n)\n```",
+    "status": "SKIPPED",
+    "attempts_used": 43,
+    "reason": "The rule's correctness hinges on the specific three-valued-logic evaluation semantics of the SQL `ANY` operator (its NULL propagation and empty-set behavior), which is a bespoke operator internal that QED's bag-semantic SMT prover does not model\u2014QED only interprets EXISTS/UNIQUE subqueries, so `Any` must remain an uninterpreted symbol with no axiomatic link to `Exists`, making the defining identity `NOT ANY \u2261 NOT EXISTS(\u2026 IS NOT FALSE)` underivable regardless of encoding.",
+    "prover_stats": {},
+    "verification_rounds_used": 3,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's correctness hinges on the specific three-valued-logic evaluation semantics of the SQL `ANY` operator (its NULL propagation and empty-set behavior), which is a bespoke operator internal that QED's bag-semantic SMT prover does not model\u2014QED only interprets EXISTS/UNIQUE subqueries, so `Any` must remain an uninterpreted symbol with no axiomatic link to `Exists`, making the defining identity `NOT ANY \u2261 NOT EXISTS(\u2026 IS NOT FALSE)` underivable regardless of encoding.",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-28T01:22:50.354588+00:00"
+  },
+  {
+    "rule_name": "NormalizeJoinNotAnyFilter",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/decorrelate.opt\n\nNormalizeJoinNotAnyFilter is similar to NormalizeSelectNotAnyFilter, except\nthat it operates on Not Any expressions within Join filters rather than Select\nfilters.\n\nExtracted from `decorrelate.opt` (which defines multiple rules \u2014 implement specifically `NormalizeJoinNotAnyFilter`, not the other rules in that file):\n\n```\n# NormalizeJoinNotAnyFilter is similar to NormalizeSelectNotAnyFilter, except\n# that it operates on Not Any expressions within Join filters rather than Select\n# filters.\n[NormalizeJoinNotAnyFilter, Normalize]\n(Join\n    $left:*\n    $right:*\n    $on:[\n        ...\n        $item:(FiltersItem\n            (Not (Any $anyInput:* $scalar:* $anyPrivate:*))\n        )\n        ...\n    ]\n    $private:*\n)\n=>\n((OpName)\n    $left\n    $right\n    (ReplaceFiltersItem\n        $on\n        $item\n        (Not\n            (Exists\n                (Select\n                    $anyInput\n                    [\n                        (FiltersItem\n                            (IsNot\n                                (ConstructAnyCondition\n                                    $anyInput\n                                    $scalar\n                                    $anyPrivate\n                                )\n                                (False)\n                            )\n                        )\n                    ]\n                )\n                (ConvertSubToExistsPrivate $anyPrivate)\n            )\n        )\n    )\n    $private\n)\n```",
+    "status": "SKIPPED",
+    "attempts_used": 101,
+    "reason": "The rule's entire content is the semantic identity NOT(ANY(subq)) \u2261 NOT(EXISTS(Select(subq, IsNot(ConstructAnyCondition,...)))), which rests on (a) three-valued-logic NULL handling (\"a NULL return value is treated as False by the filter\") that QED's bag-semantics decision procedure does not model, and (b) subquery operators ANY/EXISTS in the scalar/ON-condition position \u2014 neither exists in RuleScript's core language, so both sides would be distinct, unconnected uninterpreted symbols (ConstructAnyCondition being yet another opaque function) that QED has no algebraic definition linking, making equivalence genuinely undecidable rather than a missed encoding. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 6,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's entire content is the semantic identity NOT(ANY(subq)) \u2261 NOT(EXISTS(Select(subq, IsNot(ConstructAnyCondition,...)))), which rests on (a) three-valued-logic NULL handling (\"a NULL return value is treated as False by the filter\") that QED's bag-semantics decision procedure does not model, and (b) subquery operators ANY/EXISTS in the scalar/ON-condition position \u2014 neither exists in RuleScript's core language, so both sides would be distinct, unconnected uninterpreted symbols (ConstructAnyCondition being yet another opaque function) that QED has no algebraic definition linking, making equivalence genuinely undecidable rather than a missed encoding. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-28T01:42:46.899779+00:00"
+  },
+  {
+    "rule_name": "ProjectInnerJoinValues",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/join.opt\n\nProjectInnerJoinValues transforms an inner join with a single-row Values\noperator to a Project operator. This allows decorrelation of e.g.:\n\nSELECT (SELECT CASE WHEN ord.approved THEN 'Approved' ELSE '---' END)\nFROM (VALUES (1, true), (2, false)) ord(id, approved)\n\nExtracted from `join.opt` (which defines multiple rules \u2014 implement specifically `ProjectInnerJoinValues`, not the other rules in that file):\n\n```\n# ProjectInnerJoinValues transforms an inner join with a single-row Values\n# operator to a Project operator. This allows decorrelation of e.g.:\n#\n#   SELECT (SELECT CASE WHEN ord.approved THEN 'Approved' ELSE '---' END)\n#   FROM (VALUES (1, true), (2, false)) ord(id, approved)\n#\n[ProjectInnerJoinValues, Normalize]\n(InnerJoin | InnerJoinApply\n    $left:*\n    $right:(Values) & (HasOneRow $right)\n    $on:*\n)\n=>\n(Select\n    (Project\n        $left\n        (MakeProjectionsFromValues $right)\n        (OutputCols $left)\n    )\n    $on\n)\n```",
+    "status": "PROVED",
+    "attempts_used": 23,
+    "reason": "before() (an INNER join with a one-row literal Values) and after() (an identity+constants Project followed by a Filter) are structurally distinct, and QED's proof universally quantifies over both the left table and the uninterpreted \"on\" predicate \u2014 including constant-true/false instantiations covering empty/true on-clauses \u2014 so the bag-equivalence is substantive, not vacuous. The modeling choices are faithful: the same \"on\" symbol is shared across the join condition and the final filter exactly as the source rule reuses $on, the projected constants (1,2) match the Values row contents identically on both sides as MakeProjectionsFromValues requires, the join kind is INNER, and the sole source precondition (HasOneRow on a Values) is modeled precisely. The disclosed PARTIAL narrowing (1-column left input, fixed 2-column row (1,2), correlated InnerJoinApply variant omitted) is honest and specific, and representative rather than degenerate, since the rule's correctness is independent of left/values arity and all genuinely free logical parameters remain fully uninterpreted. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 5687834
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 33387750
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 944500
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 356667
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 16804917
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 33427458
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 65470791
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "before() (an INNER join with a one-row literal Values) and after() (an identity+constants Project followed by a Filter) are structurally distinct, and QED's proof universally quantifies over both the left table and the uninterpreted \"on\" predicate \u2014 including constant-true/false instantiations covering empty/true on-clauses \u2014 so the bag-equivalence is substantive, not vacuous. The modeling choices are faithful: the same \"on\" symbol is shared across the join condition and the final filter exactly as the source rule reuses $on, the projected constants (1,2) match the Values row contents identically on both sides as MakeProjectionsFromValues requires, the join kind is INNER, and the sole source precondition (HasOneRow on a Values) is modeled precisely. The disclosed PARTIAL narrowing (1-column left input, fixed 2-column row (1,2), correlated InnerJoinApply variant omitted) is honest and specific, and representative rather than degenerate, since the rule's correctness is independent of left/values arity and all genuinely free logical parameters remain fully uninterpreted. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "modeled with a representative 1-column left input, a single-row 2-column Values (1, 2), and an uninterpreted on-predicate over all join columns; the correlated InnerJoinApply variant is not modeled.",
+    "timestamp": "2026-09-28T02:01:21.472026+00:00"
+  },
+  {
+    "rule_name": "PruneAggCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneAggCols discards aggregation columns in a GroupBy that are never used.\nNote that UpsertDistinctOn is not included here because its columns are always\nused.\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneAggCols`, not the other rules in that file):\n\n```\n# PruneAggCols discards aggregation columns in a GroupBy that are never used.\n# Note that UpsertDistinctOn is not included here because its columns are always\n# used.\n[PruneAggCols, Normalize]\n(Project\n    $input:(GroupBy | ScalarGroupBy | DistinctOn\n            | EnsureDistinctOn\n        $innerInput:*\n        $aggregations:*\n        $groupingPrivate:*\n    )\n    $projections:*\n    $passthrough:* &\n        (CanPruneAggCols\n            $aggregations\n            $needed:(UnionCols\n                (ProjectionOuterCols $projections)\n                $passthrough\n            )\n        )\n)\n=>\n(Project\n    ((OpName $input)\n        $innerInput\n        (PruneAggCols $aggregations $needed)\n        $groupingPrivate\n    )\n    $projections\n    $passthrough\n)\n```",
+    "status": "PROVED",
+    "attempts_used": 23,
+    "reason": "The encoding is a faithful, non-degenerate special case of PruneAggCols: before() has Aggregate(key; f(a), g(b)) projected to (key, f), and after() has Aggregate(key; f(a)) projected to (key, f) \u2014 a genuine structural difference that captures the rule's core transformation (removing an unused aggregation from a GroupBy when the outer project doesn't reference it). The shared uninterpreted aggregate symbol `f` is correctly reused across both sides (matching the source rule's requirement that kept aggregations are unchanged), `g` appears only in before(), and the SCOPE: PARTIAL tag honestly and specifically names the restrictions (fixed 3-column scan, one group key, one retained and one pruned single-arg aggregate). QED's fast proof is consistent with this being a structural bag-semantic equivalence (dropping an unreferenced column from a group-by's output doesn't change the remaining columns' multiset), not a vacuous or coincidental result. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 13212959
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 35114958
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 944417
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 822541
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 30740708
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 35221625
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 81950583
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is a faithful, non-degenerate special case of PruneAggCols: before() has Aggregate(key; f(a), g(b)) projected to (key, f), and after() has Aggregate(key; f(a)) projected to (key, f) \u2014 a genuine structural difference that captures the rule's core transformation (removing an unused aggregation from a GroupBy when the outer project doesn't reference it). The shared uninterpreted aggregate symbol `f` is correctly reused across both sides (matching the source rule's requirement that kept aggregations are unchanged), `g` appears only in before(), and the SCOPE: PARTIAL tag honestly and specifically names the restrictions (fixed 3-column scan, one group key, one retained and one pruned single-arg aggregate). QED's fast proof is consistent with this being a structural bag-semantic equivalence (dropping an unreferenced column from a group-by's output doesn't change the remaining columns' multiset), not a vacuous or coincidental result. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "fixed 3-column scan (group key plus two aggregate arguments), one group key, and an outer project that selects only the group key and the retained single-arg aggregate f so the pruned single-arg aggregate g is never used.",
+    "timestamp": "2026-09-28T02:20:21.447984+00:00"
+  },
+  {
+    "rule_name": "NormalizeTupleEquality",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/comp.opt\n\nNormalizeTupleEquality breaks up expressions like:\n(a, b, c) = (x, y, z)\ninto\n(a = x) AND (b = y) AND (c = z)\n\nThis rule makes it easier to extract constraints from boolean expressions,\nso that recognition code doesn't have to handle the tuple case separately.\n\nExtracted from `comp.opt` (which defines multiple rules \u2014 implement specifically `NormalizeTupleEquality`, not the other rules in that file):\n\n```\n# NormalizeTupleEquality breaks up expressions like:\n#   (a, b, c) = (x, y, z)\n# into\n#   (a = x) AND (b = y) AND (c = z)\n#\n# This rule makes it easier to extract constraints from boolean expressions,\n# so that recognition code doesn't have to handle the tuple case separately.\n[NormalizeTupleEquality, Normalize]\n(Eq (Tuple $left:*) (Tuple $right:*))\n=>\n(NormalizeTupleEquality $left $right)\n```",
+    "status": "SKIPPED",
+    "attempts_used": 88,
+    "reason": "The rule's entire correctness rests on the semantic identity \"tuple equality = conjunction of element-wise equalities,\" but QED has no tuple/row type (all types flatten to INTEGER) and no defined tuple-equality operator, so the left-hand `(a,b,c)=(x,y,z)` can only be introduced as an uninterpreted predicate symbol that the SMT solver cannot see through as element-wise equality. I independently checked the DSL source and found no alternate encoding that avoids this: modeling the tuples as separate multi-column relations makes the before-side join condition already element-wise (identical to the after, a tautology rather than the rule), and `extend_dsl_file` can only add another uninterpreted symbol since defining tuple-equality semantics would require modifying the trusted prover. This falls squarely under the documented QED limitation of being unable to reason about a backend operator's bespoke internal semantics as an uninterpreted function, so the UNSUPPORTED claim is sound. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 5,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's entire correctness rests on the semantic identity \"tuple equality = conjunction of element-wise equalities,\" but QED has no tuple/row type (all types flatten to INTEGER) and no defined tuple-equality operator, so the left-hand `(a,b,c)=(x,y,z)` can only be introduced as an uninterpreted predicate symbol that the SMT solver cannot see through as element-wise equality. I independently checked the DSL source and found no alternate encoding that avoids this: modeling the tuples as separate multi-column relations makes the before-side join condition already element-wise (identical to the after, a tautology rather than the rule), and `extend_dsl_file` can only add another uninterpreted symbol since defining tuple-equality semantics would require modifying the trusted prover. This falls squarely under the documented QED limitation of being unable to reason about a backend operator's bespoke internal semantics as an uninterpreted function, so the UNSUPPORTED claim is sound. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-28T02:27:47.437947+00:00"
+  },
+  {
+    "rule_name": "PruneExplainCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneExplainCols discards Explain input columns that are never used by its\nrequired physical properties.\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneExplainCols`, not the other rules in that file):\n\n```\n# PruneExplainCols discards Explain input columns that are never used by its\n# required physical properties.\n[PruneExplainCols, Normalize]\n(Explain\n    $input:*\n    $explainPrivate:* &\n        (CanPruneCols\n            $input\n            $needed:(NeededExplainCols $explainPrivate)\n        )\n)\n=>\n(Explain (PruneCols $input $needed) $explainPrivate)\n```",
+    "status": "PROVED",
+    "attempts_used": 22,
+    "reason": "The encoding matches PruneExplainCols exactly in shape \u2014 `Explain(input)` \u27f9 `Explain(PruneCols(input, needed))` with no wrapping Project (unlike the sibling Prune* rules), modeled as an invariant outer operator `Proj(E)` over the input with a projection of the needed column pushed beneath it in `after()`. Modeling Explain as the uninterpreted per-row function `E` of only the needed column faithfully captures the rule's sole validity condition (the output depends only on the needed columns, whose bag is identical before/after), and the proof is genuinely non-trivial: `before()` and `after()` are structurally different and equal only because `E` ignores the pruned column. The only restriction \u2014 a fixed 2-column input with 1 needed column and 1 output column \u2014 is forced by the DSL's lack of variable arity (not an avoidable hard-coding), is accurately and specifically disclosed in the SCOPE line, and leaves a non-degenerate, useful rewrite. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 511708
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding matches PruneExplainCols exactly in shape \u2014 `Explain(input)` \u27f9 `Explain(PruneCols(input, needed))` with no wrapping Project (unlike the sibling Prune* rules), modeled as an invariant outer operator `Proj(E)` over the input with a projection of the needed column pushed beneath it in `after()`. Modeling Explain as the uninterpreted per-row function `E` of only the needed column faithfully captures the rule's sole validity condition (the output depends only on the needed columns, whose bag is identical before/after), and the proof is genuinely non-trivial: `before()` and `after()` are structurally different and equal only because `E` ignores the pruned column. The only restriction \u2014 a fixed 2-column input with 1 needed column and 1 output column \u2014 is forced by the DSL's lack of variable arity (not an avoidable hard-coding), is accurately and specifically disclosed in the SCOPE line, and leaves a non-degenerate, useful rewrite. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "Explain's input has exactly two columns of which only the first is needed by the fixed explain physical properties, and Explain's output rows are uninterpreted functions of exactly that needed column",
+    "timestamp": "2026-09-28T02:42:01.593314+00:00"
+  },
+  {
+    "rule_name": "PruneGroupByCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneGroupByCols discards GroupBy input columns that are never used. Note that\nUpsertDistinctOn is not included here because its columns are always used.\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneGroupByCols`, not the other rules in that file):\n\n```\n# PruneGroupByCols discards GroupBy input columns that are never used. Note that\n# UpsertDistinctOn is not included here because its columns are always used.\n[PruneGroupByCols, Normalize]\n(GroupBy | ScalarGroupBy | DistinctOn | EnsureDistinctOn\n    $input:*\n    $aggregations:*\n    $groupingPrivate:* &\n        (CanPruneCols\n            $input\n            $needed:(UnionCols\n                (AggregationOuterCols $aggregations)\n                (NeededGroupingCols $groupingPrivate)\n            )\n        )\n)\n=>\n((OpName)\n    (PruneCols $input $needed)\n    $aggregations\n    (PruneOrderingGroupBy $groupingPrivate $needed)\n)\n```",
+    "status": "PROVED",
+    "attempts_used": 23,
+    "reason": "It is a nontrivial partial instance of PruneGroupByCols: the unused fourth input column is removed before the same uninterpreted GROUP BY/aggregates, while the group key and aggregate arguments are preserved. The added all-column projection is an identity context, and the PARTIAL line honestly states the fixed arity/aggregate assumptions.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 13121291
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 54175207
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 1338500
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 1029667
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 30548333
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 54447042
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 100798333
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "It is a nontrivial partial instance of PruneGroupByCols: the unused fourth input column is removed before the same uninterpreted GROUP BY/aggregates, while the group key and aggregate arguments are preserved. The added all-column projection is an identity context, and the PARTIAL line honestly states the fixed arity/aggregate assumptions.",
+    "scope": "PARTIAL",
+    "scope_detail": "fixed 4-column scan (one group key, two aggregate arguments, one unused column), one group key, two non-distinct single-argument aggregates, and the outer projection selects all aggregate output columns.",
+    "timestamp": "2026-09-28T02:47:19.084667+00:00"
+  },
+  {
+    "rule_name": "PruneJoinRightCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneJoinRightCols discards columns on the right side of a join that are never\nused. AddDerivedOnClauseConditionsFromFKContraints builds equijoin predicates\nwhich might be added during optimization, if any, to ensure those columns are\nnot pruned away.\n\nThe PruneCols property should prevent this rule (which pushes Project below\nJoin) from cycling with the TryDecorrelateProject rule (which pushes Join\nbelow Project).\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneJoinRightCols`, not the other rules in that file):\n\n```\n# PruneJoinRightCols discards columns on the right side of a join that are never\n# used. AddDerivedOnClauseConditionsFromFKContraints builds equijoin predicates\n# which might be added during optimization, if any, to ensure those columns are\n# not pruned away.\n#\n# The PruneCols property should prevent this rule (which pushes Project below\n# Join) from cycling with the TryDecorrelateProject rule (which pushes Join\n# below Project).\n[PruneJoinRightCols, Normalize]\n(Project\n    $input:(Join $left:* $right:* $on:* $private:*)\n    $projections:*\n    $passthrough:* &\n        (CanPruneCols\n            $right\n            $needed:(UnionCols3\n                (FilterOuterCols\n                    (AddDerivedOnClauseConditionsFromFKContraints\n                        $on\n                        $left\n                        $right\n                    )\n                )\n                (ProjectionOuterCols $projections)\n                $passthrough\n            )\n        )\n)\n=>\n(Project\n    ((OpName $input)\n        $left\n        (PruneCols $right $needed)\n        $on\n        $private\n    )\n    $projections\n    $passthrough\n)\n```",
+    "status": "PROVED",
+    "attempts_used": 4,
+    "reason": "The encoding faithfully captures the core PruneJoinRightCols transformation: before() is `Project(G(L0,R0), InnerJoin(C(L0,R0), L, R(2col)))` and after() is `Project(G(L0,R0), InnerJoin(C(L0,R0), L, Project(R0,R)))` \u2014 structurally different plans where the unneeded right-side column R1 is eliminated. The uninterpreted symbols C and G are correctly shared, the field indices resolve properly to the join's flat column layout, and the SCOPE line honestly and specifically states the genuine restrictions (INNER join only, fixed 1+2 column shapes) rather than claiming full generality.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 6927209
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 34116333
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 900959
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 543084
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 18925500
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 34206375
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 68651291
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding faithfully captures the core PruneJoinRightCols transformation: before() is `Project(G(L0,R0), InnerJoin(C(L0,R0), L, R(2col)))` and after() is `Project(G(L0,R0), InnerJoin(C(L0,R0), L, Project(R0,R)))` \u2014 structurally different plans where the unneeded right-side column R1 is eliminated. The uninterpreted symbols C and G are correctly shared, the field indices resolve properly to the join's flat column layout, and the SCOPE line honestly and specifically states the genuine restrictions (INNER join only, fixed 1+2 column shapes) rather than claiming full generality.",
+    "scope": "PARTIAL",
+    "scope_detail": "inner join whose right input has one key column (referenced by the on-clause and the outer projection) and one extra column that is pruned, with the on-clause and outer projection uninterpreted over the retained (left, key) columns",
+    "timestamp": "2026-09-28T02:59:45.932669+00:00"
+  },
+  {
+    "rule_name": "PruneInsertReturnCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneInsertReturnCols removes columns from the Insert operator's ReturnCols\nset if they are not used in the RETURNING clause of the mutation.\nRemoving ReturnCols will then allow the PruneMutationFetchCols to be more\nconservative with the fetch columns.\nTODO(msirek): Mutations shouldn't need to return the primary key\ncolumns. Investigate appropriate changes to SQL execution to accommodate this,\nthrough #111733.\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneInsertReturnCols`, not the other rules in that file):\n\n```\n# PruneInsertReturnCols removes columns from the Insert operator's ReturnCols\n# set if they are not used in the RETURNING clause of the mutation.\n# Removing ReturnCols will then allow the PruneMutationFetchCols to be more\n# conservative with the fetch columns.\n# TODO(msirek): Mutations shouldn't need to return the primary key\n# columns. Investigate appropriate changes to SQL execution to accommodate this,\n# through #111733.\n[PruneInsertReturnCols, Normalize]\n(Project\n    $input:(Insert\n        $innerInput:*\n        $uniqueChecks:*\n        $fastPathUniqueChecks:*\n        $fkChecks:*\n        $mutationPrivate:*\n    )\n    $projections:*\n    $passthrough:* &\n        (CanPruneMutationReturnCols\n            $mutationPrivate\n            $needed:(UnionCols3\n                (PrimaryKeyCols (MutationTable $mutationPrivate))\n                (ProjectionOuterCols $projections)\n                $passthrough\n            )\n        )\n)\n=>\n(Project\n    ((OpName $input)\n        $innerInput\n        $uniqueChecks\n        $fastPathUniqueChecks\n        $fkChecks\n        (PruneMutationReturnCols $mutationPrivate $needed)\n    )\n    $projections\n    $passthrough\n)\n```",
+    "status": "SKIPPED",
+    "attempts_used": 24,
+    "reason": "PruneInsertReturnCols changes only the Insert operator's internal MutationPrivate.ReturnCols metadata \u2014 operator-private state with no counterpart in RuleScript's relational core language \u2014 so in any faithful encoding before() and after() are relationally identical, and the rule's actual correctness claim (that a mutation's returned values for the retained columns don't depend on which other columns it is also configured to return) rests on CockroachDB's bespoke mutation-operator semantics, which QED's bag-semantic model cannot see through as uninterpreted symbols. The only available reduction (modeling the mutation's output as an uninterpreted scan/base relation) would let QED prove a generic \"prune unneeded columns under a projection\" law over arbitrary relations \u2014 a different, more general statement \u2014 while the specific precondition (CanPruneMutationReturnCols, needed = PK \u222a used \u222a passthrough \u2286 ReturnCols) and the metadata change itself remain inexpressible, so no genuine encodable special case of this rule exists.",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "PruneInsertReturnCols changes only the Insert operator's internal MutationPrivate.ReturnCols metadata \u2014 operator-private state with no counterpart in RuleScript's relational core language \u2014 so in any faithful encoding before() and after() are relationally identical, and the rule's actual correctness claim (that a mutation's returned values for the retained columns don't depend on which other columns it is also configured to return) rests on CockroachDB's bespoke mutation-operator semantics, which QED's bag-semantic model cannot see through as uninterpreted symbols. The only available reduction (modeling the mutation's output as an uninterpreted scan/base relation) would let QED prove a generic \"prune unneeded columns under a projection\" law over arbitrary relations \u2014 a different, more general statement \u2014 while the specific precondition (CanPruneMutationReturnCols, needed = PK \u222a used \u222a passthrough \u2286 ReturnCols) and the metadata change itself remain inexpressible, so no genuine encodable special case of this rule exists.",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-28T03:07:12.736478+00:00"
+  },
+  {
+    "rule_name": "NormalizeSelectAnyFilter",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/decorrelate.opt\n\nNormalizeSelectAnyFilter rewrites an Any expression that is a top-level\nconjunct in Select filters, turning it into an Exists expression. Any can be\nrewritten as Exists in this context because a NULL return value is treated as\nFalse by the filter.\n\nExists is more efficient than Any, since its null handling is much simpler. In\naddition, the Exists can be transformed into a semi-join.\n\nCitations: [5] (section 3.5)\n\nExtracted from `decorrelate.opt` (which defines multiple rules \u2014 implement specifically `NormalizeSelectAnyFilter`, not the other rules in that file):\n\n```\n# NormalizeSelectAnyFilter rewrites an Any expression that is a top-level\n# conjunct in Select filters, turning it into an Exists expression. Any can be\n# rewritten as Exists in this context because a NULL return value is treated as\n# False by the filter.\n#\n# Exists is more efficient than Any, since its null handling is much simpler. In\n# addition, the Exists can be transformed into a semi-join.\n#\n# Citations: [5] (section 3.5)\n[NormalizeSelectAnyFilter, Normalize]\n(Select\n    $input:*\n    $filters:[\n        ...\n        $item:(FiltersItem\n            (Any $anyInput:* $scalar:* $anyPrivate:*)\n        )\n        ...\n    ]\n)\n=>\n(Select\n    $input\n    (ReplaceFiltersItem\n        $filters\n        $item\n        (Exists\n            (Select\n                $anyInput\n                [\n                    (FiltersItem\n                        (ConstructAnyCondition\n                            $anyInput\n                            $scalar\n                            $anyPrivate\n                        )\n                    )\n                ]\n            )\n            (ConvertSubToExistsPrivate $anyPrivate)\n        )\n    )\n)\n```",
+    "status": "SKIPPED",
+    "attempts_used": 103,
+    "reason": "The rule's correctness rests entirely on SQL three-valued/NULL logic: `x op ANY (\u2026)` can evaluate to NULL (no TRUE, at least one UNKNOWN) while `EXISTS (\u2026)` is never NULL, and it is precisely the Select filter's drop-NULL-as-false behavior (plus both being TRUE iff some `x op v` is TRUE) that equates the two conjuncts. QED models predicates as total, two-valued, NULL-free uninterpreted functions, so in its bag semantics both `Any` and `Exists` lower to the identical semi-join `R \u22c9 S ON (x op v)` \u2014 there is no NULL to drop and no distinct scalar-subquery-vs-exists semantics to capture, making any RuleScript encoding a vacuous `before() == after()` identity rather than a real proof. This is a fundamental QED modeling limitation (no three-valued logic, no Any/Exists/subquery operator with bespoke NULL handling), not a DSL gap closable via extend_dsl_file. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 6,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's correctness rests entirely on SQL three-valued/NULL logic: `x op ANY (\u2026)` can evaluate to NULL (no TRUE, at least one UNKNOWN) while `EXISTS (\u2026)` is never NULL, and it is precisely the Select filter's drop-NULL-as-false behavior (plus both being TRUE iff some `x op v` is TRUE) that equates the two conjuncts. QED models predicates as total, two-valued, NULL-free uninterpreted functions, so in its bag semantics both `Any` and `Exists` lower to the identical semi-join `R \u22c9 S ON (x op v)` \u2014 there is no NULL to drop and no distinct scalar-subquery-vs-exists semantics to capture, making any RuleScript encoding a vacuous `before() == after()` identity rather than a real proof. This is a fundamental QED modeling limitation (no three-valued logic, no Any/Exists/subquery operator with bespoke NULL handling), not a DSL gap closable via extend_dsl_file. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-28T03:15:03.377556+00:00"
+  },
+  {
+    "rule_name": "PruneLimitCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneLimitCols discards Limit input columns that are never used.\n\nThe PruneCols property should prevent this rule (which pushes Project below\nLimit) from cycling with the PushLimitIntoProject rule (which pushes Limit\nbelow Project).\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneLimitCols`, not the other rules in that file):\n\n```\n# PruneLimitCols discards Limit input columns that are never used.\n#\n# The PruneCols property should prevent this rule (which pushes Project below\n# Limit) from cycling with the PushLimitIntoProject rule (which pushes Limit\n# below Project).\n[PruneLimitCols, Normalize]\n(Project\n    (Limit $input:* $limit:* $ordering:*)\n    $projections:*\n    $passthrough:* &\n        (CanPruneCols\n            $input\n            $needed:(UnionCols3\n                (OrderingCols $ordering)\n                (ProjectionOuterCols $projections)\n                $passthrough\n            )\n        )\n)\n=>\n(Project\n    (Limit\n        (PruneCols $input $needed)\n        $limit\n        (PruneOrdering $ordering $needed)\n    )\n    $projections\n    $passthrough\n)\n```",
+    "status": "SKIPPED",
+    "attempts_used": 25,
+    "reason": "PruneLimitCols' correctness rests entirely on ordering semantics: that the top-$limit rows of the input under $ordering are preserved when unused columns are pruned and the ordering is pruned accordingly \u2014 and QED decides only bag (multiset) equivalence over semiring expressions, explicitly not modeling the ordering semantics of Limit/Offset/Order By (qed.pdf \u00a76.2, and no Limit/Sort builder exists in the DSL). No faithful encoding exists as a workaround: a Limit modeled as an uninterpreted symbol/filter would be applied to different arguments on each side (full vs. pruned input, full vs. pruned ordering), which EUF-style reasoning cannot relate, and any encoding that abstracts the top-N selection into an arbitrary column-independent predicate would instead prove a mere filter/project commutation fact, not this rule. This is a fundamental limitation of QED's bag-semantic core, not a missed encoding, so the porter's UNSUPPORTED conclusion stands. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "PruneLimitCols' correctness rests entirely on ordering semantics: that the top-$limit rows of the input under $ordering are preserved when unused columns are pruned and the ordering is pruned accordingly \u2014 and QED decides only bag (multiset) equivalence over semiring expressions, explicitly not modeling the ordering semantics of Limit/Offset/Order By (qed.pdf \u00a76.2, and no Limit/Sort builder exists in the DSL). No faithful encoding exists as a workaround: a Limit modeled as an uninterpreted symbol/filter would be applied to different arguments on each side (full vs. pruned input, full vs. pruned ordering), which EUF-style reasoning cannot relate, and any encoding that abstracts the top-N selection into an arbitrary column-independent predicate would instead prove a mere filter/project commutation fact, not this rule. This is a fundamental limitation of QED's bag-semantic core, not a missed encoding, so the porter's UNSUPPORTED conclusion stands. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-28T03:18:35.851071+00:00"
+  },
+  {
+    "rule_name": "PruneMutationInputCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneMutationInputCols discards input columns that are never used by the\nmutation operator. This is high priority so that it runs before\nUseSwapMutation, UseSwapMutationWithProjection, and\nUseSwapMutationWithProjectionProjection.\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneMutationInputCols`, not the other rules in that file):\n\n```\n# PruneMutationInputCols discards input columns that are never used by the\n# mutation operator. This is high priority so that it runs before\n# UseSwapMutation, UseSwapMutationWithProjection, and\n# UseSwapMutationWithProjectionProjection.\n[PruneMutationInputCols, Normalize, HighPriority]\n(Update | Upsert | Delete\n    $input:*\n    $uniqueChecks:*\n    $fkChecks:*\n    $mutationPrivate:* &\n        (CanPruneCols\n            $input\n            $needed:(NeededMutationCols\n                $mutationPrivate\n                $uniqueChecks\n                $fkChecks\n            )\n        )\n)\n=>\n((OpName)\n    (PruneCols $input $needed)\n    $uniqueChecks\n    $fkChecks\n    $mutationPrivate\n)\n```",
+    "status": "PROVED",
+    "attempts_used": 21,
+    "reason": "The encoding captures the rule's genuine soundness content \u2014 pushing a column-pruning projection below a per-row operator whose behavior depends only on the kept columns \u2014 by modeling the mutation as an uninterpreted single-column projection of exactly the needed input column, with before() = \u03c0_M(c0)(I) and after() = \u03c0_M(x0)(\u03c0_c0(I)), which are structurally distinct (a real pushdown, not an identity) and correctly share the input scan `I` and the single mutation symbol `M`. The source rule's `CanPruneCols`/`NeededMutationCols` machinery is backend meta-level (applicability/hygiene and column-set bookkeeping, not a semantic precondition), and the Update/Upsert/Delete family is properly abstracted to one uninterpreted per-row operator, with the fixed mutation data soundly absorbed into `M`. The only real restriction \u2014 fixing 2 input columns with only the first needed \u2014 is forced by the DSL (uninterpreted ops have fixed argument positions; it cannot quantify over column sets), is honestly and specifically declared in the SCOPE line, and loses no proof content, since any other (n, S) instance states the identical per-row commutation claim.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 465792
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding captures the rule's genuine soundness content \u2014 pushing a column-pruning projection below a per-row operator whose behavior depends only on the kept columns \u2014 by modeling the mutation as an uninterpreted single-column projection of exactly the needed input column, with before() = \u03c0_M(c0)(I) and after() = \u03c0_M(x0)(\u03c0_c0(I)), which are structurally distinct (a real pushdown, not an identity) and correctly share the input scan `I` and the single mutation symbol `M`. The source rule's `CanPruneCols`/`NeededMutationCols` machinery is backend meta-level (applicability/hygiene and column-set bookkeeping, not a semantic precondition), and the Update/Upsert/Delete family is properly abstracted to one uninterpreted per-row operator, with the fixed mutation data soundly absorbed into `M`. The only real restriction \u2014 fixing 2 input columns with only the first needed \u2014 is forced by the DSL (uninterpreted ops have fixed argument positions; it cannot quantify over column sets), is honestly and specifically declared in the SCOPE line, and loses no proof content, since any other (n, S) instance states the identical per-row commutation claim.",
+    "scope": "PARTIAL",
+    "scope_detail": "the mutation's input has exactly two columns of which only the first is needed, and the mutation's per-row behavior is an uninterpreted function of exactly that needed column (its other children \u2014 unique checks, fk checks, private data \u2014 are held fixed)",
+    "timestamp": "2026-09-28T03:32:46.859069+00:00"
+  },
+  {
+    "rule_name": "PruneMutationFetchCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneMutationFetchCols removes columns from the mutation operator's FetchCols\nset if they are never used. Removing FetchCols can in turn can trigger the\nPruneMutationInputCols rule, which can prune any input columns which are now\nunreferenced.\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneMutationFetchCols`, not the other rules in that file):\n\n```\n# PruneMutationFetchCols removes columns from the mutation operator's FetchCols\n# set if they are never used. Removing FetchCols can in turn can trigger the\n# PruneMutationInputCols rule, which can prune any input columns which are now\n# unreferenced.\n[PruneMutationFetchCols, Normalize]\n(Update | Upsert | Delete\n    $input:*\n    $uniqueChecks:*\n    $fkChecks:*\n    $mutationPrivate:* &\n        (CanPruneMutationFetchCols\n            $mutationPrivate\n            $needed:(NeededMutationFetchCols\n                (OpName)\n                $mutationPrivate\n            )\n        )\n)\n=>\n((OpName)\n    $input\n    $uniqueChecks\n    $fkChecks\n    (PruneMutationFetchCols $mutationPrivate $needed)\n)\n```",
+    "status": "SKIPPED",
+    "attempts_used": 7,
+    "reason": "The rule only mutates the DML operator's private `FetchCols` metadata (a set of column indices the mutation fetches) while holding `$input`, `$uniqueChecks`, `$fkChecks` structurally identical and inserting no `Project`, so its before/after are relationally identical and its entire correctness content \u2014 \"dropping never-used fetch columns preserves the mutation's behavior\" \u2014 lives in CockroachDB's bespoke `CanPruneMutationFetchCols`/`NeededMutationFetchCols` operator-internal semantics. RuleScript's core language is a query-focused relational algebra with no mutation (`Update`/`Upsert`/`Delete`) operator and no notion of operator private metadata, and even modeling the mutation as an uninterpreted function wouldn't help: QED has no axiom making that function insensitive to pruning of unused fetch columns, so it would treat it as an arbitrary black box and could not prove `M(input, F) = M(input, F\u2229Needed)` \u2014 a fundamental bag-semantic limitation, not a DSL gap `extend_dsl_file` could close.",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule only mutates the DML operator's private `FetchCols` metadata (a set of column indices the mutation fetches) while holding `$input`, `$uniqueChecks`, `$fkChecks` structurally identical and inserting no `Project`, so its before/after are relationally identical and its entire correctness content \u2014 \"dropping never-used fetch columns preserves the mutation's behavior\" \u2014 lives in CockroachDB's bespoke `CanPruneMutationFetchCols`/`NeededMutationFetchCols` operator-internal semantics. RuleScript's core language is a query-focused relational algebra with no mutation (`Update`/`Upsert`/`Delete`) operator and no notion of operator private metadata, and even modeling the mutation as an uninterpreted function wouldn't help: QED has no axiom making that function insensitive to pruning of unused fetch columns, so it would treat it as an arbitrary black box and could not prove `M(input, F) = M(input, F\u2229Needed)` \u2014 a fundamental bag-semantic limitation, not a DSL gap `extend_dsl_file` could close.",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-28T03:35:08.758188+00:00"
+  },
+  {
+    "rule_name": "PruneMutationReturnCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneReturningCols removes columns from the mutation operator's ReturnCols\nset if they are not used in the RETURNING clause of the mutation.\nRemoving ReturnCols will then allow the PruneMutationFetchCols to be more\nconservative with the fetch columns.\nTODO(msirek): Mutations shouldn't need to return the primary key\ncolumns. Investigate appropriate changes to SQL execution to accommodate this,\nthrough #111733.\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneMutationReturnCols`, not the other rules in that file):\n\n```\n# PruneReturningCols removes columns from the mutation operator's ReturnCols\n# set if they are not used in the RETURNING clause of the mutation.\n# Removing ReturnCols will then allow the PruneMutationFetchCols to be more\n# conservative with the fetch columns.\n# TODO(msirek): Mutations shouldn't need to return the primary key\n# columns. Investigate appropriate changes to SQL execution to accommodate this,\n# through #111733.\n[PruneMutationReturnCols, Normalize]\n(Project\n    $input:(Update | Upsert | Delete\n        $innerInput:*\n        $uniqueChecks:*\n        $fkChecks:*\n        $mutationPrivate:*\n    )\n    $projections:*\n    $passthrough:* &\n        (CanPruneMutationReturnCols\n            $mutationPrivate\n            $needed:(UnionCols3\n                (PrimaryKeyCols (MutationTable $mutationPrivate))\n                (ProjectionOuterCols $projections)\n                $passthrough\n            )\n        )\n)\n=>\n(Project\n    ((OpName $input)\n        $innerInput\n        $uniqueChecks\n        $fkChecks\n        (PruneMutationReturnCols $mutationPrivate $needed)\n    )\n    $projections\n    $passthrough\n)\n```",
+    "status": "SKIPPED",
+    "attempts_used": 23,
+    "reason": "The rule's only semantic effect is narrowing the ReturnCols set stored in the mutation operator's private state, and RuleScript's core language has no construct for a mutation operator or its operator-private column-set parameter \u2014 so any encoding either reuses one uninterpreted scan on both sides (before() \u2261 after(), a vacuous reflexivity) or introduces two independent scans that QED cannot relate, and modeling the pruned mutation as an explicit projection of the full mutation would merely prove the generic projection-composition law while taking the mutation-specific \"narrowing ReturnCols to a superset of used columns preserves visible output\" property as an unverified axiom. A DSL extension cannot close this gap because QED's own (immutable) semantics have no notion of a mutation or of per-operator column sets \u2014 its JSON format and semiring translation only define scan/filter/project/join/aggregate/set operators \u2014 so the rule rests on a backend operator's bespoke internal semantics that QED fundamentally cannot see through. This is a genuine QED/language limitation, not a missed encoding, and the porter's analysis of all three encoding routes is correct. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's only semantic effect is narrowing the ReturnCols set stored in the mutation operator's private state, and RuleScript's core language has no construct for a mutation operator or its operator-private column-set parameter \u2014 so any encoding either reuses one uninterpreted scan on both sides (before() \u2261 after(), a vacuous reflexivity) or introduces two independent scans that QED cannot relate, and modeling the pruned mutation as an explicit projection of the full mutation would merely prove the generic projection-composition law while taking the mutation-specific \"narrowing ReturnCols to a superset of used columns preserves visible output\" property as an unverified axiom. A DSL extension cannot close this gap because QED's own (immutable) semantics have no notion of a mutation or of per-operator column sets \u2014 its JSON format and semiring translation only define scan/filter/project/join/aggregate/set operators \u2014 so the rule rests on a backend operator's bespoke internal semantics that QED fundamentally cannot see through. This is a genuine QED/language limitation, not a missed encoding, and the porter's analysis of all three encoding routes is correct. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-28T03:36:55.612877+00:00"
+  },
+  {
+    "rule_name": "PruneOffsetCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneOffsetCols discards Offset input columns that are never used.\n\nThe PruneCols property should prevent this rule (which pushes Project below\nOffset) from cycling with the PushOffsetIntoProject rule (which pushes Offset\nbelow Project).\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneOffsetCols`, not the other rules in that file):\n\n```\n# PruneOffsetCols discards Offset input columns that are never used.\n#\n# The PruneCols property should prevent this rule (which pushes Project below\n# Offset) from cycling with the PushOffsetIntoProject rule (which pushes Offset\n# below Project).\n[PruneOffsetCols, Normalize]\n(Project\n    (Offset $input:* $offset:* $ordering:*)\n    $projections:*\n    $passthrough:* &\n        (CanPruneCols\n            $input\n            $needed:(UnionCols3\n                (OrderingCols $ordering)\n                (ProjectionOuterCols $projections)\n                $passthrough\n            )\n        )\n)\n=>\n(Project\n    (Offset\n        (PruneCols $input $needed)\n        $offset\n        (PruneOrdering $ordering $needed)\n    )\n    $projections\n    $passthrough\n)\n```",
+    "status": "SKIPPED",
+    "attempts_used": 21,
+    "reason": "PruneOffsetCols's only non-trivial content is pushing a column-pruning Project below an Offset, whose semantics is positional row skipping under a specified ordering, and QED's bag-semantic core assigns no meaning to Sort/Limit/Offset (the DSL and serializer expose no Offset node the prover could interpret). Modeling Offset as an uninterpreted bag-to-bag function would not rescue it either, since Project(Offset(R)) = Project(Offset(prune(R))) fails for arbitrary such functions, so the rule's correctness is irreducibly about order-based row selection. Hence no expressible special case (offset = 0, unique ordering key, etc.) leaves a genuine rule about Offset, making this a fundamental QED limitation rather than a missed encoding \u2014 consistent with the earlier AGREE on the structurally identical PruneLimitCols. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "PruneOffsetCols's only non-trivial content is pushing a column-pruning Project below an Offset, whose semantics is positional row skipping under a specified ordering, and QED's bag-semantic core assigns no meaning to Sort/Limit/Offset (the DSL and serializer expose no Offset node the prover could interpret). Modeling Offset as an uninterpreted bag-to-bag function would not rescue it either, since Project(Offset(R)) = Project(Offset(prune(R))) fails for arbitrary such functions, so the rule's correctness is irreducibly about order-based row selection. Hence no expressible special case (offset = 0, unique ordering key, etc.) leaves a genuine rule about Offset, making this a fundamental QED limitation rather than a missed encoding \u2014 consistent with the earlier AGREE on the structurally identical PruneLimitCols. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-28T03:47:06.470123+00:00"
+  },
+  {
+    "rule_name": "PruneProjectCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneProjectCols discards columns from a nested project which are not used by\nthe outer project.\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneProjectCols`, not the other rules in that file):\n\n```\n# PruneProjectCols discards columns from a nested project which are not used by\n# the outer project.\n[PruneProjectCols, Normalize]\n(Project\n    $project:(Project)\n    $projections:*\n    $passthrough:* &\n        (CanPruneCols\n            $project\n            $needed:(UnionCols\n                (ProjectionOuterCols $projections)\n                $passthrough\n            )\n        )\n)\n=>\n(Project (PruneCols $project $needed) $projections $passthrough)\n```",
+    "status": "PROVED",
+    "attempts_used": 22,
+    "reason": "The encoding is a faithful, non-vacuous special case of PruneProjectCols \u2014 `before()` is a Scan \u2192 inner-Project(3 cols: `col0`, `Used(col0)`, `Unused(col0)`) \u2192 outer-Project(`Top(inner.col0, inner.col1)`), while `after()` is the equivalent Scan \u2192 Project(`Top(col0, Used(col0))`), so the proof genuinely captures \"drop the nested project's never-referenced column\" (plus the consequent merge of the now-pure inner project) rather than a structurally identical triviality. Symbols are shared correctly (the same `top` operator and the same `passthrough`/`usedSyn` expressions appear on both sides, while `unusedSyn` appears only in `before()`), and the omitted `CanPruneCols` is an optimizer bookkeeping guard, not a semantic precondition, so its absence does not change the claim; the `PARTIAL` tag honestly and specifically names the three-column/one-unused-column restriction, and QED proves the equivalence for all instantiations of the uninterpreted table and functions.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 460708
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is a faithful, non-vacuous special case of PruneProjectCols \u2014 `before()` is a Scan \u2192 inner-Project(3 cols: `col0`, `Used(col0)`, `Unused(col0)`) \u2192 outer-Project(`Top(inner.col0, inner.col1)`), while `after()` is the equivalent Scan \u2192 Project(`Top(col0, Used(col0))`), so the proof genuinely captures \"drop the nested project's never-referenced column\" (plus the consequent merge of the now-pure inner project) rather than a structurally identical triviality. Symbols are shared correctly (the same `top` operator and the same `passthrough`/`usedSyn` expressions appear on both sides, while `unusedSyn` appears only in `before()`), and the omitted `CanPruneCols` is an optimizer bookkeeping guard, not a semantic precondition, so its absence does not change the claim; the `PARTIAL` tag honestly and specifically names the three-column/one-unused-column restriction, and QED proves the equivalence for all instantiations of the uninterpreted table and functions.",
+    "scope": "PARTIAL",
+    "scope_detail": "fixed three-column inner project whose outer references only the passthrough and one synthesized column, pruning exactly the unused third column.",
+    "timestamp": "2026-09-28T04:00:29.568475+00:00"
+  },
+  {
+    "rule_name": "PruneOrdinalityCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneOrdinalityCols discards Ordinality input columns that are never used.\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneOrdinalityCols`, not the other rules in that file):\n\n```\n# PruneOrdinalityCols discards Ordinality input columns that are never used.\n[PruneOrdinalityCols, Normalize]\n(Project\n    (Ordinality $input:* $ordinalityPrivate:*)\n    $projections:*\n    $passthrough:* &\n        (CanPruneCols\n            $input\n            $needed:(UnionCols3\n                (NeededOrdinalityCols $ordinalityPrivate)\n                (ProjectionOuterCols $projections)\n                $passthrough\n            )\n        )\n)\n=>\n(Project\n    (Ordinality\n        (PruneCols $input $needed)\n        (PruneOrderingOrdinality $ordinalityPrivate $needed)\n    )\n    $projections\n    $passthrough\n)\n```",
+    "status": "PROVED",
+    "attempts_used": 26,
+    "reason": "The encoding matches the real rule's shape (outer Project over an Ordinality-derived column, with a column drop pushed beneath the Ordinality) and the symbol sharing is correct: the shared O encodes the rule's own firing precondition that the ordinality derivation references no pruned column, and the shared G encodes the unchanged outer projection, which consumes O so the proof is non-vacuous (QED genuinely verifies that O's values survive the drop and the field-index shift from ordinal 3 to 2 is handled). The remaining narrowness \u2014 3 input columns / exactly 1 pruned, and O abstracted as a value-function of retained columns rather than a true row-position function \u2014 stems from QED's fundamental inability to model row position/ordering semantics, not from a fixable encoding choice, and is honestly disclosed in the one-sentence SCOPE line, making this a genuine, non-degenerate special case of the rule.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 334875
+      }
+    },
+    "verification_rounds_used": 3,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding matches the real rule's shape (outer Project over an Ordinality-derived column, with a column drop pushed beneath the Ordinality) and the symbol sharing is correct: the shared O encodes the rule's own firing precondition that the ordinality derivation references no pruned column, and the shared G encodes the unchanged outer projection, which consumes O so the proof is non-vacuous (QED genuinely verifies that O's values survive the drop and the field-index shift from ordinal 3 to 2 is handled). The remaining narrowness \u2014 3 input columns / exactly 1 pruned, and O abstracted as a value-function of retained columns rather than a true row-position function \u2014 stems from QED's fundamental inability to model row position/ordering semantics, not from a fixable encoding choice, and is honestly disclosed in the one-sentence SCOPE line, making this a genuine, non-degenerate special case of the rule.",
+    "scope": "PARTIAL",
+    "scope_detail": "the ordinality-generated column is modeled as one uninterpreted function O of the retained input columns, shared by both sides and consumed by the outer projection, so row-position/ordering semantics are not captured",
+    "timestamp": "2026-09-28T04:14:51.631838+00:00"
+  },
+  {
+    "rule_name": "PruneScanCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneScanCols discards Scan operator columns that are never used. The needed\ncolumns are pushed down into the Scan's opt.ScanOpDef private.\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneScanCols`, not the other rules in that file):\n\n```\n# PruneScanCols discards Scan operator columns that are never used. The needed\n# columns are pushed down into the Scan's opt.ScanOpDef private.\n[PruneScanCols, Normalize]\n(Project\n    $input:(Scan)\n    $projections:*\n    $passthrough:* &\n        (CanPruneCols\n            $input\n            $needed:(UnionCols\n                (ProjectionOuterCols $projections)\n                $passthrough\n            )\n        )\n)\n=>\n(Project (PruneCols $input $needed) $projections $passthrough)\n```",
+    "status": "PROVED",
+    "attempts_used": 22,
+    "reason": "The encoding faithfully captures the semantic core of PruneScanCols \u2014 inserting a column-pruning projection below an outer projection that doesn't reference all scan columns \u2014 with a non-vacuous before/after difference (2-operator vs. 3-operator plans). The uninterpreted Top operator correctly stands in for an arbitrary projection expression over the needed columns, and the shared source scan plus correct field-index remapping through the pruned relation are handled properly. The PARTIAL scope is honestly declared and reflects a genuine DSL limitation (no way to parametrize over column count or the dynamically-computed $needed set), while the chosen 3-column/1-unused instance is the minimal non-degenerate case that exercises the rule's actual transformation. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 107291
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding faithfully captures the semantic core of PruneScanCols \u2014 inserting a column-pruning projection below an outer projection that doesn't reference all scan columns \u2014 with a non-vacuous before/after difference (2-operator vs. 3-operator plans). The uninterpreted Top operator correctly stands in for an arbitrary projection expression over the needed columns, and the shared source scan plus correct field-index remapping through the pruned relation are handled properly. The PARTIAL scope is honestly declared and reflects a genuine DSL limitation (no way to parametrize over column count or the dynamically-computed $needed set), while the chosen 3-column/1-unused instance is the minimal non-degenerate case that exercises the rule's actual transformation. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "fixed three-column scan whose outer projection references only columns 0 and 1 through one uninterpreted synthesized column, pruning exactly the never-referenced third column",
+    "timestamp": "2026-09-28T04:20:30.028885+00:00"
+  },
+  {
+    "rule_name": "PruneProjectSetCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneProjectSetCols discards ProjectSet columns that are never used.\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneProjectSetCols`, not the other rules in that file):\n\n```\n# PruneProjectSetCols discards ProjectSet columns that are never used.\n[PruneProjectSetCols, Normalize]\n(Project\n    $input:(ProjectSet $innerInput:* $zip:*)\n    $projections:*\n    $passthrough:* &\n        (CanPruneCols\n            $input\n            $needed:(UnionCols3\n                (ZipOuterCols $zip)\n                (ProjectionOuterCols $projections)\n                $passthrough\n            )\n        )\n)\n=>\n(Project\n    (ProjectSet (PruneCols $innerInput $needed) $zip)\n    $projections\n    $passthrough\n)\n```",
+    "status": "PROVED",
+    "attempts_used": 45,
+    "reason": "The encoding faithfully models ProjectSet's row-generating semantics as an INNER join of the input with an uninterpreted emitted-row relation E under an uninterpreted membership predicate M, keeping both M and the outer projection G uninterpreted (not hard-coded) and correctly enforcing the rule's core precondition by ensuring M never references the pruned column L1; before() (L with two columns) and after() (L projected to one column) are structurally distinct and the bag-multiplicity argument holds (each (L0,L1) pair maps to one L0 row, preserving join multiplicities), so the proof is non-vacuous, and the scope is honestly tagged PARTIAL with a specific condition.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 7786583
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 67279957
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": true,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 894250
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 580333
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 20864417
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 67717000
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 104714666
+      }
+    },
+    "verification_rounds_used": 3,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding faithfully models ProjectSet's row-generating semantics as an INNER join of the input with an uninterpreted emitted-row relation E under an uninterpreted membership predicate M, keeping both M and the outer projection G uninterpreted (not hard-coded) and correctly enforcing the rule's core precondition by ensuring M never references the pruned column L1; before() (L with two columns) and after() (L projected to one column) are structurally distinct and the bag-multiplicity argument holds (each (L0,L1) pair maps to one L0 row, preserving join multiplicities), so the proof is non-vacuous, and the scope is honestly tagged PARTIAL with a specific condition.",
+    "scope": "PARTIAL",
+    "scope_detail": "the ProjectSet input has one used column and one unused column that is pruned, the zip emits a single column of rows, and the emitted rows depend on the input only through an uninterpreted membership predicate that does not reference the pruned column",
+    "timestamp": "2026-09-28T04:25:01.890941+00:00"
+  },
+  {
+    "rule_name": "PruneSelectCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneSelectCols discards Select input columns that are never used.\n\nThe PruneCols property should prevent this rule (which pushes Project below\nSelect) from cycling with the PushSelectIntoProject rule (which pushes Select\nbelow Project).\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneSelectCols`, not the other rules in that file):\n\n```\n# PruneSelectCols discards Select input columns that are never used.\n#\n# The PruneCols property should prevent this rule (which pushes Project below\n# Select) from cycling with the PushSelectIntoProject rule (which pushes Select\n# below Project).\n[PruneSelectCols, Normalize]\n(Project\n    (Select $input:* $filters:*)\n    $projections:*\n    $passthrough:* &\n        (CanPruneCols\n            $input\n            $needed:(UnionCols3\n                (FilterOuterCols $filters)\n                (ProjectionOuterCols $projections)\n                $passthrough\n            )\n        )\n)\n=>\n(Project\n    (Select (PruneCols $input $needed) $filters)\n    $projections\n    $passthrough\n)\n```",
+    "status": "PROVED",
+    "attempts_used": 23,
+    "reason": "The encoding is non-vacuous and faithful: `before()` = \u03c0_Top(\u03c3_F(S\u2083)) and `after()` = \u03c0_Top(\u03c3_F(\u03c0_{0,1}(S\u2083))) are structurally distinct trees, and the provable claim is a genuine universal bag-semantic identity (the rewrite preserves multiplicity row-for-row since F and Top ignore the pruned column). The uninterpreted symbols F and Top are correctly shared between both sides with exact column correspondence (columns 0,1 of the 3-column input under the pruning projection), and by constructing them over only columns 0/1 the encoding captures the source rule's `CanPruneCols` precondition \u2014 the pruned column is unreferenced \u2014 by construction rather than silently dropping it. The plan shape matches `PruneSelectCols` (outer Project and Select unchanged, new Project inserted between Select and its input, with a Scan input satisfying the \"projection can merge\" condition), and the disclosed PARTIAL scope \u2014 a fixed three-column scan whose filter and projection reference exactly columns 0,1 \u2014 is a specific, non-degenerate special case that is essentially forced, since QED cannot quantify over which columns an uninterpreted symbol happens to reference.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 5881458
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 32928125
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 814291
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 462375
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 16867167
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 33045417
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 65426291
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is non-vacuous and faithful: `before()` = \u03c0_Top(\u03c3_F(S\u2083)) and `after()` = \u03c0_Top(\u03c3_F(\u03c0_{0,1}(S\u2083))) are structurally distinct trees, and the provable claim is a genuine universal bag-semantic identity (the rewrite preserves multiplicity row-for-row since F and Top ignore the pruned column). The uninterpreted symbols F and Top are correctly shared between both sides with exact column correspondence (columns 0,1 of the 3-column input under the pruning projection), and by constructing them over only columns 0/1 the encoding captures the source rule's `CanPruneCols` precondition \u2014 the pruned column is unreferenced \u2014 by construction rather than silently dropping it. The plan shape matches `PruneSelectCols` (outer Project and Select unchanged, new Project inserted between Select and its input, with a Scan input satisfying the \"projection can merge\" condition), and the disclosed PARTIAL scope \u2014 a fixed three-column scan whose filter and projection reference exactly columns 0,1 \u2014 is a specific, non-degenerate special case that is essentially forced, since QED cannot quantify over which columns an uninterpreted symbol happens to reference.",
+    "scope": "PARTIAL",
+    "scope_detail": "fixed three-column scan input whose Select filter and outer projection reference only columns 0 and 1, pruning exactly the never-referenced third column.",
+    "timestamp": "2026-09-28T04:28:09.546845+00:00"
+  },
+  {
+    "rule_name": "PruneUnionAllCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneUnionAllCols prunes columns from the left and right input relations that\nare never used. Since UNION ALL preserves duplicates, any column may be pruned\nif it is not needed, which is not generally true of set operators.\n\nSince UnionAll requires that both inputs have an equal number of columns,\nrather than using PruneCols to prune the left and right sides, this rule\npushes down Projects on both sides to ensure that exactly the needed columns\nare passed as input to the UnionAll, to prevent situations where one side has\nmore columns left over after PruneCols than the other (for instance, if $left\nis a normal scan where all columns may be pruned, but $right is a scan with a\nfilter, leading to an additional column being kept on just the right side).\nIf extraneous, these Projects may be cleaned up later by rules like\nEliminateProject.\n\nNote: The projections could reference columns from an outer scope, e.g. due\nto an apply-join or routine. We intersect with the UnionAll's output to ensure\nthat $needed only contains columns from the UnionAll.\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneUnionAllCols`, not the other rules in that file):\n\n```\n# PruneUnionAllCols prunes columns from the left and right input relations that\n# are never used. Since UNION ALL preserves duplicates, any column may be pruned\n# if it is not needed, which is not generally true of set operators.\n#\n# Since UnionAll requires that both inputs have an equal number of columns,\n# rather than using PruneCols to prune the left and right sides, this rule\n# pushes down Projects on both sides to ensure that exactly the needed columns\n# are passed as input to the UnionAll, to prevent situations where one side has\n# more columns left over after PruneCols than the other (for instance, if $left\n# is a normal scan where all columns may be pruned, but $right is a scan with a\n# filter, leading to an additional column being kept on just the right side).\n# If extraneous, these Projects may be cleaned up later by rules like\n# EliminateProject.\n#\n# Note: The projections could reference columns from an outer scope, e.g. due\n# to an apply-join or routine. We intersect with the UnionAll's output to ensure\n# that $needed only contains columns from the UnionAll.\n[PruneUnionAllCols, Normalize]\n(Project\n    $union:(UnionAll $left:* $right:* $colmap:*)\n    $projections:*\n    $passthrough:* &\n        (CanPruneCols\n            $union\n            $needed:(IntersectionCols\n                (UnionCols\n                    (ProjectionOuterCols $projections)\n                    $passthrough\n                )\n                (OutputCols $union)\n            )\n        )\n)\n=>\n(Project\n    (UnionAll\n        (Project $left [] (NeededColMapLeft $needed $colmap))\n        (Project $right [] (NeededColMapRight $needed $colmap))\n        (PruneSetPrivate $needed $colmap)\n    )\n    $projections\n    $passthrough\n)\n```",
+    "status": "PROVED",
+    "attempts_used": 22,
+    "reason": "The encoding matches the source rule's exact shape \u2014 a Project over a UnionAll (correctly `all=true`) rewritten into the same outer projection over a UnionAll whose two inputs each get a lock-step Project selecting exactly the needed columns \u2014 which is precisely the equal-width pruning that PruneUnionAllCols requires (its comment explains why per-side `PruneCols` is replaced by paired input Projects). Symbol handling is correct and the proof is non-vacuous: L and R are independent scans, C0/C1/C2 are shared for union schema congruence, G is shared between before/after with field indices correctly remapped (0,2 \u2192 0,1 after the inputs narrow), and before() is genuinely structurally different from after(), so QED verified the real law that the unreferenced column C1 can be dropped from both inputs simultaneously. The fixed 3-column width with needed set {0,2} is an essential specialization rather than an avoidable one \u2014 the needed subset is inherently structural in a projection pattern and cannot be a free uninterpreted symbol \u2014 and it is honestly tagged PARTIAL; the only blemish is that the SCOPE sentence calls column 2 a \"passthrough\" when the code actually feeds it as an argument of G (one output column), but the stated restriction still accurately describes the code, so the verdict remains a faithful, useful special case. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 8499291
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 40727542
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 841084
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 589083
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 21622125
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 40879792
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 78141666
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding matches the source rule's exact shape \u2014 a Project over a UnionAll (correctly `all=true`) rewritten into the same outer projection over a UnionAll whose two inputs each get a lock-step Project selecting exactly the needed columns \u2014 which is precisely the equal-width pruning that PruneUnionAllCols requires (its comment explains why per-side `PruneCols` is replaced by paired input Projects). Symbol handling is correct and the proof is non-vacuous: L and R are independent scans, C0/C1/C2 are shared for union schema congruence, G is shared between before/after with field indices correctly remapped (0,2 \u2192 0,1 after the inputs narrow), and before() is genuinely structurally different from after(), so QED verified the real law that the unreferenced column C1 can be dropped from both inputs simultaneously. The fixed 3-column width with needed set {0,2} is an essential specialization rather than an avoidable one \u2014 the needed subset is inherently structural in a projection pattern and cannot be a free uninterpreted symbol \u2014 and it is honestly tagged PARTIAL; the only blemish is that the SCOPE sentence calls column 2 a \"passthrough\" when the code actually feeds it as an argument of G (one output column), but the stated restriction still accurately describes the code, so the verdict remains a faithful, useful special case. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "both UnionAll inputs share the same three-column schema (types C0, C1, C2) with exactly columns 0 and 2 needed, and the outer projection is one uninterpreted projection over column 0 plus a single passthrough of column 2.",
+    "timestamp": "2026-09-28T04:39:41.194944+00:00"
+  },
+  {
+    "rule_name": "PruneValuesCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneValuesCols discards Values columns that are never used.\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneValuesCols`, not the other rules in that file):\n\n```\n# PruneValuesCols discards Values columns that are never used.\n[PruneValuesCols, Normalize]\n(Project\n    $input:(Values)\n    $projections:*\n    $passthrough:* &\n        (CanPruneCols\n            $input\n            $needed:(UnionCols\n                (ProjectionOuterCols $projections)\n                $passthrough\n            )\n        )\n)\n=>\n(Project (PruneCols $input $needed) $projections $passthrough)\n```",
+    "status": "PROVED",
+    "attempts_used": 23,
+    "reason": "The encoding reproduces the source rule's genuine shape \u2014 an outer Project (uninterpreted `Top` on one column, passthrough on the other) over a Values whose unreferenced third column is removed \u2014 and it is not vacuous: the after-side constant (1,2) must be exactly the projection of (1,2,3), a link SMT genuinely checks (a wrong pruned tuple would refute it), and `before()`/`after()` are structurally different plans. The narrowing to a concrete single-row 3\u21922-column literal Values is forced by QED's semantics rather than a missed uninterpreted symbol: Values contents are always concrete constants in the QED model (there is no symbolic-values symbol to quantify over, and substituting an independent uninterpreted scan on the after side would leave the constant-to-constant link inexpressible and would instead prove a different, project-pushing rewrite with the wrong operator shape). The `// SCOPE: PARTIAL` line accurately and specifically names the restriction (fixed single row, fixed 3-column\u21922-column pruning, literal content), the `CanPruneCols` guard is a rule-firing condition rather than a soundness assumption, and the result remains a non-degenerate proof of the rule's core transformation, so the PROVABLE verdict is meaningful and not misleading. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 4300875
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 25627834
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 845583
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 307625
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 13907292
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 25654500
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 54671833
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding reproduces the source rule's genuine shape \u2014 an outer Project (uninterpreted `Top` on one column, passthrough on the other) over a Values whose unreferenced third column is removed \u2014 and it is not vacuous: the after-side constant (1,2) must be exactly the projection of (1,2,3), a link SMT genuinely checks (a wrong pruned tuple would refute it), and `before()`/`after()` are structurally different plans. The narrowing to a concrete single-row 3\u21922-column literal Values is forced by QED's semantics rather than a missed uninterpreted symbol: Values contents are always concrete constants in the QED model (there is no symbolic-values symbol to quantify over, and substituting an independent uninterpreted scan on the after side would leave the constant-to-constant link inexpressible and would instead prove a different, project-pushing rewrite with the wrong operator shape). The `// SCOPE: PARTIAL` line accurately and specifically names the restriction (fixed single row, fixed 3-column\u21922-column pruning, literal content), the `CanPruneCols` guard is a rule-firing condition rather than a soundness assumption, and the result remains a non-degenerate proof of the rule's core transformation, so the PROVABLE verdict is meaningful and not misleading. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "fixed single-row three-column Values pruned to the two referenced columns, modeled with concrete literal content.",
+    "timestamp": "2026-09-28T04:47:27.854020+00:00"
+  },
+  {
+    "rule_name": "PruneSemiAntiJoinRightCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneSemiAntiJoinRightCols discards columns on the right side of a\nSemi or Anti join that are never used. This is similar to PruneJoinRightCols.\nPruneJoinRightCols normally prunes the RHS of a join but it can't do that\nin the case of Semi/Anti joins because the projection is eliminated after\nthe LHS is pruned. This rule doesn't require a projection over the Semi/Anti\njoin in order to prune the RHS.\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneSemiAntiJoinRightCols`, not the other rules in that file):\n\n```\n# PruneSemiAntiJoinRightCols discards columns on the right side of a\n# Semi or Anti join that are never used. This is similar to PruneJoinRightCols.\n# PruneJoinRightCols normally prunes the RHS of a join but it can't do that\n# in the case of Semi/Anti joins because the projection is eliminated after\n# the LHS is pruned. This rule doesn't require a projection over the Semi/Anti\n# join in order to prune the RHS.\n[PruneSemiAntiJoinRightCols, Normalize]\n(SemiJoin | SemiJoinApply | AntiJoin | AntiJoinApply\n    $left:*\n    $right:*\n    $on:*\n    $private:* &\n        (CanPruneCols $right $needed:(FilterOuterCols $on))\n)\n=>\n((OpName) $left (PruneCols $right $needed) $on $private)\n```",
+    "status": "PROVED",
+    "attempts_used": 24,
+    "reason": "The encoding is a genuine, non-trivial partial instance of PruneSemiAntiJoinRightCols: before() is an ANTI join over a 2-column right side where only col0 appears in the uninterpreted predicate, and after() projects the right to just col0 \u2014 the structural difference is real (right arity changes from 2 to 1), the predicate symbol is correctly shared, and ANTI is one of the four join kinds the source rule covers. The SCOPE line honestly and specifically documents the restrictions (only ANTI, fixed 1-col left / 2-col right, uncorrelated), and the proof confirms the core semantic principle (right-side columns not referenced by the join condition can be eliminated in a semi/anti join) is universally valid.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 9035626
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 34436208
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 887792
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 540750
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 22342333
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 34547417
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 72349667
+      }
+    },
+    "verification_rounds_used": 4,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is a genuine, non-trivial partial instance of PruneSemiAntiJoinRightCols: before() is an ANTI join over a 2-column right side where only col0 appears in the uninterpreted predicate, and after() projects the right to just col0 \u2014 the structural difference is real (right arity changes from 2 to 1), the predicate symbol is correctly shared, and ANTI is one of the four join kinds the source rule covers. The SCOPE line honestly and specifically documents the restrictions (only ANTI, fixed 1-col left / 2-col right, uncorrelated), and the proof confirms the core semantic principle (right-side columns not referenced by the join condition can be eliminated in a semi/anti join) is universally valid.",
+    "scope": "PARTIAL",
+    "scope_detail": "assumes an uncorrelated anti-join with a 1-column left, a 2-column right of which one column is pruned, and an uninterpreted on-clause over the kept (left, right-key) pair",
+    "timestamp": "2026-09-28T05:16:14.681756+00:00"
+  },
+  {
+    "rule_name": "PruneWindowOutputCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneWindowOutputCols eliminates unused window functions from a Window\nexpression.\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneWindowOutputCols`, not the other rules in that file):\n\n```\n# PruneWindowOutputCols eliminates unused window functions from a Window\n# expression.\n[PruneWindowOutputCols, Normalize]\n(Project\n    (Window $input:* $windows:* $private:*)\n    $projections:*\n    $passthrough:* &\n        (CanPruneWindows\n            $needed:(UnionCols\n                (ProjectionOuterCols $projections)\n                $passthrough\n            )\n            $windows\n        )\n)\n=>\n(Project\n    (Window $input (PruneWindows $needed $windows) $private)\n    $projections\n    $passthrough\n)\n```",
+    "status": "PROVED",
+    "attempts_used": 28,
+    "reason": "`before()` truly differs from `after()` only by computing an extra unused window function `w2` (two aggregate calls vs one in the per-partition window, then dropped by the identical outer projection), which is exactly the pruning content of `PruneWindowOutputCols`, and the `input \u22c8 (grouped-by-k aggregate)` model preserves one-output-row-per-input-row cardinality, so the proof is non-vacuous and the reused `cond`/field indices resolve correctly in both plans; the fixed two-column input and exactly-two-functions (one kept, one pruned) shape is a genuine, honestly-declared consequence of QED having no bag semantics for `Window` (no frame/ordering), so the PARTIAL scope tag is accurate and the result is a faithful, non-degenerate special case rather than a vacuous or over-constrained one.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 15762791
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 36416958
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 902125
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 1170250
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 34544375
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 36548917
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 87225791
+      }
+    },
+    "verification_rounds_used": 3,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "`before()` truly differs from `after()` only by computing an extra unused window function `w2` (two aggregate calls vs one in the per-partition window, then dropped by the identical outer projection), which is exactly the pruning content of `PruneWindowOutputCols`, and the `input \u22c8 (grouped-by-k aggregate)` model preserves one-output-row-per-input-row cardinality, so the proof is non-vacuous and the reused `cond`/field indices resolve correctly in both plans; the fixed two-column input and exactly-two-functions (one kept, one pruned) shape is a genuine, honestly-declared consequence of QED having no bag semantics for `Window` (no frame/ordering), so the PARTIAL scope tag is accurate and the result is a faithful, non-degenerate special case rather than a vacuous or over-constrained one.",
+    "scope": "PARTIAL",
+    "scope_detail": "window functions modeled as partition-determined per-partition uninterpreted aggregates joined back to the input (no frame/ordering semantics, same modeling as FoldGroupByAndWindow); fixed shape with exactly two window functions, the one needed by the outer projection is kept and the other pruned.",
+    "timestamp": "2026-09-28T05:20:52.409015+00:00"
+  },
+  {
+    "rule_name": "PruneWindowInputCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneWindowInputCols discards window passthrough columns which are never used.\nNB: This rule should go after PruneWindowOutputCols, or else this rule can get\ninto a cycle.\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneWindowInputCols`, not the other rules in that file):\n\n```\n# PruneWindowInputCols discards window passthrough columns which are never used.\n# NB: This rule should go after PruneWindowOutputCols, or else this rule can get\n# into a cycle.\n[PruneWindowInputCols, Normalize]\n(Project\n    $input:(Window $innerInput:* $fn:* $private:*)\n    $projections:*\n    $passthrough:* &\n        (CanPruneCols\n            $input\n            $needed:(UnionCols3\n                (NeededWindowCols $fn $private)\n                (ProjectionOuterCols $projections)\n                $passthrough\n            )\n        )\n)\n=>\n(Project\n    (Window (PruneCols $innerInput $needed) $fn $private)\n    $projections\n    $passthrough\n)\n```",
+    "status": "PROVED",
+    "attempts_used": 44,
+    "reason": "The encoding faithfully captures the logical content of PruneWindowInputCols for per-partition window aggregates: before() has the window's input as (k,v,x) joined back to the per-partition aggregate on k, while after() has it as (k,v) joined back to the same aggregate \u2014 the only difference is the unused column x, and the proof is non-vacuous because the SMT solver must verify bag-equivalence of the outer Top(k,v,w) projection across two structurally different join inputs. The restriction to per-partition constant window functions (modeled as an uninterpreted aggregate grouped by the partition key, joined back via INNER equi-join) is a genuine QED/DSL limitation (no Window operator exists in the serializer), is honestly stated in the SCOPE line, and still yields a useful, non-degenerate result covering common windows like SUM/COUNT/MIN/MAX OVER (PARTITION BY k). Symbol sharing is correct (same Top, same perPart, correct joinField ordinals in the concatenated field space), the equi-join on the partition key is appropriately concrete rather than uninterpreted (it is part of the window's bag semantics, not a variable aspect of the rule), and the NeededWindowCols precondition is correctly encoded by construction since the aggregate references only k and v. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 16962749
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 79058373
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": true,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 146167
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 1184917
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 32195500
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 80615083
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 116643000
+      }
+    },
+    "verification_rounds_used": 3,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding faithfully captures the logical content of PruneWindowInputCols for per-partition window aggregates: before() has the window's input as (k,v,x) joined back to the per-partition aggregate on k, while after() has it as (k,v) joined back to the same aggregate \u2014 the only difference is the unused column x, and the proof is non-vacuous because the SMT solver must verify bag-equivalence of the outer Top(k,v,w) projection across two structurally different join inputs. The restriction to per-partition constant window functions (modeled as an uninterpreted aggregate grouped by the partition key, joined back via INNER equi-join) is a genuine QED/DSL limitation (no Window operator exists in the serializer), is honestly stated in the SCOPE line, and still yields a useful, non-degenerate result covering common windows like SUM/COUNT/MIN/MAX OVER (PARTITION BY k). Symbol sharing is correct (same Top, same perPart, correct joinField ordinals in the concatenated field space), the equi-join on the partition key is appropriately concrete rather than uninterpreted (it is part of the window's bag semantics, not a variable aspect of the rule), and the NeededWindowCols precondition is correctly encoded by construction since the aggregate references only k and v. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "one window function, modeled as a per-partition uninterpreted aggregate whose input is the pruned (needed-columns-only) relation in both sides, so the never-used passthrough column is provably absent from the window's aggregate input (encoding the NeededWindowCols precondition by construction).",
+    "timestamp": "2026-09-28T05:23:14.036342+00:00"
+  },
+  {
+    "rule_name": "PruneWithCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneWithCols pushes a Project operator beneath a With. It's ok to\nunconditionally push this Project down, since in the pruning case, we're\ngetting the project closer to the source of any prune requests, and if we\njust end up with a Project incidentally, it's safe to just always push it\ndown.\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneWithCols`, not the other rules in that file):\n\n```\n# PruneWithCols pushes a Project operator beneath a With. It's ok to\n# unconditionally push this Project down, since in the pruning case, we're\n# getting the project closer to the source of any prune requests, and if we\n# just end up with a Project incidentally, it's safe to just always push it\n# down.\n[PruneWithCols, Normalize]\n(Project\n    (With $binding:* $input:* $private:*)\n    $projections:*\n    $passthrough:*\n)\n=>\n(With\n    $binding\n    (Project $input $projections $passthrough)\n    $private\n)\n```",
+    "status": "SKIPPED",
+    "attempts_used": 22,
+    "reason": "The rule's only semantic content is relocating a Project across a `With` (CTE/let-binding) node, and QED's relational language \u2014 the fixed set of node types serialized for the Rust prover (scan, values, filter, project, join, correlate, group, union, intersect, except, sort) \u2014 has no With/let-binding operator, which `JSONSerializer.java` confirms; no Java-side `extend_dsl_file` addition can introduce a node the unmodifiable prover would interpret. Modeling With as row-transparent identity collapses before and after to the *same* plan (tautology), and any stand-in wrapper (e.g. a true-join against a one-row relation) would only certify a different rule about a different operator, not PruneWithCols. The gap is a fundamental absence of the operator from the prover's language \u2014 not a missing DSL builder \u2014 so UNSUPPORTED is correct. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's only semantic content is relocating a Project across a `With` (CTE/let-binding) node, and QED's relational language \u2014 the fixed set of node types serialized for the Rust prover (scan, values, filter, project, join, correlate, group, union, intersect, except, sort) \u2014 has no With/let-binding operator, which `JSONSerializer.java` confirms; no Java-side `extend_dsl_file` addition can introduce a node the unmodifiable prover would interpret. Modeling With as row-transparent identity collapses before and after to the *same* plan (tautology), and any stand-in wrapper (e.g. a true-join against a one-row relation) would only certify a different rule about a different operator, not PruneWithCols. The gap is a fundamental absence of the operator from the prover's language \u2014 not a missing DSL builder \u2014 so UNSUPPORTED is correct. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-28T05:28:59.180740+00:00"
+  },
+  {
+    "rule_name": "PruneWithScanCols",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/prune_cols.opt\n\nPruneWithScanCols discards columns scanned from the WithScan that are never\nused.\n\nExtracted from `prune_cols.opt` (which defines multiple rules \u2014 implement specifically `PruneWithScanCols`, not the other rules in that file):\n\n```\n# PruneWithScanCols discards columns scanned from the WithScan that are never\n# used.\n[PruneWithScanCols, Normalize]\n(Project\n    $input:(WithScan)\n    $projections:*\n    $passthrough:* &\n        (CanPruneCols\n            $input\n            $needed:(UnionCols\n                (ProjectionOuterCols $projections)\n                $passthrough\n            )\n        )\n)\n=>\n(Project (PruneCols $input $needed) $projections $passthrough)\n```",
+    "status": "PROVED",
+    "attempts_used": 24,
+    "reason": "The encoding faithfully captures PruneWithScanCols: a shared outer Project built from one uninterpreted projection symbol `Top(w0, w1)` over a shared three-column WithScan scan, where `before()` scans all three columns and `after()` applies the same unmodified Project over the scan with the never-referenced third column dropped (the pruned WithScan is correctly modeled as a two-column projection of the full scan, the only way to express a column-pruned scan in the fixed-schema DSL). `before()` and `after()` are structurally distinct (three-column vs. two-column intermediate), so the proof is a genuine, non-vacuous verification that removing the unreferenced column preserves bag semantics for every scan bag and every instantiation of the uninterpreted symbols, with correct symbol sharing (same `Top`, same source) and no missing preconditions for this instance. The `SCOPE: PARTIAL` tag is honest and specific \u2014 fixed arity (3 columns), a single uninterpreted projection expression, and no passthrough columns are genuine restrictions forced by the DSL's fixed-schema scans, not vague or degenerate narrowing, so the result remains a useful, non-trivial special case of the rule.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 93750
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding faithfully captures PruneWithScanCols: a shared outer Project built from one uninterpreted projection symbol `Top(w0, w1)` over a shared three-column WithScan scan, where `before()` scans all three columns and `after()` applies the same unmodified Project over the scan with the never-referenced third column dropped (the pruned WithScan is correctly modeled as a two-column projection of the full scan, the only way to express a column-pruned scan in the fixed-schema DSL). `before()` and `after()` are structurally distinct (three-column vs. two-column intermediate), so the proof is a genuine, non-vacuous verification that removing the unreferenced column preserves bag semantics for every scan bag and every instantiation of the uninterpreted symbols, with correct symbol sharing (same `Top`, same source) and no missing preconditions for this instance. The `SCOPE: PARTIAL` tag is honest and specific \u2014 fixed arity (3 columns), a single uninterpreted projection expression, and no passthrough columns are genuine restrictions forced by the DSL's fixed-schema scans, not vague or degenerate narrowing, so the result remains a useful, non-trivial special case of the rule.",
+    "scope": "PARTIAL",
+    "scope_detail": "fixed three-column WithScan whose outer projection references only columns 0 and 1 through one uninterpreted synthesized column, pruning exactly the never-referenced third column",
+    "timestamp": "2026-09-28T05:34:18.433678+00:00"
+  },
+  {
+    "rule_name": "PushAggDistinctIntoGroupBy",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/groupby.opt\n\nPushAggDistinctIntoGroupBy pushes an aggregate function DISTINCT modifier into\nthe input of a GroupBy or ScalarGroupBy operator. This allows the optimizer to\ntake advantage of an index on the column(s) subject to the DISTINCT operation.\nPushAggDistinctIntoGroupBy can match any single aggregate function, including\nthose that have multiple input arguments.\n\nExtracted from `groupby.opt` (which defines multiple rules \u2014 implement specifically `PushAggDistinctIntoGroupBy`, not the other rules in that file):\n\n```\n# PushAggDistinctIntoGroupBy pushes an aggregate function DISTINCT modifier into\n# the input of a GroupBy or ScalarGroupBy operator. This allows the optimizer to\n# take advantage of an index on the column(s) subject to the DISTINCT operation.\n# PushAggDistinctIntoGroupBy can match any single aggregate function, including\n# those that have multiple input arguments.\n[PushAggDistinctIntoGroupBy, Normalize]\n(GroupBy | ScalarGroupBy\n    $input:*\n    $aggregations:[\n        $item:(AggregationsItem (AggDistinct $agg:*) $aggColID:*)\n    ]\n    $groupingPrivate:*\n)\n=>\n((OpName)\n    (DistinctOn\n        $input\n        (MakeAggCols\n            FirstAgg\n            (OrderingCols\n                (ExtractGroupingOrdering $groupingPrivate)\n            )\n        )\n        (MakeGrouping\n            (UnionCols\n                (GroupingCols $groupingPrivate)\n                (ExtractAggInputColumns $agg)\n            )\n            (EmptyOrdering)\n        )\n    )\n    [ (AggregationsItem $agg $aggColID) ]\n    $groupingPrivate\n)\n```",
+    "status": "PROVED",
+    "attempts_used": 31,
+    "reason": "The encoding is a genuine, non-vacuous instance of the source rule: before() is a GroupBy whose aggregation list is exactly one DISTINCT aggregate (matching the source rule's own single-item `$aggregations` match condition, which the `...`-free pattern in Optgen syntax enforces), and after() is the rule's rewrite \u2014 a no-aggregate group-by acting as DistinctOn over grouping cols \u222a distinct-arg cols, feeding the same `f` without the distinct flag over the same grouping keys. Symbol sharing is exactly right (f, k1, k2, x shared across both sides as the rule requires, with no accidental over-constraint), and there are no preconditions to miss because the source rule carries no side-conditions; the proof can only go through if the prover folds the DISTINCT flag into input deduplication and the inner group-by into key deduplication, which is precisely the bag-structural content of the rewrite. The PARTIAL scope line is honest and specific \u2014 the real restrictions (single-argument distinct call, two non-empty grouping columns, and no grouping ordering, which the DSL doesn't model at all) are stated, while \"exactly one aggregation / no non-distinct aggregations\" is the source rule's own match requirement rather than a hidden assumption \u2014 so the narrowing is a useful, non-degenerate special case. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 13112920
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 47064584
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 954083
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 910000
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 30120375
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 47321000
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 93598292
+      }
+    },
+    "verification_rounds_used": 3,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is a genuine, non-vacuous instance of the source rule: before() is a GroupBy whose aggregation list is exactly one DISTINCT aggregate (matching the source rule's own single-item `$aggregations` match condition, which the `...`-free pattern in Optgen syntax enforces), and after() is the rule's rewrite \u2014 a no-aggregate group-by acting as DistinctOn over grouping cols \u222a distinct-arg cols, feeding the same `f` without the distinct flag over the same grouping keys. Symbol sharing is exactly right (f, k1, k2, x shared across both sides as the rule requires, with no accidental over-constraint), and there are no preconditions to miss because the source rule carries no side-conditions; the proof can only go through if the prover folds the DISTINCT flag into input deduplication and the inner group-by into key deduplication, which is precisely the bag-structural content of the rewrite. The PARTIAL scope line is honest and specific \u2014 the real restrictions (single-argument distinct call, two non-empty grouping columns, and no grouping ordering, which the DSL doesn't model at all) are stated, while \"exactly one aggregation / no non-distinct aggregations\" is the source rule's own match requirement rather than a hidden assumption \u2014 so the narrowing is a useful, non-degenerate special case. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "the GroupBy/ScalarGroupBy has exactly one aggregation, a single-argument DISTINCT call, with two grouping columns and no non-distinct aggregations, whereas the source rule matches any single aggregate function with any input arguments over any grouping set.",
+    "timestamp": "2026-09-28T06:13:38.886729+00:00"
+  },
+  {
+    "rule_name": "PushAssignmentCastsIntoValues",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/project.opt\n\nPushAssignmentCastsIntoValues pushes assignment cast projections into Values\nrows.\n\nExample:\n\nproject\n\u251c\u2500\u2500 columns: x:2 y:3\n\u251c\u2500\u2500 values\n\u2502    \u251c\u2500\u2500 columns: column1:1\n\u2502    \u251c\u2500\u2500 cardinality: [2 - 2]\n\u2502    \u251c\u2500\u2500 (1,)\n\u2502    \u2514\u2500\u2500 (2,)\n\u2514\u2500\u2500 projections\n\u251c\u2500\u2500 assignment-cast: STRING [as=x:2]\n\u2502    \u2514\u2500\u2500 column1:1\n\u2514\u2500\u2500 'foo' [as=y:3]\n=>\nproject\n\u251c\u2500\u2500 columns: x:2 y:3\n\u251c\u2500\u2500 values\n\u2502    \u251c\u2500\u2500 columns: x:2\n\u2502    \u251c\u2500\u2500 cardinality: [2 - 2]\n\u2502    \u251c\u2500\u2500 tuple\n\u2502    \u2502    \u2514\u2500\u2500 assignment-cast: STRING\n\u2502    \u2502        \u2514\u2500\u2500 1\n\u2502    \u2514\u2500\u2500 tuple\n\u2502         \u2514\u2500\u2500 assignment-cast: STRING\n\u2502             \u2514\u2500\u2500 2\n\u2514\u2500\u2500 projections\n\u2514\u2500\u2500 'foo' [as=y:3]\n\nThis allows other rules to fire, with the ultimate goal of eliminating the\nproject so that the insert fast-path optimization is used in more cases and\nuniqueness checks for gen_random_uuid() values are eliminated in more cases.\n\nAssignment casts in projections cannot be pushed into values expressions if\nthe casted column is referenced in another projection expression\n(AssignmentCastCols ensures this) or if the casted column also a passthrough\ncolumn (notice the DifferenceCols function).\n\nExtracted from `project.opt` (which defines multiple rules \u2014 implement specifically `PushAssignmentCastsIntoValues`, not the other rules in that file):\n\n```\n# PushAssignmentCastsIntoValues pushes assignment cast projections into Values\n# rows.\n#\n# Example:\n#\n# project\n#  \u251c\u2500\u2500 columns: x:2 y:3\n#  \u251c\u2500\u2500 values\n#  \u2502    \u251c\u2500\u2500 columns: column1:1\n#  \u2502    \u251c\u2500\u2500 cardinality: [2 - 2]\n#  \u2502    \u251c\u2500\u2500 (1,)\n#  \u2502    \u2514\u2500\u2500 (2,)\n#  \u2514\u2500\u2500 projections\n#       \u251c\u2500\u2500 assignment-cast: STRING [as=x:2]\n#       \u2502    \u2514\u2500\u2500 column1:1\n#       \u2514\u2500\u2500 'foo' [as=y:3]\n# =>\n# project\n#  \u251c\u2500\u2500 columns: x:2 y:3\n#  \u251c\u2500\u2500 values\n#  \u2502    \u251c\u2500\u2500 columns: x:2\n#  \u2502    \u251c\u2500\u2500 cardinality: [2 - 2]\n#  \u2502    \u251c\u2500\u2500 tuple\n#  \u2502    \u2502    \u2514\u2500\u2500 assignment-cast: STRING\n#  \u2502    \u2502        \u2514\u2500\u2500 1\n#  \u2502    \u2514\u2500\u2500 tuple\n#  \u2502         \u2514\u2500\u2500 assignment-cast: STRING\n#  \u2502             \u2514\u2500\u2500 2\n#  \u2514\u2500\u2500 projections\n#       \u2514\u2500\u2500 'foo' [as=y:3]\n#\n# This allows other rules to fire, with the ultimate goal of eliminating the\n# project so that the insert fast-path optimization is used in more cases and\n# uniqueness checks for gen_random_uuid() values are eliminated in more cases.\n#\n# Assignment casts in projections cannot be pushed into values expressions if\n# the casted column is referenced in another projection expression\n# (AssignmentCastCols ensures this) or if the casted column also a passthrough\n# column (notice the DifferenceCols function).\n[PushAssignmentCastsIntoValues, Normalize]\n(Project\n    $input:(Values)\n    $projections:*\n    $passthrough:* &\n        ^(ColsAreEmpty\n            $castCols:(IntersectionCols\n                (DifferenceCols\n                    (AssignmentCastCols $projections)\n                    $passthrough\n                )\n                (OutputCols $input)\n            )\n        )\n)\n=>\n(PushAssignmentCastsIntoValues\n    $input\n    $projections\n    $passthrough\n    $castCols\n)\n```",
+    "status": "SKIPPED",
+    "attempts_used": 92,
+    "reason": "The rule's after-side requires a `Values` operator whose row cells are non-literal expressions (the pushed-in assignment casts), but QED's substrate is Calcite, whose `LogicalValues`/`RelBuilder.values` and the QED JSON `values` format (and its `RexLiteral`-casting deserializer) only admit constant rows \u2014 there is no operator for expression-bearing Values, and the unmodifiable QED prover cannot interpret such cells. This is a hard substrate representation limit, not a missing DSL builder: keeping the after-side Values literal-only breaks equivalence (cast(l) \u2260 l), and no representable narrower special case exists because the expression-in-a-values-cell is precisely the unencodable core of the transformation.",
+    "prover_stats": {},
+    "verification_rounds_used": 5,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's after-side requires a `Values` operator whose row cells are non-literal expressions (the pushed-in assignment casts), but QED's substrate is Calcite, whose `LogicalValues`/`RelBuilder.values` and the QED JSON `values` format (and its `RexLiteral`-casting deserializer) only admit constant rows \u2014 there is no operator for expression-bearing Values, and the unmodifiable QED prover cannot interpret such cells. This is a hard substrate representation limit, not a missing DSL builder: keeping the after-side Values literal-only breaks equivalence (cast(l) \u2260 l), and no representable narrower special case exists because the expression-in-a-values-cell is precisely the unencodable core of the transformation.",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-28T06:53:57.935298+00:00"
+  },
+  {
+    "rule_name": "PushColumnRemappingIntoValues",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/project.opt\n\nPushColumnRemappingIntoValues folds ProjectionsItems into the passthrough set\nif they simply remap Values output columns that are not already in\npassthrough. The Values output columns are replaced with the corresponding\ncolumns projected by the folded ProjectionsItems.\n\nExample:\n\nproject\n\u251c\u2500\u2500 columns: x:2!null\n\u251c\u2500\u2500 values\n\u2502    \u251c\u2500\u2500 columns: column1:1!null\n\u2502    \u251c\u2500\u2500 cardinality: [2 - 2]\n\u2502    \u251c\u2500\u2500 (1,)\n\u2502    \u2514\u2500\u2500 (2,)\n\u2514\u2500\u2500 projections\n\u2514\u2500\u2500 column1:1 [as=x:2, outer=(1)]\n=>\nproject\n\u251c\u2500\u2500 columns: x:2!null\n\u2514\u2500\u2500 values\n\u251c\u2500\u2500 columns: x:2!null\n\u251c\u2500\u2500 cardinality: [2 - 2]\n\u251c\u2500\u2500 (1,)\n\u2514\u2500\u2500 (2,)\n\nThis allows other rules to fire. In the example above, the project would now\nbe removed by EliminateProject.\n\nExtracted from `project.opt` (which defines multiple rules \u2014 implement specifically `PushColumnRemappingIntoValues`, not the other rules in that file):\n\n```\n# PushColumnRemappingIntoValues folds ProjectionsItems into the passthrough set\n# if they simply remap Values output columns that are not already in\n# passthrough. The Values output columns are replaced with the corresponding\n# columns projected by the folded ProjectionsItems.\n#\n# Example:\n#\n# project\n#  \u251c\u2500\u2500 columns: x:2!null\n#  \u251c\u2500\u2500 values\n#  \u2502    \u251c\u2500\u2500 columns: column1:1!null\n#  \u2502    \u251c\u2500\u2500 cardinality: [2 - 2]\n#  \u2502    \u251c\u2500\u2500 (1,)\n#  \u2502    \u2514\u2500\u2500 (2,)\n#  \u2514\u2500\u2500 projections\n#       \u2514\u2500\u2500 column1:1 [as=x:2, outer=(1)]\n# =>\n# project\n#  \u251c\u2500\u2500 columns: x:2!null\n#  \u2514\u2500\u2500 values\n#       \u251c\u2500\u2500 columns: x:2!null\n#       \u251c\u2500\u2500 cardinality: [2 - 2]\n#       \u251c\u2500\u2500 (1,)\n#       \u2514\u2500\u2500 (2,)\n#\n# This allows other rules to fire. In the example above, the project would now\n# be removed by EliminateProject.\n[PushColumnRemappingIntoValues, Normalize]\n(Project\n    $input:(Values)\n    $projections:*\n    $passthrough:* &\n        (CanPushColumnRemappingIntoValues\n            $projections\n            $passthrough\n            $input\n        )\n)\n=>\n(PushColumnRemappingIntoValues $input $projections $passthrough)\n```",
+    "status": "SKIPPED",
+    "attempts_used": 37,
+    "reason": "PushColumnRemappingIntoValues is a data-preserving hygiene step \u2014 it renames a Values column to a projection's alias and folds that identity (Variable-reference) projection from the computed set into passthrough, leaving the rows unchanged \u2014 so its only semantic delta is a column rename, which QED's bag-of-tuples model has no first-class notion of (it tracks neither column identity/name nor a non-empty Values node, only the empty one). Hence every faithful before/after encoding collapses to the vacuous identity-projection law (the same bag of tuples \u2261 itself), whereas any encoding that introduces separate value relations to manufacture checkable content models them as unrelated uninterpreted relations and is unprovable; no encoding at any level of generality yields a rule-specific bag-semantic statement, so the UNSUPPORTED claim is sound. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 3,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "PushColumnRemappingIntoValues is a data-preserving hygiene step \u2014 it renames a Values column to a projection's alias and folds that identity (Variable-reference) projection from the computed set into passthrough, leaving the rows unchanged \u2014 so its only semantic delta is a column rename, which QED's bag-of-tuples model has no first-class notion of (it tracks neither column identity/name nor a non-empty Values node, only the empty one). Hence every faithful before/after encoding collapses to the vacuous identity-projection law (the same bag of tuples \u2261 itself), whereas any encoding that introduces separate value relations to manufacture checkable content models them as unrelated uninterpreted relations and is unprovable; no encoding at any level of generality yields a rule-specific bag-semantic statement, so the UNSUPPORTED claim is sound. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-28T07:03:35.769074+00:00"
+  },
+  {
+    "rule_name": "PushAggFilterIntoScalarGroupBy",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/groupby.opt\n\nPushAggFilterIntoScalarGroupBy pushes an aggregate function FILTER\nmodifier into the input of the ScalarGroupBy operator. This allows the\noptimizer to take advantage of an index on the column(s) subject to the\nFILTER operation. PushAggFilterIntoScalarGroupBy can match any single\naggregate function, including those that have multiple input arguments.\n\nExtracted from `groupby.opt` (which defines multiple rules \u2014 implement specifically `PushAggFilterIntoScalarGroupBy`, not the other rules in that file):\n\n```\n# PushAggFilterIntoScalarGroupBy pushes an aggregate function FILTER\n# modifier into the input of the ScalarGroupBy operator. This allows the\n# optimizer to take advantage of an index on the column(s) subject to the\n# FILTER operation. PushAggFilterIntoScalarGroupBy can match any single\n# aggregate function, including those that have multiple input arguments.\n[PushAggFilterIntoScalarGroupBy, Normalize]\n(ScalarGroupBy\n    $input:*\n    $aggregations:[\n        $item:(AggregationsItem\n            (AggFilter $agg:* $condition:*)\n            $aggColID:*\n        )\n    ]\n    $groupingPrivate:*\n)\n=>\n(ScalarGroupBy\n    (Select $input [ (FiltersItem $condition) ])\n    [ (AggregationsItem $agg $aggColID) ]\n    $groupingPrivate\n)\n```",
+    "status": "SKIPPED",
+    "attempts_used": 44,
+    "reason": "QED models each aggregate call as an uninterpreted function applied to its input bag, and neither the DSL's `AggCall` nor the prover's aggregate JSON object (`{operator, operand, distinct, ignoreNulls, type}`) has any FILTER/row-selection slot \u2014 the only modeled pre-aggregate row filter is COUNT's non-null ignoreNulls. So the before side `f(a) FILTER (WHERE c)` has no non-vacuous encoding: expressing the filter as a `Filter` node under the aggregate makes `before` syntactically identical to `after`, while folding `c` into the aggregate's operands produces a different uninterpreted function over a different bag, for which the SMT solver has no algebraic bridge to the after side. This is a fundamental limitation of QED's aggregate semantics (an internal operator behavior it cannot see through), not a missing DSL builder \u2014 even a `extend_dsl_file` adding a filter field to the serialized aggregate would be inert, since the immutable prover does not parse or model it, so the porter's UNSUPPORTED conclusion is correct. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 3,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "QED models each aggregate call as an uninterpreted function applied to its input bag, and neither the DSL's `AggCall` nor the prover's aggregate JSON object (`{operator, operand, distinct, ignoreNulls, type}`) has any FILTER/row-selection slot \u2014 the only modeled pre-aggregate row filter is COUNT's non-null ignoreNulls. So the before side `f(a) FILTER (WHERE c)` has no non-vacuous encoding: expressing the filter as a `Filter` node under the aggregate makes `before` syntactically identical to `after`, while folding `c` into the aggregate's operands produces a different uninterpreted function over a different bag, for which the SMT solver has no algebraic bridge to the after side. This is a fundamental limitation of QED's aggregate semantics (an internal operator behavior it cannot see through), not a missing DSL builder \u2014 even a `extend_dsl_file` adding a filter field to the serialized aggregate would be inert, since the immutable prover does not parse or model it, so the porter's UNSUPPORTED conclusion is correct. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-28T07:15:45.253743+00:00"
+  },
+  {
+    "rule_name": "PushFilterIntoJoinRight",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/join.opt\n\nPushFilterIntoJoinRight is symmetric with PushFilterIntoJoinLeft. It pushes\nJoin filter conditions into the right side of the join rather than into the\nleft side. See that rule's comments for more details.\n\nExtracted from `join.opt` (which defines multiple rules \u2014 implement specifically `PushFilterIntoJoinRight`, not the other rules in that file):\n\n```\n# PushFilterIntoJoinRight is symmetric with PushFilterIntoJoinLeft. It pushes\n# Join filter conditions into the right side of the join rather than into the\n# left side. See that rule's comments for more details.\n[PushFilterIntoJoinRight, Normalize]\n(InnerJoin | InnerJoinApply | LeftJoin | LeftJoinApply | SemiJoin\n        | SemiJoinApply | AntiJoin | AntiJoinApply\n    $left:*\n    $right:* & ^(HasOuterCols $right)\n    $on:[\n        ...\n        $item:* &\n            (IsBoundBy $item $rightCols:(OutputCols $right))\n        ...\n    ]\n    $private:*\n)\n=>\n((OpName)\n    $left\n    (Select $right (ExtractBoundConditions $on $rightCols))\n    (ExtractUnboundConditions $on $rightCols)\n    $private\n)\n```",
+    "status": "PROVED",
+    "attempts_used": 3,
+    "reason": "The encoding is a faithful (though honestly scope-limited) INNER-join instance of the rule: `before()` is `L \u22c8_INNER R ON f(R) \u2227 g(L,R)` and `after()` is `L \u22c8_INNER (R \u03c3_f) ON g(L,R)`, structurally different in exactly the way the real push-down rewrites, so the proof is non-vacuous. The symbols are genuinely uninterpreted \u2014 `f` (right-bound, applied to R's column in both the join-row and the filtered-right contexts) and `g` (residual, cross-referencing both sides) are shared correctly, matching the source's \"bound by right cols / extract unbound\" split, and the \"no outer columns\" precondition is satisfied by the plain scans. The narrowing to INNER-only (the source also covers Left/Semi/Anti, which QED's MetaJoinType can't express beyond INNER semantics) and to single-conjunct/single-column inputs is specific and disclosed in the SCOPE line, not a hidden shortcut, so the proved equivalence is a real, non-degenerate special case rather than a misleading artifact.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 6672167
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 33628167
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 832250
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 423709
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 18791500
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 33731292
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 67885459
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is a faithful (though honestly scope-limited) INNER-join instance of the rule: `before()` is `L \u22c8_INNER R ON f(R) \u2227 g(L,R)` and `after()` is `L \u22c8_INNER (R \u03c3_f) ON g(L,R)`, structurally different in exactly the way the real push-down rewrites, so the proof is non-vacuous. The symbols are genuinely uninterpreted \u2014 `f` (right-bound, applied to R's column in both the join-row and the filtered-right contexts) and `g` (residual, cross-referencing both sides) are shared correctly, matching the source's \"bound by right cols / extract unbound\" split, and the \"no outer columns\" precondition is satisfied by the plain scans. The narrowing to INNER-only (the source also covers Left/Semi/Anti, which QED's MetaJoinType can't express beyond INNER semantics) and to single-conjunct/single-column inputs is specific and disclosed in the SCOPE line, not a hidden shortcut, so the proved equivalence is a real, non-degenerate special case rather than a misleading artifact.",
+    "scope": "PARTIAL",
+    "scope_detail": "INNER join only (no Semi/Left/Full/Anti), one right-bound conjunct with no outer columns, one unbound conjunct, single-column inputs",
+    "timestamp": "2026-09-28T07:15:46.159428+00:00"
+  },
+  {
+    "rule_name": "PushFilterIntoSetOp",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/select.opt\n\nPushFilterIntoSetOp pushes filters down to both the left and right sides\nof all set operators. For example, consider this query:\n\nSELECT * FROM (SELECT x FROM a UNION ALL SELECT y FROM b) WHERE x < 5\n\nIn this case, we can map x < 5 to both sides based on the knowledge that\nin the union the x out col corresponds to the x column in the (a) table and\nthe y column in the (b) table. Therefore our mapping becomes x < 5 in the\nleft side, and y <  5 in the right side. Given this mapping, we can now\nsafely push the filter down to both sides as follows:\n\nSELECT * FROM (SELECT x FROM a UNION ALL SELECT y FROM b) WHERE x < 5\n=>\n(SELECT x FROM a WHERE x < 5) UNION ALL (SELECT y FROM b WHERE y < 5)\n\nPushing (all) the filters down for each of the set operators (Union, Union\nAll, Except, Except All, Intersect, Intersect All) is logically equivalent\nto filtering after applying the set operator. Here's some justification for\nthis claim:\n\nNotice that each of the set operators this rule applies to, only works on\nunion compatible relations. The resulting column set after applying the set\noperator, is also necessarily a subset of the column set of the (any)\nrelations it was composed of. And so, any filter applied must have a\ncorresponding column in each of the base relations.\n\nThis works in the case of Union because a row passing the filter is\nindependent of the other rows in its relation. It works in the case of\nIntersect because if a row `a` was filtered from the intersection, it will\nalso be filtered from the LHS and RHS. It works in the case of Except because\nif a row is filtered from the RHS, preventing its removal from the LHS, it\nwill also have been filtered from the LHS.\n\nVisualization of the rule:\nLet A and B be sets. Let the filter be represented by eliminating some set C.\n\nUnion (All):        (A Union B) \\ C => (A \\ C) Union (B \\ C)\nIntersection (All): (A Intersect B) \\ C => (A \\ C) Intersect (B \\ C)\nExcept (All):       (A Except B) \\ C => (A \\ C) Except (B \\ C)\n\nWe don't push a filter down if it references outer columns because doing so\nprevents decorrelation.\n\nExtracted from `select.opt` (which defines multiple rules \u2014 implement specifically `PushFilterIntoSetOp`, not the other rules in that file):\n\n```\n# PushFilterIntoSetOp pushes filters down to both the left and right sides\n# of all set operators. For example, consider this query:\n#\n#   SELECT * FROM (SELECT x FROM a UNION ALL SELECT y FROM b) WHERE x < 5\n#\n# In this case, we can map x < 5 to both sides based on the knowledge that\n# in the union the x out col corresponds to the x column in the (a) table and\n# the y column in the (b) table. Therefore our mapping becomes x < 5 in the\n# left side, and y <  5 in the right side. Given this mapping, we can now\n# safely push the filter down to both sides as follows:\n#\n# SELECT * FROM (SELECT x FROM a UNION ALL SELECT y FROM b) WHERE x < 5\n# =>\n# (SELECT x FROM a WHERE x < 5) UNION ALL (SELECT y FROM b WHERE y < 5)\n#\n# Pushing (all) the filters down for each of the set operators (Union, Union\n# All, Except, Except All, Intersect, Intersect All) is logically equivalent\n# to filtering after applying the set operator. Here's some justification for\n# this claim:\n#\n# Notice that each of the set operators this rule applies to, only works on\n# union compatible relations. The resulting column set after applying the set\n# operator, is also necessarily a subset of the column set of the (any)\n# relations it was composed of. And so, any filter applied must have a\n# corresponding column in each of the base relations.\n#\n# This works in the case of Union because a row passing the filter is\n# independent of the other rows in its relation. It works in the case of\n# Intersect because if a row `a` was filtered from the intersection, it will\n# also be filtered from the LHS and RHS. It works in the case of Except because\n# if a row is filtered from the RHS, preventing its removal from the LHS, it\n# will also have been filtered from the LHS.\n#\n# Visualization of the rule:\n# Let A and B be sets. Let the filter be represented by eliminating some set C.\n#\n# Union (All):        (A Union B) \\ C => (A \\ C) Union (B \\ C)\n# Intersection (All): (A Intersect B) \\ C => (A \\ C) Intersect (B \\ C)\n# Except (All):       (A Except B) \\ C => (A \\ C) Except (B \\ C)\n#\n# We don't push a filter down if it references outer columns because doing so\n# prevents decorrelation.\n[PushFilterIntoSetOp, Normalize]\n(Select\n    $input:(Set $left:* $right:* $colmap:*)\n    $filter:[\n        ...\n        $item:* &\n            (CanMapOnSetOp $item) &\n            (IsBoundBy $item $inputCols:(OutputCols $input))\n        ...\n    ]\n)\n=>\n(Select\n    ((OpName $input)\n        (Select\n            $left\n            [ (FiltersItem (MapSetOpFilterLeft $item $colmap)) ]\n        )\n        (Select\n            $right\n            [ (FiltersItem (MapSetOpFilterRight $item $colmap)) ]\n        )\n        $colmap\n    )\n    (RemoveFiltersItem $filter $item)\n)\n```",
+    "status": "PROVED",
+    "attempts_used": 22,
+    "reason": "The encoding is a faithful, non-trivial instance of the rule: `before()` is `Filter(Intersect(L,R), P)` and `after()` is `Intersect(Filter(L,P), Filter(R,P))`, where the single uninterpreted predicate `P` is deliberately shared across both inputs and the set-op output \u2014 precisely the rule's \"map the same filter through the column map to each side\" step, with the identity column map on one shared column type. The SCOPE tag honestly discloses the narrowing to the 2-input distinct (set) INTERSECT variant, which is a genuine QED limitation for the ALL/bag variants (not modeled, and `intersect(all=true)` can't even be serialized \u2014 the JSONSerializer only handles `!all`), and nothing in the source rule's preconditions (filter bound to the set op's output cols, no outer refs) is violated or silently dropped by this shape. The result is not degenerate: `before()` and `after()` are structurally different, and the proof establishes that filtering commutes with set intersection for an arbitrary uninterpreted predicate \u2014 a real property (it would fail, e.g., if the right side were left unfiltered), with correct symbol sharing rather than coincidental over-constraint. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 8410875
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 25163625
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 809500
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 484708
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 21918917
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 25276333
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 62495584
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is a faithful, non-trivial instance of the rule: `before()` is `Filter(Intersect(L,R), P)` and `after()` is `Intersect(Filter(L,P), Filter(R,P))`, where the single uninterpreted predicate `P` is deliberately shared across both inputs and the set-op output \u2014 precisely the rule's \"map the same filter through the column map to each side\" step, with the identity column map on one shared column type. The SCOPE tag honestly discloses the narrowing to the 2-input distinct (set) INTERSECT variant, which is a genuine QED limitation for the ALL/bag variants (not modeled, and `intersect(all=true)` can't even be serialized \u2014 the JSONSerializer only handles `!all`), and nothing in the source rule's preconditions (filter bound to the set op's output cols, no outer refs) is violated or silently dropped by this shape. The result is not degenerate: `before()` and `after()` are structurally different, and the proof establishes that filtering commutes with set intersection for an arbitrary uninterpreted predicate \u2014 a real property (it would fail, e.g., if the right side were left unfiltered), with correct symbol sharing rather than coincidental over-constraint. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "the 2-input set (distinct) INTERSECT instance with both inputs sharing one column type and one uninterpreted predicate, whereas Cockroach's rule applies to Union/Except/Intersect, all- or distinct-variants, of any arity.",
+    "timestamp": "2026-09-28T07:29:27.345531+00:00"
+  },
+  {
+    "rule_name": "PushLeakproofFiltersIntoPermeableBarrier",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/select.opt\n\nPushLeakproofFiltersIntoPermeableBarrier splits filter expressions based on\nleakproofness and pushes only the leakproof filters beneath a permeable\nBarrier. The remaining filters stay above the Barrier.\n\nThis allows safe reordering of leakproof expressions while preserving the\nBarrier to block unsafe transformations involving non-leakproof filters.\nThe Barrier must be marked as LeakproofPermeable to allow this behavior.\n\nExtracted from `select.opt` (which defines multiple rules \u2014 implement specifically `PushLeakproofFiltersIntoPermeableBarrier`, not the other rules in that file):\n\n```\n# PushLeakproofFiltersIntoPermeableBarrier splits filter expressions based on\n# leakproofness and pushes only the leakproof filters beneath a permeable\n# Barrier. The remaining filters stay above the Barrier.\n#\n# This allows safe reordering of leakproof expressions while preserving the\n# Barrier to block unsafe transformations involving non-leakproof filters.\n# The Barrier must be marked as LeakproofPermeable to allow this behavior.\n[PushLeakproofFiltersIntoPermeableBarrier, Normalize]\n(Select\n    (Barrier\n        $input:*\n        $leakproofPermeable:* & (If $leakproofPermeable)\n    )\n    $filters:* &\n        (Let\n            (\n                $leakproofFilters\n                $remainingFilters\n                $ok\n            ):(SplitLeakproofFilters $filters)\n            $ok\n        )\n)\n=>\n(Select\n    (Barrier\n        (Select $input $leakproofFilters)\n        $leakproofPermeable\n    )\n    $remainingFilters\n)\n```",
+    "status": "PROVED",
+    "attempts_used": 46,
+    "reason": "The encoding faithfully captures the rule's logical content: a leakproof predicate is pushed from above an identity operation (the Barrier) to below it, while the remaining predicate stays above, which is exactly what the source rule rewrites. The barrier-as-identity-projection modeling is correct since a Barrier has no bag-semantic effect on rows, the uninterpreted predicates `Leakproof` and `Remaining` are properly shared across both sides, and the single-column arity restriction (the only narrowing) is honestly documented in the SCOPE line and does not change the logical principle being proved, since filter-through-identity commutativity is arity-independent. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 3625791
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 6778500
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 160667
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 237250
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 7704459
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 6822708
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 17282292
+      }
+    },
+    "verification_rounds_used": 3,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding faithfully captures the rule's logical content: a leakproof predicate is pushed from above an identity operation (the Barrier) to below it, while the remaining predicate stays above, which is exactly what the source rule rewrites. The barrier-as-identity-projection modeling is correct since a Barrier has no bag-semantic effect on rows, the uninterpreted predicates `Leakproof` and `Remaining` are properly shared across both sides, and the single-column arity restriction (the only narrowing) is honestly documented in the SCOPE line and does not change the logical principle being proved, since filter-through-identity commutativity is arity-independent. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "the barrier's input is fixed to a single column; the original rule applies to any arity",
+    "timestamp": "2026-09-28T07:53:16.454708+00:00"
+  },
+  {
+    "rule_name": "PushFilterIntoJoinLeftAndRight",
+    "source_backend": "CockroachDB",
+    "source_description": "Source: pkg/sql/opt/norm/rules/join.opt\n\nPushFilterIntoJoinLeftAndRight pushes a filter into both the left and right\nsides of an InnerJoin or SemiJoin if it can be mapped to use the columns of\nboth sides. For example, consider this query:\n\nSELECT * FROM a JOIN b ON a.x=b.x AND a.y=b.y AND a.x + b.y < 5\n\nIn this case, we can map a.x + b.y < 5 to both sides based on the equality\nfilters a.x=b.x AND a.y=b.y. For the left side, we can map it to\na.x + a.y < 5, and for the right side, we can map it to b.x + b.y < 5.\nGiven this mapping, we can safely push the filter down to both sides and\nremove it from the ON filters list.\n\nNote that this rule is only applied when the left and right inputs do not have\nouter columns. If they do, then this rule can cause undetectable cycles with\nTryDecorrelateSelect, since the filter is pushed down to both sides, but then\nonly pulled up from the right side by TryDecorrelateSelect. For this reason,\nthe rule also does not apply to InnerJoinApply or SemiJoinApply.\n\nNOTE: It is important that this rule is first among the join filter push-down\nrules.\n\nExtracted from `join.opt` (which defines multiple rules \u2014 implement specifically `PushFilterIntoJoinLeftAndRight`, not the other rules in that file):\n\n```\n# PushFilterIntoJoinLeftAndRight pushes a filter into both the left and right\n# sides of an InnerJoin or SemiJoin if it can be mapped to use the columns of\n# both sides. For example, consider this query:\n#\n#   SELECT * FROM a JOIN b ON a.x=b.x AND a.y=b.y AND a.x + b.y < 5\n#\n# In this case, we can map a.x + b.y < 5 to both sides based on the equality\n# filters a.x=b.x AND a.y=b.y. For the left side, we can map it to\n# a.x + a.y < 5, and for the right side, we can map it to b.x + b.y < 5.\n# Given this mapping, we can safely push the filter down to both sides and\n# remove it from the ON filters list.\n#\n# Note that this rule is only applied when the left and right inputs do not have\n# outer columns. If they do, then this rule can cause undetectable cycles with\n# TryDecorrelateSelect, since the filter is pushed down to both sides, but then\n# only pulled up from the right side by TryDecorrelateSelect. For this reason,\n# the rule also does not apply to InnerJoinApply or SemiJoinApply.\n#\n# NOTE: It is important that this rule is first among the join filter push-down\n#       rules.\n[PushFilterIntoJoinLeftAndRight, Normalize]\n(InnerJoin | SemiJoin\n    $left:* & ^(HasOuterCols $left)\n    $right:* & ^(HasOuterCols $right)\n    $on:[\n        ...\n        $item:* &\n            ^(FiltersItem (Eq (Variable) (Variable))) &\n            (CanMapJoinOpFilter\n                $item\n                $leftCols:(OutputCols $left)\n                $equivSet:(GetEquivGroups $on $left $right)\n            ) &\n            (CanMapJoinOpFilter\n                $item\n                $rightCols:(OutputCols $right)\n                $equivSet\n            )\n        ...\n    ]\n    $private:*\n)\n=>\n((OpName)\n    (Select\n        $left\n        [\n            (FiltersItem\n                (MapJoinOpFilter $item $leftCols $equivSet)\n            )\n        ]\n    )\n    (Select\n        $right\n        [\n            (FiltersItem\n                (MapJoinOpFilter $item $rightCols $equivSet)\n            )\n        ]\n    )\n    (RemoveFiltersItem $on $item)\n    $private\n)\n```",
+    "status": "PROVED",
+    "attempts_used": 83,
+    "reason": "The encoding is a faithful, non-degenerate minimal instance of the rule: `before()` is an inner join with ON `(L.0=R.0 \u2227 L.1=R.1 \u2227 L.0=R.1)`, and `after()` pushes the single mappable cross equality (`L.0=R.1`) down as `L.0=L.1` on the left and `R.0=R.1` on the right using the equivalence groups established by the two supporting equalities, then drops it from the ON \u2014 exactly the `MapJoinOpFilter`/`RemoveFiltersItem` transformation, with concrete `EQUALS` being the correct (not over-constraining) choice since the rule reasons about equality-based equivalence groups that uninterpreted `pred(...)` symbols can't express. Symbols are shared correctly (`e00`/`e11` retained in both ONs, `e01` removed; `fL`/`fR` distinct side filters), so the proof is of the real rule instance rather than a coincidental `before==after`, and the `SCOPE: PARTIAL` line honestly and specifically discloses the genuine narrowing to inner-only / two-column / one-mappable-plus-two-supporting equalities, which is a real, non-trivial family (the equivalence requires genuine transitivity reasoning, not structural identity).",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 7896333
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 37385875
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 846709
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 565042
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 19646792
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 37494375
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 72593750
+      }
+    },
+    "verification_rounds_used": 6,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is a faithful, non-degenerate minimal instance of the rule: `before()` is an inner join with ON `(L.0=R.0 \u2227 L.1=R.1 \u2227 L.0=R.1)`, and `after()` pushes the single mappable cross equality (`L.0=R.1`) down as `L.0=L.1` on the left and `R.0=R.1` on the right using the equivalence groups established by the two supporting equalities, then drops it from the ON \u2014 exactly the `MapJoinOpFilter`/`RemoveFiltersItem` transformation, with concrete `EQUALS` being the correct (not over-constraining) choice since the rule reasons about equality-based equivalence groups that uninterpreted `pred(...)` symbols can't express. Symbols are shared correctly (`e00`/`e11` retained in both ONs, `e01` removed; `fL`/`fR` distinct side filters), so the proof is of the real rule instance rather than a coincidental `before==after`, and the `SCOPE: PARTIAL` line honestly and specifically discloses the genuine narrowing to inner-only / two-column / one-mappable-plus-two-supporting equalities, which is a real, non-trivial family (the equivalence requires genuine transitivity reasoning, not structural identity).",
+    "scope": "PARTIAL",
+    "scope_detail": "INNER only, two-column inputs, no outer columns, one mappable cross equality plus two supporting cross equalities",
+    "timestamp": "2026-09-28T08:16:53.632229+00:00"
   }
 ]

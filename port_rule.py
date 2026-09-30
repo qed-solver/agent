@@ -23,7 +23,7 @@ If the verifier rejects/disagrees, the porter gets another round (up to
 conversation.
 
 The final outcome for each rule (PROVED / SKIPPED / FAILED), along with the
-verifier's independently-checked reasoning, is recorded into PROGRESS.md,
+verifier's independently-checked reasoning, is recorded into that backend's README.md,
 and every artifact (whatever was produced) is mirrored under rules/<Name>/.
 
 This script never modifies the QED prover itself — it only ever writes
@@ -46,7 +46,7 @@ Usage:
     # porting for a different backend: point spec-dir/progress/rules-out-dir
     # at that backend's own folder (created the same way calcite/ is laid out)
     python3 port_rule.py --spec-dir cockroach/rule_specs \
-        --progress-md cockroach/PROGRESS.md --progress-json cockroach/progress.json \
+        --progress-md cockroach/README.md --progress-json cockroach/progress.json \
         --rules-out-dir cockroach/rules
 
 Configuration (env vars, or matching CLI flags):
@@ -948,7 +948,7 @@ def main():
     parser.add_argument("--verifier-max-tokens", type=int, default=None, help="Defaults to --max-tokens if unset.")
     parser.add_argument("--verifier-timeout", type=float, default=None, help="Defaults to --timeout if unset.")
     parser.add_argument("--no-verifier", action="store_true",
-                         help="Skip independent verification (not recommended; PROGRESS.md will say so).")
+                         help="Skip independent verification (not recommended; the backend README.md will say so).")
     parser.add_argument("--auditor-provider", choices=["anthropic", "openai"], default=None,
                          help="Defaults to --verifier-provider (then --provider) if unset.")
     parser.add_argument("--auditor-model", default=None, help="Defaults to --verifier-model if unset.")
@@ -979,7 +979,7 @@ def main():
         default=ROOT_DIR / "vendor" / "qed-prover" / "target" / "release" / "qed-prover",
         help="Path to the built qed-prover binary.",
     )
-    parser.add_argument("--progress-md", type=Path, default=ROOT_DIR / "calcite" / "PROGRESS.md")
+    parser.add_argument("--progress-md", type=Path, default=ROOT_DIR / "calcite" / "README.md")
     parser.add_argument("--progress-json", type=Path, default=ROOT_DIR / "calcite" / "progress.json")
     parser.add_argument(
         "--rules-out-dir", type=Path, default=ROOT_DIR / "calcite" / "rules",

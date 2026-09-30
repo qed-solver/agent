@@ -16,7 +16,7 @@ pipeline.py                compile / JSON-serialize / run qed-prover
 dsl_audit.py                 regression-checks a shared-DSL edit against every proved rule
 pool.py                     work-queue for running many rules concurrently
 prompts.py / verifier_prompts.py   the two agents' prompts
-progress.py                 PROGRESS.md / progress.json writer
+progress.py                 README.md / progress.json writer
 spec.py                     rule-spec (input) file parser
 rulescript_reference.md     DSL reference given to both agents
 
@@ -25,7 +25,7 @@ rulescript_reference.md     DSL reference given to both agents
                              means creating a folder laid out the same way)
   rule_specs/             <- input: the rules you want ported, one file each
   rules/                  <- output: <Name>/<Name>.java, .json, .result.json, REPORT.md
-  PROGRESS.md, progress.json   <- output: status of every rule, human + machine readable
+  README.md, progress.json   <- output: status of every rule, human + machine readable
 
 docs/      reference papers (RuleScript + QED)
 vendor/    the RuleScript/QED toolchain, plus a read-only checkout of each
@@ -52,19 +52,14 @@ Every rule ends up **PROVED**, **SKIPPED** (genuinely out of scope), or
 
 ## Setup
 
-Requires Java 25, Rust nightly, Python 3.10+ (macOS + Homebrew; installs
-`z3`/`cvc5` for you).
+Requires Java 25, Rust nightly, Python 3.10+.
 
 ```sh
 ./setup.sh
 ```
 
 Clones and builds the two vendored projects under `vendor/`: the RuleScript
-DSL/Maven project (patched via `docs/baseline-setup.patch` to reset it to
-just its architecture — DSL, JSON serializer, build scripts — with every
-previously-ported rule removed, so this agent has rules left to port), and
-the QED prover itself (never modified by this agent). Safe to re-run — it
-skips any clone that already exists. Leaves you with
+DSL/Maven project and the QED prover. Leaves you with
 `vendor/rulescript-repo/mvnw` and `vendor/qed-prover/target/release/qed-prover`
 (`port_rule.py` looks for exactly these paths; override with `--repo` /
 `--qed-prover` if you set things up differently).
@@ -82,14 +77,11 @@ python3 port_rule.py --spec-dir calcite/rule_specs
 
 # same, N workers claiming rules concurrently from a shared queue
 python3 port_rule.py --spec-dir calcite/rule_specs --pool --workers 4
-
-# a different backend: point spec-dir/progress/rules-out-dir at its folder,
-# and backend-root/backend-name at its vendored source checkout
-python3 port_rule.py --spec-dir cockroach/rule_specs \
-    --progress-md cockroach/PROGRESS.md --progress-json cockroach/progress.json \
-    --rules-out-dir cockroach/rules \
-    --backend-root vendor/cockroach-src --backend-name cockroach
 ```
+
+Porting for a different backend means pointing `--spec-dir`/`--progress-md`/
+`--progress-json`/`--rules-out-dir` at its folder and `--backend-root`/
+`--backend-name` at its vendored source checkout — see Examples below.
 
 ### Writing a rule-spec file
 
@@ -107,6 +99,74 @@ itself before writing anything, so prefer leaving this blank>
 
 `Source:` may end in `:<start>-<end>` to point at an exact line range
 instead of a whole file.
+
+## Examples
+
+**Calcite** — `calcite/rule_specs/calcite_FilterMerge.md`:
+
+```markdown
+# Name: FilterMerge
+# Backend: Apache Calcite
+# Source: core/src/main/java/org/apache/calcite/rel/rules/FilterMergeRule.java
+```
+
+```sh
+python3 port_rule.py --spec-dir calcite/rule_specs \
+    --progress-md calcite/README.md --progress-json calcite/progress.json \
+    --rules-out-dir calcite/rules \
+    --backend-root vendor/calcite-src --backend-name calcite
+```
+
+The PROVED result lands at `calcite/rules/FilterMerge/FilterMerge.java`:
+
+```java
+package org.qed.RRuleInstances;
+
+import org.qed.RRule;
+import org.qed.RelRN;
+import org.qed.RexRN;
+
+// SCOPE: FULL
+public record FilterMerge() implements RRule {
+    static final RelRN source = RelRN.scan("Source", "Source_Type");
+    static final RexRN inner = source.pred("inner");
+    static final RexRN outer = source.pred("outer");
+
+    @Override
+    public RelRN before() {
+        return source.filter(inner).filter(outer);
+    }
+
+    @Override
+    public RelRN after() {
+        return source.filter(RexRN.and(inner, outer));
+    }
+}
+```
+
+**CockroachDB** — `cockroach/rule_specs/cockroach_CommuteNullIs.md` points at
+one named rule inside a file that defines several; the spec body pastes just
+that rule's source so the porter doesn't have to pick it out of the others:
+
+```markdown
+# Name: CommuteNullIs
+# Backend: CockroachDB
+# Source: pkg/sql/opt/norm/rules/comp.opt
+
+CommuteNullIs moves a NULL onto the right side of an IS/IS NOT comparison.
+
+[CommuteNullIs, Normalize]
+(Is | IsNot $left:(Null) $right:^(Null))
+=>
+((OpName) $right $left)
+```
+
+```sh
+python3 port_rule.py --spec-dir cockroach/rule_specs \
+    --progress-md cockroach/README.md --progress-json cockroach/progress.json \
+    --rules-out-dir cockroach/rules \
+    --backend-root vendor/cockroach-src --backend-name cockroach
+```
 
 ## Porting rules for a new backend
 

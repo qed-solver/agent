@@ -2,10 +2,11 @@
 
 Ports query-optimizer rewrite rules from an external SQL backend (Apache
 Calcite, CockroachDB, Apache DataFusion, ...) into
-[RuleScript](docs/rulescript.pdf) — a Java-embedded DSL for logical
-query-plan rewrites — and uses the [QED prover](docs/qed.pdf) to formally
-check each ported rule is semantics-preserving, for *all* instantiations,
-not just tested examples.
+[RuleScript](https://github.com/qed-solver/rulescript) — a Java-embedded DSL for
+logical query-plan rewrites — and uses the
+[QED prover](https://github.com/qed-solver/prover) to formally check each
+ported rule is semantics-preserving, for *all* instantiations, not just
+tested examples.
 
 ## Layout
 
@@ -46,11 +47,8 @@ Two LLM roles per rule, so one hallucinated verdict can't slip through:
    Limitations) and not just giving up early? Disagreement sends it back to
    the porter for another round.
 
-Every rule ends up **PROVED**, **SKIPPED** (genuinely out of scope — this is
-a correct, expected outcome, not a failure), or **FAILED** (needs a human —
-see `rules/<Name>/REPORT.md` for the full trail). The agent only expresses
-the rule in RuleScript and gets QED's verdict; it does not generate a
-concrete backend implementation (Calcite `RelRule`, CockroachDB Optgen, etc).
+Every rule ends up **PROVED**, **SKIPPED** (genuinely out of scope), or
+**FAILED**.
 
 ## Setup
 
@@ -108,33 +106,25 @@ itself before writing anything, so prefer leaving this blank>
 ```
 
 `Source:` may end in `:<start>-<end>` to point at an exact line range
-instead of a whole file — narrow this whenever the file holds more than
-just the one rule.
+instead of a whole file.
 
 ## Porting rules for a new backend
 
 1. Vendor a read-only checkout of the backend's source under `vendor/`.
 2. Create `<backend>/rule_specs/`, `<backend>/rules/`, `<backend>/progress.json` (`[]`).
-3. Write one spec per rule. If the backend already names each rewrite as its
-   own artifact, point at the whole file. If it bundles several independent
-   rewrites behind one function (a `match`/`switch` whose branches produce
-   genuinely different `before → after` shapes), split it: one spec per
-   branch with a line-range `Source:`, so no single verdict silently covers
-   more than one rewrite. If you can't describe a rule's shape in one
-   sentence without saying "or", it's probably more than one spec.
+3. Write one spec per rule. If a source file bundles several independent
+   rewrites in one function, split it into one spec per rewrite with a
+   line-range `Source:` for each.
 4. Run a small trial batch first and read the `REPORT.md` files before
    committing to a full run.
 
-## Limitations the agent is told about up front
+## Limitations
 
-QED is a real decision procedure, not a heuristic, but it does not model:
+QED does not model:
 
-- **Row order / list semantics** — `Sort`, `Limit`, `Offset`, `Sample`, `Window`.
-- **Aggregate algebraic identities** — aggregates are uninterpreted to QED;
-  it can prove pushdown/regrouping (bag equality of the aggregate's input)
-  but not anything needing to know what `SUM`/`COUNT`/etc. compute.
-- **Bag-variant `INTERSECT`/`MINUS`** (set forms only; `UNION ALL` is fine).
-- **Implicit type casts and opaque backend-specific operators**.
+- Row order / list semantics — `Sort`, `Limit`, `Offset`, `Sample`, `Window`.
+- Aggregate algebraic identities (aggregates are uninterpreted).
+- Bag-variant `INTERSECT`/`MINUS` (set forms only).
+- Implicit type casts and opaque backend-specific operators.
 
-Hitting one of these should produce **SKIPPED with clear reasoning** — that
-is success for this agent, not failure.
+These should produce SKIPPED with clear reasoning.

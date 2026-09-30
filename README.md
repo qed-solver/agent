@@ -1,151 +1,75 @@
 # RuleScript rule-porting agent
 
-This repo is **an agent**, not a paper archive: it ports query-optimizer
-rewrite rules from an external SQL backend (Apache Calcite, CockroachDB,
-Apache DataFusion, ...) into [RuleScript](docs/rulescript.pdf) — a
-Java-embedded DSL for expressing logical query-plan rewrites — and uses the
-[QED prover](docs/qed.pdf) to formally check that each ported rule is
-semantics-preserving (bag-semantics equivalence, proved for *all*
-instantiations of its uninterpreted symbols, not just tested on samples).
+Ports query-optimizer rewrite rules from an external SQL backend (Apache
+Calcite, CockroachDB, Apache DataFusion, ...) into
+[RuleScript](docs/rulescript.pdf) — a Java-embedded DSL for logical
+query-plan rewrites — and uses the [QED prover](docs/qed.pdf) to formally
+check each ported rule is semantics-preserving, for *all* instantiations,
+not just tested examples.
 
 ## Layout
 
 ```
 port_rule.py              entry point — run this
 pipeline.py                compile / JSON-serialize / run qed-prover
-llm_client.py               tiny stdlib-only HTTP client (Anthropic or OpenAI-style APIs)
-prompts.py                  porter agent's prompts
-verifier_prompts.py         verifier agent's prompts
+dsl_audit.py                 regression-checks a shared-DSL edit against every proved rule
+pool.py                     work-queue for running many rules concurrently
+prompts.py / verifier_prompts.py   the two agents' prompts
 progress.py                 PROGRESS.md / progress.json writer
 spec.py                     rule-spec (input) file parser
-rulescript_reference.md     the RuleScript DSL reference given to both agents
-support/JsonGenerator.java  tiny helper compiled once, used to dump a rule's QED JSON
+rulescript_reference.md     DSL reference given to both agents
 
-calcite/                <- everything backend-specific for Apache Calcite; a future
-                           cockroach/ or datafusion/ folder mirrors this same layout
-  rule_specs/           <- put the rules you want ported here (one file each)
-  rules/                <- OUTPUT: every ported rule lands here for human inspection,
-                           whatever the outcome — <Name>/<Name>.java, .json,
-                           .result.json, and a REPORT.md summary
-  PROGRESS.md           <- OUTPUT: one-page summary of every rule's status
-  progress.json         <- OUTPUT: same, machine-readable
+<backend>/               <- one folder per source SQL engine (calcite/, cockroach/,
+                             datafusion/ exist already; adding one more backend
+                             means creating a folder laid out the same way)
+  rule_specs/             <- input: the rules you want ported, one file each
+  rules/                  <- output: <Name>/<Name>.java, .json, .result.json, REPORT.md
+  PROGRESS.md, progress.json   <- output: status of every rule, human + machine readable
 
-docs/           reference papers (RuleScript + QED); the agent reads these via a
-                dedicated read_pdf/search_docs tool, not read_file/search_code
-vendor/         external checkouts the agent drives (not part of this repo — see Setup)
+docs/      reference papers (RuleScript + QED)
+vendor/    the RuleScript/QED toolchain, plus a read-only checkout of each
+           backend's source (see Setup)
 ```
 
-## What the agent actually does
+## What it does
 
-Two LLM roles per rule, so a single hallucinated "yes it's provable" or "no,
-unsupported" can't slip through unchecked:
+Two LLM roles per rule, so one hallucinated verdict can't slip through:
 
-1. **Porter** — given a description of the source rule, writes a candidate
-   `RRule` Java record (see `rulescript_reference.md` for the exact DSL). The
-   harness then mechanically: writes the file into
-   `vendor/rulescript-repo/src/main/java/org/qed/RRuleInstances/`, compiles
-   the Maven project, serializes the rule to QED's JSON format, and runs the
-   real `qed-prover` binary on it. Compile errors and "not provable" results
-   are fed back to the porter verbatim, up to `--max-attempts` retries.
-2. **Verifier** — a *fresh* conversation (no memory of the porter's attempts)
-   independently reviews the porter's final artifact:
-   - If QED reported the rule provable, the verifier checks the encoding is
-     actually *faithful* to the source rule (not trivial, not narrowed down
-     to a special case, right operators/join-kinds/set-vs-bag flags, no
-     silently-dropped preconditions like a needed primary key).
-   - If the porter concluded the rule is unsupported (or exhausted its
-     retries without a proof), the verifier independently checks that this
-     is a *genuine* limitation of RuleScript/QED (see Limitations below) —
-     not the porter simply failing to find a correct encoding.
+1. **Porter** writes a candidate `RRule` Java record, then the harness
+   mechanically compiles it, serializes it to QED's JSON format, and runs
+   the real prover. Errors and "not provable" results get fed back to the
+   porter to retry.
+2. **Verifier** — a fresh, independent conversation — reviews the porter's
+   final answer: if QED said provable, is the encoding actually *faithful*
+   (not trivial, not silently narrowed, no dropped preconditions)? If the
+   porter claims unsupported, is that a *genuine* limitation (see
+   Limitations) and not just giving up early? Disagreement sends it back to
+   the porter for another round.
 
-   If the verifier disagrees, the porter gets another round (with the
-   verifier's critique folded into its conversation) — up to
-   `--max-verification-rounds` (default 2). Only a verifier-confirmed
-   outcome is ever recorded as PROVED or SKIPPED; if rounds run out without
-   agreement, the rule is recorded FAILED for a human to look at, with the
-   full trail of reasoning attached in `rules/<Name>/REPORT.md`.
-
-Every rule ends up in exactly one of three states, always with reasoning
-attached (never a bare "no" or "yes"):
-
-| Status | Meaning |
-|---|---|
-| **PROVED** | QED proved `before() == after()` for all instantiations, and the verifier confirmed the encoding is a faithful, general rendering of the source rule. |
-| **SKIPPED** | The verifier agrees this rule is genuinely outside what RuleScript's core language + QED can express (e.g. it depends on row order, `Sort`/`Limit`/`Offset`/`Window`/`Sample`, an aggregate identity QED can't know, or the bag-variant of intersect/minus). This is expected and fine — see Limitations. |
-| **FAILED** | Neither of the above within the round budget — needs a human to look at `rules/<Name>/REPORT.md` (it has the full source rule, the last candidate encoding, and every compiler/prover/verifier message along the way). |
-
-**Out of scope on purpose:** the agent's job stops at "express the rule in
-RuleScript and get QED's verdict." It does not generate the rewrite rule's
-implementation for any concrete backend (Calcite `RelRule`, CockroachDB
-Optgen, etc.) — `vendor/rulescript-repo`'s code generators for that exist
-but are not invoked by this agent at all.
+Every rule ends up **PROVED**, **SKIPPED** (genuinely out of scope — this is
+a correct, expected outcome, not a failure), or **FAILED** (needs a human —
+see `rules/<Name>/REPORT.md` for the full trail). The agent only expresses
+the rule in RuleScript and gets QED's verdict; it does not generate a
+concrete backend implementation (Calcite `RelRule`, CockroachDB Optgen, etc).
 
 ## Setup
 
-Requires: Java 25 (`temurin@25` via brew works), Rust nightly, Python 3.10+,
-and `z3` + `cvc5` installed (`brew install z3`; cvc5 via
-[their install instructions](https://github.com/cvc5/cvc5) or `pip install
-cvc5` won't give you the CLI — build from source or grab a release binary).
+Requires Java 25, Rust nightly, Python 3.10+ (macOS + Homebrew; installs
+`z3`/`cvc5` for you).
 
 ```sh
-mkdir -p vendor && cd vendor
-
-# 1. The RuleScript DSL + Maven project (this clone already has every
-#    previously-ported rule *deleted* — see "Starting point" below — but
-#    keeps all the surrounding architecture: RelRN/RexRN, RRule, JSON
-#    serialization, the Calcite/CockroachDB code generators, build scripts).
-git clone --branch dsl https://github.com/qed-solver/parser.git rulescript-repo
-cd rulescript-repo
-# Apply this project's starting-point patch: deletes every previously-ported
-# rule but keeps all the architecture (see "Starting point" below).
-git apply ../../docs/baseline-setup.patch
-./mvnw -q compile   # sanity check
-cd ../..
-
-# 2. The QED prover itself — never modified by this agent.
-cd ../
-git clone https://github.com/qed-solver/prover.git qed-prover
-cd qed-prover
-# z3-sys needs to find the z3 headers/libs from Homebrew on macOS:
-Z3_SYS_Z3_HEADER=$(brew --prefix z3)/include/z3.h \
-CPATH=$(brew --prefix z3)/include \
-LIBRARY_PATH=$(brew --prefix z3)/lib \
-cargo +nightly build --release
+./setup.sh
 ```
 
-You should end up with `vendor/rulescript-repo/mvnw` and
-`vendor/qed-prover/target/release/qed-prover` both present — `port_rule.py`
-checks for exactly these paths by default (override with `--repo` /
-`--qed-prover`).
-
-### Starting point: why rules are pre-deleted from `vendor/rulescript-repo`
-
-The upstream `dsl` branch's HEAD already has 33 rules ported (that's the
-paper's own evaluation). For this agent to have something to *do*, we start
-from that same commit but with:
-
-- every file under `src/main/java/org/qed/RRuleInstances/` and
-  `.../UnprovableRRuleInstances/` deleted (this includes the README's own
-  `FilterMerge` walkthrough example — it's documentation now, not a checked
-  in rule),
-- all `Generated/` backend output and per-rule `Tests/` deleted,
-- the handful of hardcoded per-rule special cases inside
-  `CalciteGenerator.java` / `CockroachGenerator.java` / `MySQLGenerator.java`
-  / `ProxySQLGenerator.java` that referenced those deleted rules' custom
-  inner classes removed (these were backend-codegen glue this agent never
-  calls anyway — see "Out of scope" above),
-- `pom.xml`'s Java release bumped from 23 to 25 to match locally available
-  JDKs (Temurin ships 21/25, not 23),
-- (appended after the Calcite porting pass) `RelRN.java` gains three
-  backend-agnostic primitives discovered to be genuinely needed along the
-  way — `scanMany` (multi-column scan), the `project(Seq<RexRN>)`/
-  `ProjectMany` overload (multi-column projection), and `Correlate` (a real
-  dependent join) — so the next backend starts with these already available
-  instead of rediscovering them.
-
-Everything else — `RelRN`/`RexRN`/`RRule`/`RuleBuilder`, the JSON
-serializer, the Calcite/CockroachDB/MySQL/ProxySQL generators' generic
-dispatch, all Maven/CI scripts — is untouched.
+Clones and builds the two vendored projects under `vendor/`: the RuleScript
+DSL/Maven project (patched via `docs/baseline-setup.patch` to reset it to
+just its architecture — DSL, JSON serializer, build scripts — with every
+previously-ported rule removed, so this agent has rules left to port), and
+the QED prover itself (never modified by this agent). Safe to re-run — it
+skips any clone that already exists. Leaves you with
+`vendor/rulescript-repo/mvnw` and `vendor/qed-prover/target/release/qed-prover`
+(`port_rule.py` looks for exactly these paths; override with `--repo` /
+`--qed-prover` if you set things up differently).
 
 ## Running it
 
@@ -155,77 +79,62 @@ export ANTHROPIC_API_KEY=sk-ant-...        # or OPENAI_API_KEY with --provider o
 # one rule
 python3 port_rule.py --spec calcite/rule_specs/my_rule.md
 
-# a whole batch
+# a whole directory of specs
 python3 port_rule.py --spec-dir calcite/rule_specs
 
-# use a different (e.g. stronger) model as the verifier than the porter
-python3 port_rule.py --spec-dir calcite/rule_specs \
-    --model claude-sonnet-5 --verifier-model claude-opus-5
+# same, N workers claiming rules concurrently from a shared queue
+python3 port_rule.py --spec-dir calcite/rule_specs --pool --workers 4
 
-# point at a self-hosted / third-party OpenAI-compatible endpoint instead
-python3 port_rule.py --spec-dir calcite/rule_specs \
-    --provider openai --endpoint https://your-host/v1/chat/completions --api-key ...
-
-# smoke-test the compile/JSON/prove/publish plumbing with no LLM at all,
-# by handing the porter's first "reply" a file directly (still goes through
-# the real compiler and the real qed-prover; add --no-verifier to also skip
-# the review step for a pure infra check)
-python3 port_rule.py --spec calcite/rule_specs/example_filter_merge.md \
-    --offline-code some_handwritten_rule.java --no-verifier
-
-# porting for a different backend: point spec-dir/progress/rules-out-dir at
-# that backend's own folder instead (laid out the same way calcite/ is), and
-# --backend-root/--backend-name at that backend's own vendored source checkout
+# a different backend: point spec-dir/progress/rules-out-dir at its folder,
+# and backend-root/backend-name at its vendored source checkout
 python3 port_rule.py --spec-dir cockroach/rule_specs \
     --progress-md cockroach/PROGRESS.md --progress-json cockroach/progress.json \
     --rules-out-dir cockroach/rules \
     --backend-root vendor/cockroach-src --backend-name cockroach
-
-# a whole batch, but as a shared work pool instead of a fixed sequential list:
-# N parallel workers each claim one rule at a time (file-locked, one command
-# launches all of them); a rule that FAILS is retried once by the pool before
-# being recorded as terminally FAILED
-python3 port_rule.py --spec-dir calcite/rule_specs --pool --workers 4
 ```
 
 ### Writing a rule-spec file
 
-Anything under `<backend>/rule_specs/*.md` or `*.txt` (e.g. `calcite/rule_specs/`).
-A tiny optional header, then freeform content (paste the original rule's source
-code, a before/after SQL example, or just describe it in prose — the porter is
-a capable reader):
+A `.md`/`.txt` file under `<backend>/rule_specs/`: a small header, then
+optional freeform content.
 
 ```markdown
 # Name: FilterMerge
 # Backend: Apache Calcite
 # Source: core/src/main/java/org/apache/calcite/rel/rules/FilterMergeRule.java
 
-<the rule's source / description goes here>
+<optional: description, example — but the porter reads the real source
+itself before writing anything, so prefer leaving this blank>
 ```
 
-See `calcite/rule_specs/example_filter_merge.md` for a filled-in example.
+`Source:` may end in `:<start>-<end>` to point at an exact line range
+instead of a whole file — narrow this whenever the file holds more than
+just the one rule.
+
+## Porting rules for a new backend
+
+1. Vendor a read-only checkout of the backend's source under `vendor/`.
+2. Create `<backend>/rule_specs/`, `<backend>/rules/`, `<backend>/progress.json` (`[]`).
+3. Write one spec per rule. If the backend already names each rewrite as its
+   own artifact, point at the whole file. If it bundles several independent
+   rewrites behind one function (a `match`/`switch` whose branches produce
+   genuinely different `before → after` shapes), split it: one spec per
+   branch with a line-range `Source:`, so no single verdict silently covers
+   more than one rewrite. If you can't describe a rule's shape in one
+   sentence without saying "or", it's probably more than one spec.
+4. Run a small trial batch first and read the `REPORT.md` files before
+   committing to a full run.
 
 ## Limitations the agent is told about up front
 
-Ported straight from `rulescript_reference.md` (which is also literally the
-system prompt both agents read) — QED is a real SMT-backed decision
-procedure, not a heuristic, but it does not model:
+QED is a real decision procedure, not a heuristic, but it does not model:
 
-- **Row order / list semantics**: `Sort`, `Order By`, `Limit`, `Offset`,
-  `Fetch`, `Sample`, `Window` functions. If a rule's correctness genuinely
-  depends on one of these, it is out of scope and should be SKIPPED, not
-  forced into a bag-semantics encoding that lies about what was checked.
-- **Aggregate algebraic identities**: aggregates are uninterpreted black
-  boxes to QED; it can prove a lot of aggregate-pushdown/regrouping rules
-  (because that reduces to bag equality of the aggregate's *input*), but not
-  rules that need to know what `SUM`/`COUNT`/etc. specifically compute.
-- **Bag-variant `INTERSECT`/`MINUS`** (only the set/duplicate-eliminating
-  forms are modeled; `UNION ALL` is fully supported).
-- **Implicit type casts** and backend-specific opaque operators whose
-  correctness depends on their internal semantics (e.g. Calcite's `SEARCH`).
+- **Row order / list semantics** — `Sort`, `Limit`, `Offset`, `Sample`, `Window`.
+- **Aggregate algebraic identities** — aggregates are uninterpreted to QED;
+  it can prove pushdown/regrouping (bag equality of the aggregate's input)
+  but not anything needing to know what `SUM`/`COUNT`/etc. compute.
+- **Bag-variant `INTERSECT`/`MINUS`** (set forms only; `UNION ALL` is fine).
+- **Implicit type casts and opaque backend-specific operators**.
 
-When a rule hits one of these, the expected, correct outcome is **SKIPPED
-with clear reasoning** attached (both the porter's and the independent
-verifier's) — that's success for this agent, not failure. Read
-`rules/<Name>/REPORT.md` for the full reasoning trail on any SKIPPED or
-FAILED rule.
+Hitting one of these should produce **SKIPPED with clear reasoning** — that
+is success for this agent, not failure.

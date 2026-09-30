@@ -1,1 +1,567 @@
-[]
+[
+  {
+    "rule_name": "OrTrueAbsorption",
+    "source_backend": "Apache DataFusion",
+    "source_description": "Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 966-971",
+    "status": "PROVED",
+    "attempts_used": 3,
+    "reason": "The encoding faithfully captures the source rule: an uninterpreted predicate `left` stands in for the arbitrary left expression `_`, `RexRN.trueLiteral()` on the right matches the `is_true(&right)` guard (and correctly fires only for the right-operand-true case the rule specifies), and `before()`/`after()` are structurally distinct (filter on `Or(A,true)` vs filter on `true`), so the proof is non-vacuous. The null-safety comment (\"even if A is null\") is precisely the justification that no extra precondition (e.g. NOT NULL) is needed \u2014 in 3VL, `A OR true = true` unconditionally \u2014 so the absence of constraints is faithful, and the filter-context embedding with a fully general uninterpreted A is the most general relational form of this scalar rewrite, warranting `SCOPE: FULL`.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 61083
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding faithfully captures the source rule: an uninterpreted predicate `left` stands in for the arbitrary left expression `_`, `RexRN.trueLiteral()` on the right matches the `is_true(&right)` guard (and correctly fires only for the right-operand-true case the rule specifies), and `before()`/`after()` are structurally distinct (filter on `Or(A,true)` vs filter on `true`), so the proof is non-vacuous. The null-safety comment (\"even if A is null\") is precisely the justification that no extra precondition (e.g. NOT NULL) is needed \u2014 in 3VL, `A OR true = true` unconditionally \u2014 so the absence of constraints is faithful, and the filter-context embedding with a fully general uninterpreted A is the most general relational form of this scalar rewrite, warranting `SCOPE: FULL`.",
+    "scope": "FULL",
+    "scope_detail": "public record OrTrueAbsorption() implements RRule {",
+    "timestamp": "2026-09-30T05:15:23.318992+00:00"
+  },
+  {
+    "rule_name": "LimitZeroToEmpty",
+    "source_backend": "Apache DataFusion",
+    "source_description": "Source: datafusion/optimizer/src/eliminate_limit.rs, lines 1-89",
+    "status": "SKIPPED",
+    "attempts_used": 8,
+    "reason": "The rule's core claim is a cardinality axiom about LIMIT \u2014 a literal fetch of 0 (or the skip-0/no-fetch identity branch) constrains the number of output rows \u2014 and QED's bag-semantic model has no Limit/Offset operator and no row-count or ordering axioms (Limit is listed alongside Sort/Window/Sample as having no bag-semantic meaning), so a `LIMIT 0` node would be indistinguishable from an arbitrary uninterpreted relation and cannot be proved equal to Empty for any input. The DSL exposes no Limit builder and `JSONSerializer` does not even have a `LogicalLimit` case, so extending the DSL could at best get the pattern to serialize \u2014 it cannot supply the missing axioms to the immutable Rust prover, unlike Sort, whose bag-identity effect the prover can absorb. Even the narrowest special case (e.g., limiting an already-empty input) requires the same unmodeled limit semantics, so no non-trivial provable special case exists.",
+    "prover_stats": {},
+    "verification_rounds_used": 1,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's core claim is a cardinality axiom about LIMIT \u2014 a literal fetch of 0 (or the skip-0/no-fetch identity branch) constrains the number of output rows \u2014 and QED's bag-semantic model has no Limit/Offset operator and no row-count or ordering axioms (Limit is listed alongside Sort/Window/Sample as having no bag-semantic meaning), so a `LIMIT 0` node would be indistinguishable from an arbitrary uninterpreted relation and cannot be proved equal to Empty for any input. The DSL exposes no Limit builder and `JSONSerializer` does not even have a `LogicalLimit` case, so extending the DSL could at best get the pattern to serialize \u2014 it cannot supply the missing axioms to the immutable Rust prover, unlike Sort, whose bag-identity effect the prover can absorb. Even the narrowest special case (e.g., limiting an already-empty input) requires the same unmodeled limit semantics, so no non-trivial provable special case exists.",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-30T05:17:12.400926+00:00"
+  },
+  {
+    "rule_name": "PushFilterIntoTableScan",
+    "source_backend": "Apache DataFusion",
+    "source_description": "Source: datafusion/optimizer/src/push_down_filter.rs, lines 1224-1301",
+    "status": "SKIPPED",
+    "attempts_used": 26,
+    "reason": "QED models every table scan as an uninterpreted bag of a table symbol, and the JSON format's only scan-level mechanism (the \"guaranteed\" check constraint) asserts a pre-existing property of the table's rows (Filter(C,T)\u2261T), whereas the Exact path of this rule requires the missing axiom that a *new scan instance's* output equals Filter(P,T) over the unfiltered table \u2014 a bag equality defined by the provider's execution-time TableProviderFilterPushDown::Exact contract, which the prover has no operator or axiom for and cannot see through uninterpreted symbols. The Inexact path is the logical no-op Filter(P,Scan)\u2261Filter(P,Scan) (scan.filters is planner metadata invisible to bag semantics), and the only would-be encoding of the Exact path \u2014 reusing the same table symbol with a P-guarantee so before=Filter(P,T) and after=T \u2014 smuggles the very equivalence the rule is supposed to establish in as a table precondition, proving check-constraint filter elimination rather than pushdown. This is the same fundamental limitation already adjudicated for Calcite's FilterTableScan (verifier AGREE), so the UNSUPPORTED call is correct. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "QED models every table scan as an uninterpreted bag of a table symbol, and the JSON format's only scan-level mechanism (the \"guaranteed\" check constraint) asserts a pre-existing property of the table's rows (Filter(C,T)\u2261T), whereas the Exact path of this rule requires the missing axiom that a *new scan instance's* output equals Filter(P,T) over the unfiltered table \u2014 a bag equality defined by the provider's execution-time TableProviderFilterPushDown::Exact contract, which the prover has no operator or axiom for and cannot see through uninterpreted symbols. The Inexact path is the logical no-op Filter(P,Scan)\u2261Filter(P,Scan) (scan.filters is planner metadata invisible to bag semantics), and the only would-be encoding of the Exact path \u2014 reusing the same table symbol with a P-guarantee so before=Filter(P,T) and after=T \u2014 smuggles the very equivalence the rule is supposed to establish in as a table precondition, proving check-constraint filter elimination rather than pushdown. This is the same fundamental limitation already adjudicated for Calcite's FilterTableScan (verifier AGREE), so the UNSUPPORTED call is correct. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-30T05:27:20.878704+00:00"
+  },
+  {
+    "rule_name": "PushFilterIntoWindow",
+    "source_backend": "Apache DataFusion",
+    "source_description": "Source: datafusion/optimizer/src/push_down_filter.rs, lines 1068-1139",
+    "status": "PROVED",
+    "attempts_used": 5,
+    "reason": "The encoding faithfully captures DataFusion's core semantics \u2014 a conjunct P referencing only the partition column k (constant per partition, so pushable) is moved below a window modeled as an uninterpreted partition-aggregate join-back (the right stand-in since QED can't model frames/ordering), while a kept conjunct Q over the full window row (k, v, w) stays above; P, Q, and the window value w are correctly shared uninterpreted symbols on both sides (not baked-in constants), and before()/after() are structurally distinct plans, so the ~90ms proof is a genuine, non-vacuous universal argument rather than an artifact of over-constraint. The `SCOPE: PARTIAL` line is honest and specific \u2014 single partition column, single window function, no frame/ordering, two-column input, one pushed + one kept conjunct \u2014 and each restriction is a real QED/DSL limitation (window functions have no bag semantics; the per-conjunct split and multi-key/multi-window details are control-flow the uninterpreted P/Q already abstract) rather than an encoding error, leaving a faithful, non-degenerate special case.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 12201875
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 48197083
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 869833
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 1039542
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 28083875
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 48570542
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 92846625
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding faithfully captures DataFusion's core semantics \u2014 a conjunct P referencing only the partition column k (constant per partition, so pushable) is moved below a window modeled as an uninterpreted partition-aggregate join-back (the right stand-in since QED can't model frames/ordering), while a kept conjunct Q over the full window row (k, v, w) stays above; P, Q, and the window value w are correctly shared uninterpreted symbols on both sides (not baked-in constants), and before()/after() are structurally distinct plans, so the ~90ms proof is a genuine, non-vacuous universal argument rather than an artifact of over-constraint. The `SCOPE: PARTIAL` line is honest and specific \u2014 single partition column, single window function, no frame/ordering, two-column input, one pushed + one kept conjunct \u2014 and each restriction is a real QED/DSL limitation (window functions have no bag semantics; the per-conjunct split and multi-key/multi-window details are control-flow the uninterpreted P/Q already abstract) rather than an encoding error, leaving a faithful, non-degenerate special case.",
+    "scope": "PARTIAL",
+    "scope_detail": "the window is modeled as a partition-determined uninterpreted aggregate joined back to its input on a single partition column (no frame/ordering semantics, single window function, two-column input), the filter is a conjunction of exactly one conjunct referencing only the partition column (the conjuncts DataFusion pushes below the window, its potential-partition-keys precondition encoded by construction) and one conjunct over the window output row (kept above).",
+    "timestamp": "2026-09-30T05:28:09.885171+00:00"
+  },
+  {
+    "rule_name": "RewriteSetComparison",
+    "source_backend": "Apache DataFusion",
+    "source_description": "Source: datafusion/optimizer/src/rewrite_set_comparison.rs, lines 1-175",
+    "status": "SKIPPED",
+    "attempts_used": 101,
+    "reason": "The rule rewrites set-comparison predicates (`= ANY`, `> ALL`) into CASE expressions built from EXISTS subqueries with SQL three-valued logic (IS NULL / IS TRUE / IS FALSE on a boolean comparison). RuleScript's predicate language is restricted to uninterpreted atomic symbols combined with boolean operators (And/Or/Not/True/False); it has no construct for embedding a subquery or correlated EXISTS inside a filter predicate, no CASE/WHEN scalar expression, and no three-valued-logic (NULL-propagating) comparison semantics. The before pattern `Filter(x = ANY (SELECT y FROM T), R)` and the after pattern `Filter(CASE WHEN EXISTS(...) THEN true WHEN EXISTS(...) IS NULL THEN null ELSE false END, R)` both require predicate-level constructs that simply do not exist in the DSL, and even if they were added as uninterpreted symbols, QED's bag-semantic SMT framework cannot reason about predicate-level logical entailment between independent symbols or about the algebraic relationship between ANY/ALL quantification and the EXISTS+CASE decomposition with null handling. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 6,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule rewrites set-comparison predicates (`= ANY`, `> ALL`) into CASE expressions built from EXISTS subqueries with SQL three-valued logic (IS NULL / IS TRUE / IS FALSE on a boolean comparison). RuleScript's predicate language is restricted to uninterpreted atomic symbols combined with boolean operators (And/Or/Not/True/False); it has no construct for embedding a subquery or correlated EXISTS inside a filter predicate, no CASE/WHEN scalar expression, and no three-valued-logic (NULL-propagating) comparison semantics. The before pattern `Filter(x = ANY (SELECT y FROM T), R)` and the after pattern `Filter(CASE WHEN EXISTS(...) THEN true WHEN EXISTS(...) IS NULL THEN null ELSE false END, R)` both require predicate-level constructs that simply do not exist in the DSL, and even if they were added as uninterpreted symbols, QED's bag-semantic SMT framework cannot reason about predicate-level logical entailment between independent symbols or about the algebraic relationship between ANY/ALL quantification and the EXISTS+CASE decomposition with null handling. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-30T05:58:59.599093+00:00"
+  },
+  {
+    "rule_name": "AndOrAbsorption",
+    "source_backend": "Apache DataFusion",
+    "source_description": "Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1096-1102",
+    "status": "PROVED",
+    "attempts_used": 12,
+    "reason": "`before()` is structurally distinct from `after()` \u2014 `filter(A AND (A OR B))` vs `filter(A)` \u2014 with the single uninterpreted predicate `A` shared at exactly the two positions the source rule requires (left conjunct and disjunct, matching `is_op_with(Or, &right, &left)`) and `B` as a separate symbol, so the proof is of the real absorption law, not a vacuous or over-constrained one. `A` and `B` remain fully uninterpreted over a generic scan, and the identity `A \u2227 (A \u2228 B) \u2261 A` holds under SQL three-valued/null semantics as well, so no NOT NULL or other precondition is silently missing and nothing the rule leaves open is hard-coded. For the rule arm shown, the FULL scope tag is honest: the single-column scan only fixes the row-level context for a purely propositional law, not `A`/`B` themselves, so no narrower special case was assumed.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 5246709
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 26350708
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 811166
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 294500
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 16035834
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 26449417
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 57655458
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "`before()` is structurally distinct from `after()` \u2014 `filter(A AND (A OR B))` vs `filter(A)` \u2014 with the single uninterpreted predicate `A` shared at exactly the two positions the source rule requires (left conjunct and disjunct, matching `is_op_with(Or, &right, &left)`) and `B` as a separate symbol, so the proof is of the real absorption law, not a vacuous or over-constrained one. `A` and `B` remain fully uninterpreted over a generic scan, and the identity `A \u2227 (A \u2228 B) \u2261 A` holds under SQL three-valued/null semantics as well, so no NOT NULL or other precondition is silently missing and nothing the rule leaves open is hard-coded. For the rule arm shown, the FULL scope tag is honest: the single-column scan only fixes the row-level context for a purely propositional law, not `A`/`B` themselves, so no narrower special case was assumed.",
+    "scope": "FULL",
+    "scope_detail": "public record AndOrAbsorption() implements RRule {",
+    "timestamp": "2026-09-30T06:09:48.738451+00:00"
+  },
+  {
+    "rule_name": "AndNotSelfContradiction",
+    "source_backend": "Apache DataFusion",
+    "source_description": "Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1068-1075",
+    "status": "PROVED",
+    "attempts_used": 7,
+    "reason": "`before()` and `after()` are genuinely different plans (filter condition `A AND NOT(A)` vs. the `false` literal), the predicate `A` and the source table are properly uninterpreted, and the single shared symbol `a` is exactly right \u2014 the DataFusion guard `is_not_of(&right, &left)` requires the same subexpression on both sides, so the proof is non-vacuous and covers an arbitrary uninterpreted predicate over an arbitrary bag. The encoding does pin the pattern to the position of a Filter's *complete* condition rather than an arbitrary expression position (so `SCOPE: FULL` is a mild over-claim relative to the expression-level original), but that restriction is real, specific, and non-degenerate, and the source rule's non-nullable precondition is genuinely subsumed in this context: `A AND NOT(A)` is never TRUE even when `A` is NULL (a filter keeps only TRUE rows), so both filters are extensionally empty and the proved equivalence is the true, substantive content of the DataFusion rule in its canonical relational embedding.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 310500
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "`before()` and `after()` are genuinely different plans (filter condition `A AND NOT(A)` vs. the `false` literal), the predicate `A` and the source table are properly uninterpreted, and the single shared symbol `a` is exactly right \u2014 the DataFusion guard `is_not_of(&right, &left)` requires the same subexpression on both sides, so the proof is non-vacuous and covers an arbitrary uninterpreted predicate over an arbitrary bag. The encoding does pin the pattern to the position of a Filter's *complete* condition rather than an arbitrary expression position (so `SCOPE: FULL` is a mild over-claim relative to the expression-level original), but that restriction is real, specific, and non-degenerate, and the source rule's non-nullable precondition is genuinely subsumed in this context: `A AND NOT(A)` is never TRUE even when `A` is NULL (a filter keeps only TRUE rows), so both filters are extensionally empty and the proved equivalence is the true, substantive content of the DataFusion rule in its canonical relational embedding.",
+    "scope": "FULL",
+    "scope_detail": "public record AndNotSelfContradiction() implements RRule {",
+    "timestamp": "2026-09-30T06:11:31.213810+00:00"
+  },
+  {
+    "rule_name": "AndTrueIdentity",
+    "source_backend": "Apache DataFusion",
+    "source_description": "Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1044-1049",
+    "status": "PROVED",
+    "attempts_used": 4,
+    "reason": "before() = Filter(AND(true, P), S) is structurally different from after() = Filter(P, S), so the proof is non-vacuous, and the encoding mirrors the source exactly: the literal-true left operand matches both the rule's direction (\"true AND A\") and its is_true(&left) guard, while the right operand is a fully uninterpreted predicate over a scan with an uninterpreted type, so no concrete predicate or relation is baked in. The filter-over-scan shape is the standard relational embodiment of a pure predicate identity in this DSL (the same convention as the reference FilterMerge example), since true\u2227A \u2261 A is the same pointwise propositional fact in any Boolean context and holds exactly under three-valued/bag semantics, so no precondition (nullability, uniqueness, etc.) is silently missing and the SCOPE: FULL tag is honest. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 301459
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "before() = Filter(AND(true, P), S) is structurally different from after() = Filter(P, S), so the proof is non-vacuous, and the encoding mirrors the source exactly: the literal-true left operand matches both the rule's direction (\"true AND A\") and its is_true(&left) guard, while the right operand is a fully uninterpreted predicate over a scan with an uninterpreted type, so no concrete predicate or relation is baked in. The filter-over-scan shape is the standard relational embodiment of a pure predicate identity in this DSL (the same convention as the reference FilterMerge example), since true\u2227A \u2261 A is the same pointwise propositional fact in any Boolean context and holds exactly under three-valued/bag semantics, so no precondition (nullability, uniqueness, etc.) is silently missing and the SCOPE: FULL tag is honest. ```",
+    "scope": "FULL",
+    "scope_detail": "public record AndTrueIdentity() implements RRule {",
+    "timestamp": "2026-09-30T06:14:52.256831+00:00"
+  },
+  {
+    "rule_name": "AndSelfIdempotent",
+    "source_backend": "Apache DataFusion",
+    "source_description": "Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1084-1089",
+    "status": "PROVED",
+    "attempts_used": 7,
+    "reason": "The encoding is a faithful, non-vacuous instance of the DataFusion rule: the shared symbol B is exactly the duplicated conjunct the original's `expr_contains(&left, &right, And)` side condition requires (it appears both nested inside `left` via AND-only paths and as the right operand), A and C are genuinely independent uninterpreted predicates (no wrong sharing), and before/after are structurally different, so the zero-SMT-time result just reflects that normalization proves the real idempotency equivalence `((A\u2227B)\u2227C)\u2227B \u2261 (A\u2227B)\u2227C`, which holds even under null semantics with no missing preconditions. The narrowing \u2014 left fixed to a specific 3-conjunct AND shape and right restricted to a single uninterpreted predicate \u2014 is genuine, since the original's parametric \"right is an arbitrary subexpression of any shape AND-embedded at any depth in left\" cannot be expressed in the DSL (substructure-containment patterns go beyond QED's flat uninterpreted-symbol semantics), and the PARTIAL scope line states this honestly and specifically. The result is still a useful, non-degenerate rule (a filter whose condition redundantly re-ANDs a conjunct already nested inside it can drop the duplicate), so the provable verdict is meaningful. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 491209
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is a faithful, non-vacuous instance of the DataFusion rule: the shared symbol B is exactly the duplicated conjunct the original's `expr_contains(&left, &right, And)` side condition requires (it appears both nested inside `left` via AND-only paths and as the right operand), A and C are genuinely independent uninterpreted predicates (no wrong sharing), and before/after are structurally different, so the zero-SMT-time result just reflects that normalization proves the real idempotency equivalence `((A\u2227B)\u2227C)\u2227B \u2261 (A\u2227B)\u2227C`, which holds even under null semantics with no missing preconditions. The narrowing \u2014 left fixed to a specific 3-conjunct AND shape and right restricted to a single uninterpreted predicate \u2014 is genuine, since the original's parametric \"right is an arbitrary subexpression of any shape AND-embedded at any depth in left\" cannot be expressed in the DSL (substructure-containment patterns go beyond QED's flat uninterpreted-symbol semantics), and the PARTIAL scope line states this honestly and specifically. The result is still a useful, non-degenerate rule (a filter whose condition redundantly re-ANDs a conjunct already nested inside it can drop the duplicate), so the provable verdict is meaningful. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "the duplicated right operand is a single uninterpreted predicate occurring as a nested conjunct inside the left operand, not an arbitrary subexpression of any shape or depth.",
+    "timestamp": "2026-09-30T06:26:32.614598+00:00"
+  },
+  {
+    "rule_name": "BinaryOpNullPropagation",
+    "source_backend": "Apache DataFusion",
+    "source_description": "Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 843-856",
+    "status": "PROVED",
+    "attempts_used": 30,
+    "reason": "The encoding is faithful to the special case it claims: `before()` (filter on `EQUALS(x, NULL-lit)`) and `after()` (filter on a bare NULL-Bool literal) are structurally distinct, and the proof is non-vacuous \u2014 it depends on real three-valued null semantics (x = NULL is never true, so both filters keep no rows), not a structural coincidence. The narrowing from DataFusion's ~30 `returns_null_on_null` operators in either operand position down to just Eq with a null right operand is genuine rather than a DSL gap: null propagation is the internal semantics of each concrete interpreted operator, which QED's SMT model knows only for built-ins (like Calcite's EQUALS) and cannot assume of an uninterpreted operator symbol, so the fully general form is unprovable; this restriction is disclosed accurately and specifically in the SCOPE line. Preconditions are honored (the null operand is a literal, matching DataFusion's `is_null` guard, and the folded literal carries the expression's Boolean type), with no symbol-sharing or hard-coded-shape errors. ```",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 88917
+      }
+    },
+    "verification_rounds_used": 2,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding is faithful to the special case it claims: `before()` (filter on `EQUALS(x, NULL-lit)`) and `after()` (filter on a bare NULL-Bool literal) are structurally distinct, and the proof is non-vacuous \u2014 it depends on real three-valued null semantics (x = NULL is never true, so both filters keep no rows), not a structural coincidence. The narrowing from DataFusion's ~30 `returns_null_on_null` operators in either operand position down to just Eq with a null right operand is genuine rather than a DSL gap: null propagation is the internal semantics of each concrete interpreted operator, which QED's SMT model knows only for built-ins (like Calcite's EQUALS) and cannot assume of an uninterpreted operator symbol, so the fully general form is unprovable; this restriction is disclosed accurately and specifically in the SCOPE line. Preconditions are honored (the null operand is a literal, matching DataFusion's `is_null` guard, and the folded literal carries the expression's Boolean type), with no symbol-sharing or hard-coded-shape errors. ```",
+    "scope": "PARTIAL",
+    "scope_detail": "only the Eq branch with a null right operand (eq(value, Null) \u21d2 Null) is encoded; DataFusion's rule covers ~30 returns_null_on_null operators in either operand position, and each concrete operator needs its own before()/after() pair since QED cannot derive null propagation for an uninterpreted operator symbol",
+    "timestamp": "2026-09-30T06:31:16.957149+00:00"
+  },
+  {
+    "rule_name": "AndFalseAbsorption",
+    "source_backend": "Apache DataFusion",
+    "source_description": "Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1050-1055",
+    "status": "PROVED",
+    "attempts_used": 6,
+    "reason": "The encoding faithfully mirrors the source rewrite: `before()` is `Filter(AND(false, P))` and `after()` is `Filter(false)` \u2014 structurally distinct (no vacuity), with the right operand a fully uninterpreted nullable predicate symbol (matching `right: _` and the \"even if A is null\" comment), the false literal in the correct left position per `is_false(&left)`, and no silent NOT NULL or other precondition. The only narrowing \u2014 instantiating the expression-level rule at the filter condition rather than any boolean position \u2014 is genuine and specific, honestly declared in the SCOPE line, and yields a non-degenerate, useful rule (both filters keep exactly zero rows, and QED's proof of bag equality for all instantiations of `P` is exactly the claim that `false AND A` behaves as `false` in selection).",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": true,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 0
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 292875
+      }
+    },
+    "verification_rounds_used": 3,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "The encoding faithfully mirrors the source rewrite: `before()` is `Filter(AND(false, P))` and `after()` is `Filter(false)` \u2014 structurally distinct (no vacuity), with the right operand a fully uninterpreted nullable predicate symbol (matching `right: _` and the \"even if A is null\" comment), the false literal in the correct left position per `is_false(&left)`, and no silent NOT NULL or other precondition. The only narrowing \u2014 instantiating the expression-level rule at the filter condition rather than any boolean position \u2014 is genuine and specific, honestly declared in the SCOPE line, and yields a non-degenerate, useful rule (both filters keep exactly zero rows, and QED's proof of bag equality for all instantiations of `P` is exactly the claim that `false AND A` behaves as `false` in selection).",
+    "scope": "PARTIAL",
+    "scope_detail": "the absorption is only applied when the false-AND conjunction is the filter condition",
+    "timestamp": "2026-09-30T06:32:39.725033+00:00"
+  },
+  {
+    "rule_name": "BitwiseAndByZero",
+    "source_backend": "Apache DataFusion",
+    "source_description": "Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1229-1235",
+    "status": "SKIPPED",
+    "attempts_used": 25,
+    "reason": "The rule's correctness rests entirely on the algebraic identity of the bitwise-and operator (x & 0 = 0), and QED models scalar operators such as & only as uninterpreted function symbols; its oracle theory (equality, total order, ite, and natural-number addition used solely for bag multiplicity) contains no integer/bitwise arithmetic and no zero constant carrying that property, so f(x,0)=0 is not entailed under any instantiation. This is exactly the \"backend operator's bespoke internal semantics\" limitation from the reference \u2014 and it is fundamental rather than a DSL gap, because even if a numeric `0` constant could be added, the uninterpreted & symbol still has no axiom relating it to zero, so no encoding of the rule could be proved. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's correctness rests entirely on the algebraic identity of the bitwise-and operator (x & 0 = 0), and QED models scalar operators such as & only as uninterpreted function symbols; its oracle theory (equality, total order, ite, and natural-number addition used solely for bag multiplicity) contains no integer/bitwise arithmetic and no zero constant carrying that property, so f(x,0)=0 is not entailed under any instantiation. This is exactly the \"backend operator's bespoke internal semantics\" limitation from the reference \u2014 and it is fundamental rather than a DSL gap, because even if a numeric `0` constant could be added, the uninterpreted & symbol still has no axiom relating it to zero, so no encoding of the rule could be proved. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-30T06:36:23.440486+00:00"
+  },
+  {
+    "rule_name": "BitwiseXorByZero",
+    "source_backend": "Apache DataFusion",
+    "source_description": "Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1376-1381",
+    "status": "SKIPPED",
+    "attempts_used": 12,
+    "reason": "The rule's soundness rests entirely on the scalar identity x ^ 0 = x, but QED encodes non-boolean operators (including `^`) as uninterpreted function symbols with no numeric-zero constant in its theory (only boolean literals exist in the Rex language) and no axioms relating operators to constants, so any faithful encoding has an SMT countermodel (e.g. interpret `^` as a function that need not return its first argument on zero). This is a limitation of the prover's theory rather than a DSL gap \u2014 `extend_dsl_file` can only add builders that serialize to uninterpreted symbols and cannot add arithmetic axioms to the fixed prover. It is consistent with the independently verified skip verdicts for the sibling `BitwiseAndByZero` and the `FoldPlusZero`/`FoldMinusZero`/`FoldDivOne` arithmetic-folding family, which rest on the same missing operator theory. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 1,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's soundness rests entirely on the scalar identity x ^ 0 = x, but QED encodes non-boolean operators (including `^`) as uninterpreted function symbols with no numeric-zero constant in its theory (only boolean literals exist in the Rex language) and no axioms relating operators to constants, so any faithful encoding has an SMT countermodel (e.g. interpret `^` as a function that need not return its first argument on zero). This is a limitation of the prover's theory rather than a DSL gap \u2014 `extend_dsl_file` can only add builders that serialize to uninterpreted symbols and cannot add arithmetic axioms to the fixed prover. It is consistent with the independently verified skip verdicts for the sibling `BitwiseAndByZero` and the `FoldPlusZero`/`FoldMinusZero`/`FoldDivOne` arithmetic-folding family, which rest on the same missing operator theory. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-30T06:44:24.421601+00:00"
+  },
+  {
+    "rule_name": "BitwiseOrByZero",
+    "source_backend": "Apache DataFusion",
+    "source_description": "Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1303-1308",
+    "status": "SKIPPED",
+    "attempts_used": 23,
+    "reason": "The rule `A | 0 -> A` depends on the algebraic identity that bitwise-or with the numeric zero literal is the identity operation, but QED's SMT theory models all non-boolean scalar operators as fully uninterpreted functions and provides no numeric literals or arithmetic axioms, so there is no way to express or prove this identity. This is a fundamental prover-side limitation rather than a missing DSL capability: even if `extend_dsl_file` exposed a bitwise-or operator symbol, the unmodifiable prover would still treat it as uninterpreted and lack the `bitwise_or(x, 0) = x` axiom, which is the same reason the analogous `FoldPlusZero`/`FoldMinusZero`/`FoldDivOne` numeric-folding precedents are correctly rejected. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule `A | 0 -> A` depends on the algebraic identity that bitwise-or with the numeric zero literal is the identity operation, but QED's SMT theory models all non-boolean scalar operators as fully uninterpreted functions and provides no numeric literals or arithmetic axioms, so there is no way to express or prove this identity. This is a fundamental prover-side limitation rather than a missing DSL capability: even if `extend_dsl_file` exposed a bitwise-or operator symbol, the unmodifiable prover would still treat it as uninterpreted and lack the `bitwise_or(x, 0) = x` axiom, which is the same reason the analogous `FoldPlusZero`/`FoldMinusZero`/`FoldDivOne` numeric-folding precedents are correctly rejected. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-30T06:44:27.975423+00:00"
+  },
+  {
+    "rule_name": "BitwiseShiftByZeroNoop",
+    "source_backend": "Apache DataFusion",
+    "source_description": "Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1452-1457",
+    "status": "SKIPPED",
+    "attempts_used": 32,
+    "reason": "The rule's validity rests entirely on the operator-specific algebraic law x >> 0 = x (including its null behavior), but in RuleScript the shift can only be introduced as an uninterpreted scalar function symbol \u2014 the core language has no numeric literal or interpreted bit-arithmetic to represent the zero operand in any more constrained way \u2014 and QED's logic (equality, order, ite over uninterpreted functions, with arithmetic reserved for bag multiplicity) contains no axiom connecting a shift-by-zero to its operand, so the identity is not entailed under any instantiation no matter how the encoding is shaped. The porter's minimal empirical test (provable=false with the only difference being the uninterpreted shift symbol) is therefore the predicted outcome of a genuine limitation of the fixed prover's theory, not a symbol-sharing or function-composition mistake, and no `extend_dsl_file` change can close it since the missing shift/zero axioms live in the unverifiable Rust prover, not in a missing DSL builder.",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's validity rests entirely on the operator-specific algebraic law x >> 0 = x (including its null behavior), but in RuleScript the shift can only be introduced as an uninterpreted scalar function symbol \u2014 the core language has no numeric literal or interpreted bit-arithmetic to represent the zero operand in any more constrained way \u2014 and QED's logic (equality, order, ite over uninterpreted functions, with arithmetic reserved for bag multiplicity) contains no axiom connecting a shift-by-zero to its operand, so the identity is not entailed under any instantiation no matter how the encoding is shaped. The porter's minimal empirical test (provable=false with the only difference being the uninterpreted shift symbol) is therefore the predicted outcome of a genuine limitation of the fixed prover's theory, not a symbol-sharing or function-composition mistake, and no `extend_dsl_file` change can close it since the missing shift/zero axioms live in the unverifiable Rust prover, not in a missing DSL builder.",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-30T06:47:11.761036+00:00"
+  },
+  {
+    "rule_name": "CapSortFetchWithLimit",
+    "source_backend": "Apache DataFusion",
+    "source_description": "Source: datafusion/optimizer/src/push_down_limit.rs, lines 161-185",
+    "status": "SKIPPED",
+    "attempts_used": 24,
+    "reason": "The rule's entire semantic content \u2014 capping a Sort's fetch to min(F, skip+fetch) and rewriting `Limit(0, fetch, Sort(F))` to a fetch-capped `Sort` \u2014 is defined purely in terms of row position in sort order (top-N), which QED's bag-semantic model has no notion of (Sort/Limit carry no bag semantics and act only as uninterpreted operators). Both sides share the identical input relation and differ only in the structure and fetch arguments of those uninterpreted wrappers, so no non-vacuous bag-identity core exists and a DSL Sort builder (even though the JSON serializer could already carry a sort node) would not help, since the immutable prover has no ordering semantics to check the fetch manipulation against.",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "The rule's entire semantic content \u2014 capping a Sort's fetch to min(F, skip+fetch) and rewriting `Limit(0, fetch, Sort(F))` to a fetch-capped `Sort` \u2014 is defined purely in terms of row position in sort order (top-N), which QED's bag-semantic model has no notion of (Sort/Limit carry no bag semantics and act only as uninterpreted operators). Both sides share the identical input relation and differ only in the structure and fetch arguments of those uninterpreted wrappers, so no non-vacuous bag-identity core exists and a DSL Sort builder (even though the JSON serializer could already carry a sort node) would not help, since the immutable prover has no ordering semantics to check the fetch manipulation against.",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-30T07:07:03.782971+00:00"
+  },
+  {
+    "rule_name": "CaseNoBranchesTrueToElse",
+    "source_backend": "Apache DataFusion",
+    "source_description": "Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1525-1562",
+    "status": "SKIPPED",
+    "attempts_used": 23,
+    "reason": "This rule is pure scalar CASE algebra \u2014 every branch of it (true-branch short-circuit, dropping false branches, empty-CASE \u2192 else-expr/NULL) rests on the selection semantics of the CASE operator, but QED's surface fragment has no interpreted ite/CASE: scalar functions serialize as plain uninterpreted RexCalls and QED quantifies over *all* instantiations of uninterpreted symbols, so it can never equate case(p,a,b) with a or b (the universal statement is false for arbitrary function symbols). A `Case` builder via extend_dsl_file would only mint another uninterpreted operator name for the fixed Rust prover, and relational workarounds (e.g. modeling ite as a union of filtered projections) verify a self-chosen model against itself, not the backend's actual CASE operator \u2014 a genuine QED limitation, not a missed encoding. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "This rule is pure scalar CASE algebra \u2014 every branch of it (true-branch short-circuit, dropping false branches, empty-CASE \u2192 else-expr/NULL) rests on the selection semantics of the CASE operator, but QED's surface fragment has no interpreted ite/CASE: scalar functions serialize as plain uninterpreted RexCalls and QED quantifies over *all* instantiations of uninterpreted symbols, so it can never equate case(p,a,b) with a or b (the universal statement is false for arbitrary function symbols). A `Case` builder via extend_dsl_file would only mint another uninterpreted operator name for the fixed Rust prover, and relational workarounds (e.g. modeling ite as a union of filtered projections) verify a self-chosen model against itself, not the backend's actual CASE operator \u2014 a genuine QED limitation, not a missed encoding. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-30T17:26:16.277541+00:00"
+  },
+  {
+    "rule_name": "CaseFirstBranchAlwaysTrue",
+    "source_backend": "Apache DataFusion",
+    "source_description": "Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1525-1562",
+    "status": "SKIPPED",
+    "attempts_used": 21,
+    "reason": "CASE/then-else is not among QED's interpreted scalar operators (its `ite` is only the internal 3VL encoding of And/Or/In/Some, and the JSON format can at best carry a CASE call as a named uninterpreted operator), so in every branch of this rule the before-side pattern contains a literal CASE that QED sees only as an uninterpreted function and can never equate with a then/else branch (e.g. `case(false, A, B) \u2261 B` or dead-branch elimination). A relational Filter/Union re-encoding of the CASE value column is not faithful under 3-valued logic (a `c`/`\u00acc` filter pair silently drops rows where `c` is NULL, and \"is not true\" would be an independent symbol QED can't relate to `c`), and `extend_dsl_file` only touches the Java builder side \u2014 the interpretation lives in the fixed Rust prover \u2014 so this is a genuine prover limitation in the \"operator whose specific internal semantics QED cannot see through\" class, and no narrower special case of the rule escapes it because the before side always contains the unnameable CASE. ```",
+    "prover_stats": {},
+    "verification_rounds_used": 2,
+    "verifier_verdict": "AGREE",
+    "verifier_reasoning": "CASE/then-else is not among QED's interpreted scalar operators (its `ite` is only the internal 3VL encoding of And/Or/In/Some, and the JSON format can at best carry a CASE call as a named uninterpreted operator), so in every branch of this rule the before-side pattern contains a literal CASE that QED sees only as an uninterpreted function and can never equate with a then/else branch (e.g. `case(false, A, B) \u2261 B` or dead-branch elimination). A relational Filter/Union re-encoding of the CASE value column is not faithful under 3-valued logic (a `c`/`\u00acc` filter pair silently drops rows where `c` is NULL, and \"is not true\" would be an independent symbol QED can't relate to `c`), and `extend_dsl_file` only touches the Java builder side \u2014 the interpretation lives in the fixed Rust prover \u2014 so this is a genuine prover limitation in the \"operator whose specific internal semantics QED cannot see through\" class, and no narrower special case of the rule escapes it because the before side always contains the unnameable CASE. ```",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-30T17:28:45.794087+00:00"
+  },
+  {
+    "rule_name": "CaseBranchAlwaysFalseElided",
+    "source_backend": "Apache DataFusion",
+    "source_description": "Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1525-1562",
+    "status": "FAILED",
+    "attempts_used": 0,
+    "reason": "LLM error: Request to http://169.229.48.114:8000/v1/chat/completions timed out after 600.0s: timed out",
+    "prover_stats": {},
+    "verification_rounds_used": 0,
+    "verifier_verdict": "",
+    "verifier_reasoning": "",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-09-30T17:49:35.953753+00:00"
+  }
+]

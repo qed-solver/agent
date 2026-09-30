@@ -10,6 +10,7 @@ from pipeline import Pipeline
 
 MAX_READ_LINES = 400
 MAX_SEARCH_RESULTS = 60
+MAX_LIST_RESULTS = 60
 
 EXTENDABLE_DSL_FILES = ("RelRN.java", "RexRN.java", "JSONSerializer.java")
 SOURCE_INCLUDE_FLAGS = ["--include=*.java", "--include=*.go", "--include=*.rs", "--include=*.cpp", "--include=*.cc", "--include=*.py"]
@@ -204,19 +205,31 @@ class RepoTools:
                     if matches else "",
         }
 
-    def list_ported_rules(self) -> dict:
+    def list_ported_rules(self, query: str | None = None, backend: str | None = None) -> dict:
         if self.local_root is None:
             return {"error": "project root not configured"}
         results = []
         for report in sorted(self.local_root.glob("*/rules/*/REPORT.md")):
-            backend = report.parent.parent.parent.name
+            b = report.parent.parent.parent.name
             rule = report.parent.name
+            if backend and b != backend:
+                continue
+            if query and query.lower() not in rule.lower():
+                continue
             text = report.read_text()
             m = re.search(r"\*\*Status:\*\*\s*([A-Z]+)(?:\s+\*\*Scope:\*\*\s*(\S+))?", text)
             status = m.group(1) if m else "?"
             scope = m.group(2) if m and m.group(2) else ""
-            results.append({"backend": backend, "rule": rule, "status": status, "scope": scope})
-        return {"rules": results, "count": len(results)}
+            results.append({"backend": b, "rule": rule, "status": status, "scope": scope})
+        total = len(results)
+        truncated = not query and total > MAX_LIST_RESULTS
+        if truncated:
+            results = results[:MAX_LIST_RESULTS]
+        return {
+            "rules": results, "count": len(results), "total_available": total,
+            "note": "Truncated — pass query=<substring on rule name> to search instead of listing everything."
+                    if truncated else "",
+        }
 
     def read_ported_rule(self, rule: str, backend: str | None = None) -> dict:
         if self.local_root is None:
@@ -236,14 +249,27 @@ class RepoTools:
             "java": java_path.read_text() if java_path.exists() else None,
         }
 
-    def list_rule_specs(self) -> dict:
+    def list_rule_specs(self, query: str | None = None, backend: str | None = None) -> dict:
         if self.local_root is None:
             return {"error": "project root not configured"}
         specs = []
         for pattern in ("*/rule_specs/*.md", "*/rule_specs/*.txt"):
             for spec_path in sorted(self.local_root.glob(pattern)):
-                specs.append({"backend": spec_path.parent.parent.name, "name": spec_path.name})
-        return {"specs": specs, "count": len(specs)}
+                b = spec_path.parent.parent.name
+                if backend and b != backend:
+                    continue
+                if query and query.lower() not in spec_path.name.lower():
+                    continue
+                specs.append({"backend": b, "name": spec_path.name})
+        total = len(specs)
+        truncated = not query and total > MAX_LIST_RESULTS
+        if truncated:
+            specs = specs[:MAX_LIST_RESULTS]
+        return {
+            "specs": specs, "count": len(specs), "total_available": total,
+            "note": "Truncated — pass query=<substring on filename> to search instead of listing everything."
+                    if truncated else "",
+        }
 
     def read_rule_spec(self, name: str, backend: str | None = None) -> dict:
         if self.local_root is None:
@@ -417,11 +443,17 @@ class RepoTools:
                ["query"]),
         ] if self.docs_root is not None else []) + ([
             fn("list_ported_rules",
-               "List every rule already ported so far, across every backend this project has "
-               "worked on (not just the current one) — name, backend, and outcome (PROVED/SKIPPED "
-               "plus scope). Call this before starting a genuinely new rule: a structurally similar "
-               "rule elsewhere often already found the right DSL pattern.",
-               {}, []),
+               "List rules already ported, across every backend this project has worked on (not "
+               "just the current one) — name, backend, and outcome (PROVED/SKIPPED plus scope). "
+               "Call this before starting a genuinely new rule: a structurally similar rule "
+               "elsewhere often already found the right DSL pattern. This project has hundreds of "
+               "ported rules, so ALWAYS pass query with a keyword from the rule you're working on "
+               "(e.g. query='Filter' or query='Window') rather than calling with no arguments — an "
+               "unfiltered call is truncated and wastes context on rules with nothing to do with "
+               "your task.",
+               {"query": {"type": "string", "description": "Substring to match against rule names, case-insensitive. Strongly recommended."},
+                "backend": {"type": "string", "description": "Optional: restrict to one backend (e.g. 'cockroach')."}},
+               []),
             fn("read_ported_rule",
                "Fetch a previously-ported rule's actual .java encoding (if it was proved) and its "
                "full reasoning/scope/QED-result writeup, by name. Call list_ported_rules first if "
@@ -430,9 +462,14 @@ class RepoTools:
                 "backend": {"type": "string", "description": "Only needed if the same rule name exists under more than one backend."}},
                ["rule"]),
             fn("list_rule_specs",
-               "List every rule-spec input file across every backend this project has folders "
-               "for, not just the one you're currently porting for — filename and backend.",
-               {}, []),
+               "List rule-spec input files across every backend this project has folders for, "
+               "not just the one you're currently porting for — filename and backend. This "
+               "project has hundreds of specs, so ALWAYS pass query with a keyword (e.g. "
+               "query='Join') rather than calling with no arguments — an unfiltered call is "
+               "truncated and wastes context on specs with nothing to do with your task.",
+               {"query": {"type": "string", "description": "Substring to match against spec filenames, case-insensitive. Strongly recommended."},
+                "backend": {"type": "string", "description": "Optional: restrict to one backend (e.g. 'calcite')."}},
+               []),
             fn("read_rule_spec",
                "Read a rule-spec input file by exact filename (as list_rule_specs prints it), "
                "from any backend's rule_specs/ folder — e.g. to see how a similar rule was "

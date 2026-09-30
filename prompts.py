@@ -9,11 +9,18 @@ def system_prompt() -> str:
     return REFERENCE_PATH.read_text()
 
 
-def initial_user_prompt(rule_name: str, source_backend: str, source_path: str, source_hint: str, backend_name: str = "calcite") -> str:
+def initial_user_prompt(
+    rule_name: str, source_backend: str, source_path: str, source_hint: str, backend_name: str = "calcite",
+    source_line_start: int | None = None, source_line_end: int | None = None,
+) -> str:
+    if source_line_start is not None:
+        source_line = f"Source file to read (root `\"{backend_name}\"`): `{source_path}`, lines {source_line_start}-{source_line_end}"
+    else:
+        source_line = f"Source file to read (root `\"{backend_name}\"`): `{source_path}`"
     return f"""Port a query-rewrite rule from **{source_backend}** into RuleScript.
 
 Target Java record name / file name: `{rule_name}`
-Source file to read (root `"{backend_name}"`): `{source_path}`
+{source_line}
 
 {source_hint}
 

@@ -560,7 +560,10 @@ def round_continuation_prompt(
     self_summary: str = "", backend_name: str = "calcite", force_conclusion: bool = False,
 ) -> str:
     parts = [
-        prompts.initial_user_prompt(spec.name, spec.backend, spec.source_path, source_hint, backend_name),
+        prompts.initial_user_prompt(
+            spec.name, spec.backend, spec.source_path, source_hint, backend_name,
+            spec.source_line_start, spec.source_line_end,
+        ),
         f"{feedback_header}\n\n{reasoning}",
     ]
     if self_summary:
@@ -608,13 +611,20 @@ def round_continuation_prompt(
     return "\n\n".join(parts)
 
 
-def read_source_text(backend_root: Path, source_path: str) -> str:
+def read_source_text(
+    backend_root: Path, source_path: str,
+    line_start: int | None = None, line_end: int | None = None,
+) -> str:
     if not source_path:
         return "(no source path given)"
     p = backend_root / source_path
     if not p.exists():
         return f"(source path {source_path} not found under {backend_root})"
-    return p.read_text()
+    text = p.read_text()
+    if line_start is None:
+        return text
+    lines = text.splitlines()
+    return "\n".join(lines[line_start - 1:line_end])
 
 
 def run_one(
@@ -636,9 +646,12 @@ def run_one(
     system = prompts.system_prompt()
     source_hint = spec.hint or "(no additional notes — read the source file for everything you need.)"
     conversation: list[dict] = [
-        {"role": "user", "content": prompts.initial_user_prompt(spec.name, spec.backend, spec.source_path, source_hint, backend_name)}
+        {"role": "user", "content": prompts.initial_user_prompt(
+            spec.name, spec.backend, spec.source_path, source_hint, backend_name,
+            spec.source_line_start, spec.source_line_end,
+        )}
     ]
-    source_text = read_source_text(backend_root, spec.source_path)
+    source_text = read_source_text(backend_root, spec.source_path, spec.source_line_start, spec.source_line_end)
 
     isolated = workspaces_dir is not None
     if isolated:

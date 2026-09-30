@@ -1,9 +1,27 @@
 from __future__ import annotations
 
 import difflib
+import json
 from pathlib import Path
 
 from pipeline import Pipeline
+
+
+def all_proved_rule_sources(root_dir: Path) -> dict[str, Path]:
+    result: dict[str, Path] = {}
+    for progress_json in sorted(root_dir.glob("*/progress.json")):
+        backend_dir = progress_json.parent
+        try:
+            entries = json.loads(progress_json.read_text())
+        except json.JSONDecodeError:
+            continue
+        for e in entries:
+            if e.get("status") != "PROVED":
+                continue
+            java_path = backend_dir / "rules" / e["rule_name"] / f"{e['rule_name']}.java"
+            if java_path.exists():
+                result[e["rule_name"]] = java_path
+    return result
 
 
 def run_regression_audit(pipeline: Pipeline, rule_names: list[str], json_out_dir: Path) -> list[dict]:

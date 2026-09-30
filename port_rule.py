@@ -343,7 +343,7 @@ def snapshot_dsl_files(rulescript_root: Path) -> dict[str, str]:
 def merge_rule_to_main(
     pipeline: Pipeline, rulescript_root: Path,
     rule_name: str, final_code: str, dsl_edits: list[dict],
-    auditor_llm: LLMClient | None, progress_json_path: Path, lock_path: Path,
+    auditor_llm: LLMClient | None, lock_path: Path,
 ) -> tuple[str, str]:
     base = rulescript_root / "src" / "main" / "java" / "org" / "qed"
     with workspace.merge_lock(lock_path):
@@ -377,15 +377,30 @@ def merge_rule_to_main(
                 pipeline.compile()
                 return "merge-compile-failed", compile_result.output[:2000]
 
-            current_baseline = ()
-            if progress_json_path.exists():
-                current_baseline = tuple(
-                    e["rule_name"] for e in json.loads(progress_json_path.read_text())
-                    if e["status"] == "PROVED" and e["rule_name"] != rule_name
-                )
+            baseline_sources = dsl_audit.all_proved_rule_sources(ROOT_DIR)
+            baseline_sources.pop(rule_name, None)
+            materialized: list[Path] = []
+            for name, src_path in baseline_sources.items():
+                dest = pipeline.rule_path(name)
+                if not dest.exists():
+                    dest.write_text(src_path.read_text())
+                    materialized.append(dest)
+
+            def cleanup_materialized() -> None:
+                for dest in materialized:
+                    dest.unlink(missing_ok=True)
+
+            baseline_compile = pipeline.compile()
+            if not baseline_compile.ok:
+                cleanup_materialized()
+                restore_dsl()
+                pipeline.compile()
+                return "merge-compile-failed", baseline_compile.output[:2000]
+
             regression_results = dsl_audit.run_regression_audit(
-                pipeline, list(current_baseline), ROOT_DIR / ".cache" / "tmp-rules"
+                pipeline, list(baseline_sources.keys()), ROOT_DIR / ".cache" / "tmp-rules"
             )
+            cleanup_materialized()
             regressions = [r for r in regression_results if not r["ok"]]
             if regressions:
                 restore_dsl()
@@ -450,6 +465,7 @@ def merge_rule_to_main(
             print(f"   [dsl] merged {applied_files}: {len(regression_results)} prior rule(s) "
                   f"re-verified fresh, auditor={llm_verdict}")
 
+        pipeline.remove_rule(rule_name)
         return "merged", "ok"
 
 
@@ -614,7 +630,6 @@ def run_one(
     auditor_llm: LLMClient | None = None,
     workspaces_dir: Path | None = None,
     merge_lock_path: Path | None = None,
-    progress_json_path: Path | None = None,
     backend_name: str = "calcite",
 ) -> RuleAttempt:
     print(f"\n=== Porting {spec.name} (from {spec.backend}) ===")
@@ -684,7 +699,7 @@ def run_one(
                 if isolated:
                     merge_status, merge_detail = merge_rule_to_main(
                         pipeline, rulescript_root, spec.name, result.code, tools_obj.dsl_edits,
-                        auditor_llm, progress_json_path, merge_lock_path,
+                        auditor_llm, merge_lock_path,
                     )
                 else:
                     pipeline.write_rule(spec.name, result.code)
@@ -711,6 +726,7 @@ def run_one(
                     verifier_reasoning=final_reasoning, attempts_used=total_turns, rounds_used=round_num,
                     scope=scope, scope_detail=scope_detail,
                 )
+                pipeline.remove_rule(spec.name)
                 print(f"   verifier {verdict}: merged into shared repo [SCOPE: {scope}]")
                 print(f"   published for inspection under {pipeline.rules_out_dir.relative_to(ROOT_DIR)}/{spec.name}/")
                 clear_all_transcripts(debug_dir, spec.name)
@@ -859,7 +875,6 @@ def run_pool_worker(
                 auditor_llm=auditor_llm,
                 workspaces_dir=None if args.no_isolation else args.workspaces_dir,
                 merge_lock_path=args.merge_lock,
-                progress_json_path=args.progress_json,
                 backend_name=args.backend_name,
             )
         except LLMError as e:
@@ -1072,7 +1087,6 @@ def main():
                 auditor_llm=auditor_llm,
                 workspaces_dir=None if args.no_isolation else args.workspaces_dir,
                 merge_lock_path=args.merge_lock,
-                progress_json_path=args.progress_json,
                 backend_name=args.backend_name,
             )
         except LLMError as e:

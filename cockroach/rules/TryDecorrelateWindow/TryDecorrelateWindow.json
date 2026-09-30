@@ -1,0 +1,162 @@
+{
+  "help" : [ "LogicalJoin(condition=[on_cond($0, $1)], joinType=[inner])\n  LogicalTableScan(table=[[L]])\n  LogicalJoin(condition=[true], joinType=[inner])\n    LogicalTableScan(table=[[Input]])\n    LogicalAggregate(group=[{}], w=[w($0)])\n      LogicalTableScan(table=[[Input]])\n", "LogicalProject(col-L=[$0], col-Input=[$1], w=[$3])\n  LogicalFilter(condition=[on_cond($0, $1)])\n    LogicalJoin(condition=[=($0, $2)], joinType=[inner])\n      LogicalJoin(condition=[true], joinType=[inner])\n        LogicalTableScan(table=[[L]])\n        LogicalTableScan(table=[[Input]])\n      LogicalAggregate(group=[{0}], w=[w($1)])\n        LogicalJoin(condition=[true], joinType=[inner])\n          LogicalTableScan(table=[[L]])\n          LogicalTableScan(table=[[Input]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ false ],
+    "name" : "L",
+    "guaranteed" : [ ],
+    "fields" : [ "col-L" ],
+    "key" : [ [ 0 ] ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ false ],
+    "name" : "Input",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Input" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "on_cond"
+      },
+      "left" : {
+        "scan" : 0
+      },
+      "kind" : "INNER",
+      "right" : {
+        "join" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ ],
+            "operator" : "true"
+          },
+          "left" : {
+            "scan" : 1
+          },
+          "kind" : "INNER",
+          "right" : {
+            "group" : {
+              "keys" : [ ],
+              "function" : [ {
+                "distinct" : false,
+                "type" : "INTEGER",
+                "operand" : [ {
+                  "column" : 0,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "w",
+                "ignoreNulls" : false
+              } ],
+              "source" : {
+                "scan" : 1
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "project" : {
+      "source" : {
+        "filter" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            }, {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "on_cond"
+          },
+          "source" : {
+            "join" : {
+              "condition" : {
+                "type" : "BOOLEAN",
+                "operand" : [ {
+                  "column" : 0,
+                  "type" : "INTEGER"
+                }, {
+                  "column" : 2,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "="
+              },
+              "left" : {
+                "join" : {
+                  "condition" : {
+                    "type" : "BOOLEAN",
+                    "operand" : [ ],
+                    "operator" : "true"
+                  },
+                  "left" : {
+                    "scan" : 0
+                  },
+                  "kind" : "INNER",
+                  "right" : {
+                    "scan" : 1
+                  }
+                }
+              },
+              "kind" : "INNER",
+              "right" : {
+                "group" : {
+                  "keys" : [ {
+                    "column" : 0,
+                    "type" : "INTEGER"
+                  } ],
+                  "function" : [ {
+                    "distinct" : false,
+                    "type" : "INTEGER",
+                    "operand" : [ {
+                      "column" : 1,
+                      "type" : "INTEGER"
+                    } ],
+                    "operator" : "w",
+                    "ignoreNulls" : false
+                  } ],
+                  "source" : {
+                    "join" : {
+                      "condition" : {
+                        "type" : "BOOLEAN",
+                        "operand" : [ ],
+                        "operator" : "true"
+                      },
+                      "left" : {
+                        "scan" : 0
+                      },
+                      "kind" : "INNER",
+                      "right" : {
+                        "scan" : 1
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "target" : [ {
+        "column" : 0,
+        "type" : "INTEGER"
+      }, {
+        "column" : 1,
+        "type" : "INTEGER"
+      }, {
+        "column" : 3,
+        "type" : "INTEGER"
+      } ]
+    }
+  } ]
+}

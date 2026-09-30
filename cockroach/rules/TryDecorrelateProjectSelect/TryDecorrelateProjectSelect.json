@@ -1,0 +1,103 @@
+{
+  "help" : [ "LogicalJoin(condition=[on_cond($0, $1)], joinType=[left])\n  LogicalTableScan(table=[[L]])\n  LogicalProject(col-R-1=[$1])\n    LogicalFilter(condition=[select_filter($0)])\n      LogicalTableScan(table=[[R]])\n", "LogicalProject(col-L=[$0], col-R-1=[$2])\n  LogicalJoin(condition=[AND(on_cond($0, $2), select_filter($1))], joinType=[left])\n    LogicalTableScan(table=[[L]])\n    LogicalTableScan(table=[[R]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "L",
+    "guaranteed" : [ ],
+    "fields" : [ "col-L" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER", "INTEGER" ],
+    "nullable" : [ true, true ],
+    "name" : "R",
+    "guaranteed" : [ ],
+    "fields" : [ "col-R-0", "col-R-1" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "on_cond"
+      },
+      "left" : {
+        "scan" : 0
+      },
+      "kind" : "LEFT",
+      "right" : {
+        "project" : {
+          "source" : {
+            "filter" : {
+              "condition" : {
+                "type" : "BOOLEAN",
+                "operand" : [ {
+                  "column" : 0,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "select_filter"
+              },
+              "source" : {
+                "scan" : 1
+              }
+            }
+          },
+          "target" : [ {
+            "column" : 1,
+            "type" : "INTEGER"
+          } ]
+        }
+      }
+    }
+  }, {
+    "project" : {
+      "source" : {
+        "join" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "type" : "BOOLEAN",
+              "operand" : [ {
+                "column" : 0,
+                "type" : "INTEGER"
+              }, {
+                "column" : 2,
+                "type" : "INTEGER"
+              } ],
+              "operator" : "on_cond"
+            }, {
+              "type" : "BOOLEAN",
+              "operand" : [ {
+                "column" : 1,
+                "type" : "INTEGER"
+              } ],
+              "operator" : "select_filter"
+            } ],
+            "operator" : "AND"
+          },
+          "left" : {
+            "scan" : 0
+          },
+          "kind" : "LEFT",
+          "right" : {
+            "scan" : 1
+          }
+        }
+      },
+      "target" : [ {
+        "column" : 0,
+        "type" : "INTEGER"
+      }, {
+        "column" : 2,
+        "type" : "INTEGER"
+      } ]
+    }
+  } ]
+}

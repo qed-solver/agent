@@ -1,8 +1,8 @@
 # RuleScript porting progress
 
-_Last updated: 2026-09-28T08:16:53.637506+00:00_
+_Last updated: 2026-09-30T03:11:24.289611+00:00_
 
-**127/213 rules proved** (0 failed, 86 skipped as out of QED's supported fragment).
+**182/307 rules proved** (0 failed, 125 skipped as out of QED's supported fragment).
 
 | Rule | Backend | Status | Scope | Attempts | Notes |
 |---|---|---|---|---|---|
@@ -129,10 +129,65 @@ _Last updated: 2026-09-28T08:16:53.637506+00:00_
 | `PushFilterIntoJoinRight` | CockroachDB | ✅ PROVED | PARTIAL | 3 | The encoding is a faithful (though honestly scope-limited) INNER-join instance of the rule: `before()` is `L ⋈_INNER R ON f(R) ∧ g(L,R)` ... |
 | `PushFilterIntoSetOp` | CockroachDB | ✅ PROVED | PARTIAL | 22 | The encoding is a faithful, non-trivial instance of the rule: `before()` is `Filter(Intersect(L,R), P)` and `after()` is `Intersect(Filte... |
 | `PushLeakproofFiltersIntoPermeableBarrier` | CockroachDB | ✅ PROVED | PARTIAL | 46 | The encoding faithfully captures the rule's logical content: a leakproof predicate is pushed from above an identity operation (the Barrie... |
+| `PushLeakproofJoinIntoPermeableBarrierLeft` | CockroachDB | ✅ PROVED | PARTIAL | 26 | The encoding is faithful: it models the permeable Barrier as an identity projection (correct, since a Barrier is a pure flow-control poin... |
+| `PushLeakproofJoinIntoPermeableBarrierRight` | CockroachDB | ✅ PROVED | PARTIAL | 23 | The encoding captures the rule's bag-semantic core exactly — Join(L, Barrier(R), C) vs Barrier(Join(L, R, C)) with the Barrier modeled as... |
+| `PushLeakproofProjectionsIntoPermeableBarrier` | CockroachDB | ✅ PROVED | PARTIAL | 25 | The before/after shapes genuinely reflect the optimization — the Project moves from above the barrier to below it (not a structural ident... |
+| `PushSelectCondLeftIntoJoinLeftAndRight` | CockroachDB | ✅ PROVED | PARTIAL | 26 | The encoding faithfully captures the rule's documented case generalized honestly: arbitrary uninterpreted tables L, R with an arbitrary u... |
+| `PushSelectIntoGroupBy` | CockroachDB | ✅ PROVED | PARTIAL | 26 | `before()` (Filter above the Aggregate) and `after()` (Filter inside, below the Aggregate) are structurally different plans, so the equiv... |
+| `PushSelectIntoInlinableProject` | CockroachDB | ✅ PROVED | PARTIAL | 23 | The encoding is non-vacuous and structurally faithful: `before()` is Filter(P∘col0 ∧ Q∘col1) over Project(F(a,b), G(a,b), a, b) with P/Q ... |
+| `PushSelectIntoJoinLeft` | CockroachDB | ✅ PROVED | PARTIAL | 42 | The encoding correctly captures the core LEFT-JOIN push-down transformation: before() is Select(LeftJoin(L,R,g), f(l)∧u(l,r)) and after()... |
+| `PushSelectIntoOrdinality` | CockroachDB | ✅ PROVED | PARTIAL | 46 | The encoding faithfully mirrors the source rule's core transformation — before() is `Select(Ordinality(input), P(input))` and after() is ... |
+| `PushSelectIntoProject` | CockroachDB | ✅ PROVED | PARTIAL | 22 | The encoding faithfully instantiates the rule's essential content — a bound conjunct P on the input/passthrough column is pushed below th... |
+| `PushSelectIntoProjectSet` | CockroachDB | ✅ PROVED | PARTIAL | 4 | The ProjectSet is soundly abstracted as an INNER join of its input L with an emitted bag E under an uninterpreted pairing predicate M — I... |
+| `PushSelectIntoUnorderedDistinctOn` | CockroachDB | ✅ PROVED | PARTIAL | 22 | The encoding is a faithful, non-degenerate PARTIAL special case: it models the identity (unordered, no-aggregate) DistinctOn as a group-b... |
+| `PushSelectIntoWindow` | CockroachDB | ✅ PROVED | PARTIAL | 61 | The two plans are structurally different — the window's aggregate is computed over the unfiltered input in `before()` but over the P-filt... |
+| `ReduceNotNullGroupingCols` | CockroachDB | ✅ PROVED | PARTIAL | 44 | The encoding is a correct, non-degenerate special case: `before()` (GROUP BY col0, col1 where col0≡col1) and `after()` (GROUP BY col0, th... |
+| `RejectNullsLeftJoin` | CockroachDB | ✅ PROVED | PARTIAL | 27 | The encoding faithfully captures the rule's core semantic transformation (a null-rejecting filter on the right side of a LEFT JOIN makes ... |
+| `RejectNullsProject` | CockroachDB | ✅ PROVED | PARTIAL | 104 | The encoding faithfully captures the structural shape of RejectNullsProject (adding an IS NOT NULL filter below a Project while retaining... |
+| `RejectNullsRightJoin` | CockroachDB | ✅ PROVED | PARTIAL | 10 | The encoding is a genuine, non-vacuous special case of the source rule: before() uses a FULL join and after() a LEFT join (a real operato... |
+| `RejectNullsUnderJoinLeft` | CockroachDB | ✅ PROVED | PARTIAL | 22 | The porter's encoding is a faithful special case of RejectNullsUnderJoinLeft: the original rule fires when the ON condition null-rejects ... |
+| `RejectNullsUnderJoinRight` | CockroachDB | ✅ PROVED | PARTIAL | 5 | before() = Join(L, R, on ∧ IS_NOT_NULL(r)) and after() = Join(L, R⇝IS_NOT_NULL(r), on ∧ IS_NOT_NULL(r)) are genuinely different plans, an... |
+| `RemoveJoinNotNullCondition` | CockroachDB | ✅ PROVED | PARTIAL | 23 | The encoding faithfully models the rule's core move — dropping a tautological `IS NOT NULL` conjunct from an outer join's ON condition — ... |
+| `RemoveNotNullCondition` | CockroachDB | ✅ PROVED | FULL | 23 | The encoding faithfully captures the rule's single essential precondition — `IsColNotNull $col $input` — by giving column 0 a non-nullabl... |
+| `RemoveZeroCardLock` | CockroachDB | ✅ PROVED | PARTIAL | 43 | The rule only fires when `$rows` has zero rows — i.e. `$rows` is bag-equal to ∅ — so modeling `$rows` as a structurally empty scan and `L... |
+| `RightAssociateJoinsLeft` | CockroachDB | ✅ PROVED | FULL | 23 | The encoding faithfully models the source rule: before is `A ⋈(B ⋈_true C)` with condition `p_ab(A,B) ∧ p_abc(A,B,C)`, and after is `(A ⋈... |
+| `RightAssociateJoinsRight` | CockroachDB | ✅ PROVED | FULL | 45 | The encoding exactly mirrors the source variant: before = A ⋈_{p_ac∧p_abc} (B ⋈_true C), after = (A ⋈_{p_ac} C) ⋈_{p_abc} B, with INNER j... |
 | `SimplifyAndFalse` | CockroachDB | ✅ PROVED | FULL | 4 | The encoding faithfully captures `(And * (False)) => (False)`: the left operand is a fully uninterpreted predicate (universally quantifie... |
+| `SimplifyAndTrue` | CockroachDB | ✅ PROVED | FULL | 3 | The encoding is a faithful relational embedding of CockroachDB's scalar rule (And $left:* (True)) => $left: before() is Filter(And(P, Tru... |
+| `SimplifyFalseAnd` | CockroachDB | ✅ PROVED | FULL | 3 | The before pattern is `Filter(Source, AND(false, right))` and after is `Filter(Source, false)`, with `right` an uninterpreted predicate a... |
+| `SimplifyFalseOr` | CockroachDB | ✅ PROVED | PARTIAL | 10 | The encoding captures the rule's only logical content — the boolean identity Or(False, P) ≡ P, with P a fully uninterpreted predicate ove... |
+| `SimplifyInSingleElement` | CockroachDB | ✅ PROVED | FULL | 27 | The encoding models `x IN (y)` by its definitional expansion — a single-disjunct `Or(x = y)` — in `before()`, and the bare `Eq` in `after... |
+| `SimplifyIntersectLeft` | CockroachDB | ✅ PROVED | PARTIAL | 25 | before() (set-semantic INTERSECT, all=false, 2 inputs) and after() (SEMI join of the keyed left against the right on IS NOT DISTINCT FROM... |
+| `SimplifyIntersectRight` | CockroachDB | ✅ PROVED | PARTIAL | 48 | The encoding is non-vacuous — a set-INTERSECT (before) vs. a SEMI-join (after) are genuinely different operators, and the equality hinges... |
+| `SimplifyIsCondition` | CockroachDB | ✅ PROVED | PARTIAL | 24 | The encoding matches the rule exactly in every load-bearing respect: before() applies `IS_NOT_DISTINCT_FROM` and after() applies `EQUALS`... |
+| `SimplifyIsNullCondition` | CockroachDB | ✅ PROVED | FULL | 22 | The encoding is structurally non-vacuous and captures the exact logical content of the rule: `before()` is the conjunction of an arbitrar... |
+| `SimplifyJoinFilters` | CockroachDB | ✅ PROVED | PARTIAL | 21 | before() (`ON rest AND True`) and after() (`ON rest`) are structurally distinct, share exactly one uninterpreted `rest` predicate over th... |
+| `SimplifyJoinNotNullEquality` | CockroachDB | ✅ PROVED | PARTIAL | 72 | The encoding is a faithful, non-trivial special case: it correctly models the `IsNot(Eq, False) → Eq` sub-case with non-null column types... |
 | `SimplifyLeftJoin` | CockroachDB | ✅ PROVED | PARTIAL | 23 | The encoding is non-vacuous and correctly shaped: `before()` and `after()` genuinely differ only in join kind (LEFT vs INNER), and the eq... |
+| `SimplifyLeftJoinWithZeroRowsRight` | CockroachDB | ✅ PROVED | PARTIAL | 29 | The encoding faithfully mirrors the source rule — a LEFT join whose right input is structurally the empty relation (the exact bag-theoret... |
+| `SimplifyNotInSingleElement` | CockroachDB | ✅ PROVED | FULL | 6 | The encoding is a faithful relational statement of the scalar rule: before() builds `left NOT IN (right)` as filter `NOT(left = right)` (... |
+| `SimplifyOrFalse` | CockroachDB | ✅ PROVED | PARTIAL | 8 | The encoding faithfully captures the core boolean identity of SimplifyOrFalse (Or(x, False) ≡ x) using a properly uninterpreted predicate... |
+| `SimplifyOrTrue` | CockroachDB | ✅ PROVED | FULL | 7 | The encoding is a direct, faithful translation of `SimplifyOrTrue`: the LHS `(Or * True)` becomes the filter condition `Or(left, True)` w... |
+| `SimplifyRange` | CockroachDB | ✅ PROVED | PARTIAL | 98 | The source rule is sound precisely because CockroachDB's Range is a semantically transparent boolean marker, and since QED cannot attach ... |
+| `SimplifyRightJoin` | CockroachDB | ✅ PROVED | PARTIAL | 6 | The encoding uses the correct operators (FULL→LEFT on the same shared `cond`), and `before()`/`after()` genuinely differ in join kind so ... |
+| `SimplifySameVarEqualities` | CockroachDB | ✅ PROVED | PARTIAL | 24 | The encoding is a faithful, non-vacuous capture of the rule's Eq branch: reusing the single `x` for both operands correctly enforces `Var... |
+| `SimplifySameVarInequalities` | CockroachDB | ✅ PROVED | PARTIAL | 24 | The encoding faithfully captures the source rule's `Ne` branch: `before` is the filter `x != x` (both operands the same field `x`, correc... |
+| `SimplifySelectFilters` | CockroachDB | ✅ PROVED | PARTIAL | 22 | `before()` (Filter(scan, Or(p, NULL))) and `after()` (Filter(scan, p)) are structurally different, and the proven identity is a genuine, ... |
 | `SimplifyTrueAnd` | CockroachDB | ✅ PROVED | FULL | 4 | `before()` is `Filter(AND(TRUE, P), S)` and `after()` is `Filter(P, S)` over the same uninterpreted scan `S` and the same uninterpreted p... |
+| `SimplifyTrueOr` | CockroachDB | ✅ PROVED | FULL | 3 | The encoding faithfully captures CockroachDB's `SimplifyTrueOr` rule (`Or(True, *) → True`) by using `RexRN.trueLiteral()` for the litera... |
+| `SimplifyZeroCardinalitySemiJoin` | CockroachDB | ✅ PROVED | PARTIAL | 24 | The encoding faithfully captures a genuine special case of the source rule: it proves that SEMI(left, on, ∅) ≡ ∅(left's columns) for all ... |
+| `SortFiltersInJoin` | CockroachDB | ✅ PROVED | PARTIAL | 27 | The encoding faithfully captures the only semantic content of SortFiltersInJoin — that reordering conjunctive ON-filters of an InnerJoin ... |
+| `TryDecorrelateInnerJoin` | CockroachDB | ✅ PROVED | PARTIAL | 82 | The encoding faithfully captures the core algebraic identity of `TryDecorrelateInnerJoin` for the INNER-join case: [NOTE: response was tr... |
+| `TryDecorrelateInnerLeftJoin` | CockroachDB | ✅ PROVED | PARTIAL | 27 | The encoding correctly captures the source rule's structural identity — `L INNER JOIN (IL LEFT JOIN IR ON innerOn) ON on(L,IL)` ⟹ `(L INN... |
+| `TryDecorrelateProject` | CockroachDB | ✅ PROVED | PARTIAL | 62 | The encoding faithfully captures the structural essence of the original rule (Join(left, Project(input,…), on) → Filter(on, Project(Cross... |
+| `TryDecorrelateProjectInnerJoin` | CockroachDB | ✅ PROVED | PARTIAL | 72 | The automated porter's candidate was actually correct -- it originally landed as FAILED only because the independent verifier's LLM respo... |
+| `TryDecorrelateProjectSelect` | CockroachDB | ✅ PROVED | PARTIAL | 2 | Manually encoded and verified directly. LeftJoinApply(L, Project(Select(R, filter), passthrough=[v]), on) merges the Select's filter into... |
+| `TryDecorrelateProjectSet` | CockroachDB | ✅ PROVED | PARTIAL | 41 | The encoding faithfully captures the core structural rewrite: before is `L ⋈_on (I ⋈_M E)` and after is `Filter_on ((L×I) ⋈_M E)`, which ... |
 | `TryDecorrelateSelect` | CockroachDB | ✅ PROVED | PARTIAL | 62 | Manually re-derived and verified by Claude (not the automated porter/verifier LLM loop), after the automated attempt twice produced a vac... |
+| `TryDecorrelateSemiJoin` | CockroachDB | ✅ PROVED | PARTIAL | 47 | The encoding faithfully captures the core algebraic identity of TryDecorrelateSemiJoin — SEMI correlate(L, R, on) ≡ GroupBy(INNER correla... |
+| `TryDecorrelateWindow` | CockroachDB | ✅ PROVED | PARTIAL | 1 | Manual encoding via PushSelectIntoWindow's join-back-on-partition idiom + TryDecorrelateGroupBy's single-key precedent; confirmed with ne... |
+| `TryRemapJoinOuterColsLeft` | CockroachDB | ✅ PROVED | PARTIAL | 83 | The encoding is a non-vacuous, honest PARTIAL special case: it models the InnerJoinApply variant where a correlated INNER join enforces L... |
+| `TryRemapJoinOuterColsRight` | CockroachDB | ✅ PROVED | PARTIAL | 1 | Manual mirror of proved TryRemapJoinOuterColsLeft, symmetric right-side case; confirmed with negative control. |
 | `ApplyLimitToRecursiveCTEScan` | CockroachDB | ⏭️ SKIPPED | — | 6 | The rule's precondition is a set of subplan cardinality side conditions (HasBoundedCardinality) and its effect is a backend marker operat... |
 | `CollapseRepeatedLikePatternWildcards` | CockroachDB | ⏭️ SKIPPED | — | 21 | The rule's soundness rests entirely on glob-pattern semantics of LIKE's pattern argument — that a run of `%` wildcards matches exactly th... |
 | `CommuteNullIs` | CockroachDB | ⏭️ SKIPPED | — | 43 | The rewrite's validity rests entirely on the null-aware commutativity of CockroachDB's Is/IsNot operators (Is(NULL,x) ≡ Is(x, NULL)), whi... |
@@ -219,6 +274,45 @@ _Last updated: 2026-09-28T08:16:53.637506+00:00_
 | `PushAggFilterIntoScalarGroupBy` | CockroachDB | ⏭️ SKIPPED | — | 44 | QED models each aggregate call as an uninterpreted function applied to its input bag, and neither the DSL's `AggCall` nor the prover's ag... |
 | `PushAssignmentCastsIntoValues` | CockroachDB | ⏭️ SKIPPED | — | 92 | The rule's after-side requires a `Values` operator whose row cells are non-literal expressions (the pushed-in assignment casts), but QED'... |
 | `PushColumnRemappingIntoValues` | CockroachDB | ⏭️ SKIPPED | — | 37 | PushColumnRemappingIntoValues is a data-preserving hygiene step — it renames a Values column to a projection's alias and folds that ident... |
+| `PushLimitIntoJoinLeft` | CockroachDB | ⏭️ SKIPPED | — | 41 | The rule's soundness rests entirely on ordering/list semantics — that Limit(A, n, ord) keeps A's first n rows in ord, that the join's out... |
+| `PushLimitIntoJoinRight` | CockroachDB | ⏭️ SKIPPED | — | 21 | PushLimitIntoJoinRight's soundness rests on LIMIT's ordered-prefix semantics — selecting the top-n rows under an ordering, with the order... |
+| `PushLimitIntoLock` | CockroachDB | ⏭️ SKIPPED | — | 47 | The transpose is only valid because (a) the Limit keeps the first $limit rows under its ORDER BY — QED explicitly has no list/ordering se... |
+| `PushLimitIntoOffset` | CockroachDB | ⏭️ SKIPPED | — | 31 | The rule's entire correctness claim is about positional row selection within a shared ordering (keeping rows at positions [offset, offset... |
+| `PushLimitIntoOrdinality` | CockroachDB | ⏭️ SKIPPED | — | 32 | The rule's soundness rests entirely on list/ordering semantics: the Limit keeps rows positionally (first N in an ordering), the Ordinalit... |
+| `PushLimitIntoProject` | CockroachDB | ⏭️ SKIPPED | — | 22 | PushLimitIntoProject pushes an *ordered* Limit through a Project, and its validity rests entirely on the ordering machinery (the `Orderin... |
+| `PushLimitIntoWindow` | CockroachDB | ⏭️ SKIPPED | — | 41 | The rule's soundness fundamentally depends on (1) ordering-sensitive LIMIT row selection (which n rows are kept depends on the sort order... |
+| `PushOffsetIntoLock` | CockroachDB | ⏭️ SKIPPED | — | 21 | The rule's central operator, Offset, is precisely one of the list/ordering operators that QED explicitly does not model (qed.pdf §6.2: So... |
+| `PushOffsetIntoProject` | CockroachDB | ⏭️ SKIPPED | — | 23 | PushOffsetIntoProject's soundness is entirely an ordering fact: Offset drops its first n rows *in the given ordering*, and the rule's gua... |
+| `ReduceGroupingCols` | CockroachDB | ⏭️ SKIPPED | — | 44 | Any nontrivial firing of ReduceGroupingCols must prove that the removed grouping column is equal to a new `ConstAgg` of that column, but ... |
+| `ReduceWindowPartitionCols` | CockroachDB | ⏭️ SKIPPED | — | 29 | The rule's correctness rests on functional-dependency inference — that partitioning by (k, f(k)) induces the same partitions as partition... |
+| `RejectNullsGroupBy` | CockroachDB | ⏭️ SKIPPED | — | 25 | Independent analysis confirms the porter's diagnosis: RejectNullsGroupBy's soundness rests on MIN/MAX's NULL algebra — null z-rows are ig... |
+| `SimplifyAnyScalarArray` | CockroachDB | ⏭️ SKIPPED | — | 44 | The rule's only non-trivial content is that a constant array and a tuple packaging the same elements denote the same operands for ANY — a... |
+| `SimplifyCaseSingleFalsyBranch` | CockroachDB | ⏭️ SKIPPED | — | 25 | The rule's entire soundness content is that CASE's three-valued branch selection makes `CASE WHEN c THEN falsy ELSE falsy END` never True... |
+| `SimplifyCaseSingleTruthyBranch` | CockroachDB | ⏭️ SKIPPED | — | 25 | The rule's soundness rests entirely on the three-valued branch-selection semantics of the CASE operator (in a filter, CASE TRUE WHEN cond... |
+| `SimplifyCaseWhenConstValue` | CockroachDB | ⏭️ SKIPPED | — | 41 | QED's scalar fragment only interprets boolean structure (AND/OR/NOT, true/false literals); a CASE node reaches the prover only via JSONSe... |
+| `SimplifyCoalesce` | CockroachDB | ⏭️ SKIPPED | — | 61 | The rule's correctness rests entirely on COALESCE's first-non-null semantics — the identity "leading-NULL args drop, so a null-constant p... |
+| `SimplifyEqualsAnyTuple` | CockroachDB | ⏭️ SKIPPED | — | 101 | This rule is a definitional unfolding of a backend operator: `x = ANY (t1..tn)` being equivalent to the in-list `x = t1 ∨ … ∨ x = tn` hol... |
+| `SimplifyExcept` | CockroachDB | ⏭️ SKIPPED | — | 42 | SimplifyExcept's after-side operator is EXCEPT ALL (bag-difference), and QED's model contains no bag-variant MINUS: its `except` node is ... |
+| `SimplifyExplainOrdering` | CockroachDB | ⏭️ SKIPPED | — | 27 | SimplifyExplainOrdering leaves the input relation and the Explain output data completely untouched — its only effect is replacing the req... |
+| `SimplifyGroupByOrdering` | CockroachDB | ⏭️ SKIPPED | — | 26 | The rule is a properties-only rewrite: it only replaces GroupingPrivate.Ordering with a relaxation computed by OrderingChoice.Simplify ov... |
+| `SimplifyLimitOrdering` | CockroachDB | ⏭️ SKIPPED | — | 25 | The rule's only change is rewriting the Limit's ordering annotation via functional-dependency reasoning, leaving the input relation and l... |
+| `SimplifyNotDisjoint` | CockroachDB | ⏭️ SKIPPED | — | 24 | This rule's validity rests entirely on CockroachDB's definitional axiom st_intersects(a,b) ≡ ¬st_disjoint(a,b), but RuleScript can only e... |
+| `SimplifyOffsetOrdering` | CockroachDB | ⏭️ SKIPPED | — | 23 | SimplifyOffsetOrdering only rewrites the Offset operator's sort-key annotation using functional-dependency/ordered-stream reasoning, whil... |
+| `SimplifyOrdinalityOrdering` | CockroachDB | ⏭️ SKIPPED | — | 21 | SimplifyOrdinalityOrdering leaves the input — and therefore the produced rows — unchanged; its entire content is that, under a functional... |
+| `SimplifyPartialIndexProjections` | CockroachDB | ⏭️ SKIPPED | — | 21 | The rule operates on CockroachDB's `Update` mutation operator (absent from QED's query-algebra model) under a side condition that is a st... |
+| `SimplifyWindowOrdering` | CockroachDB | ⏭️ SKIPPED | — | 21 | The rule's entire content is rewriting the window's ORDER BY (private) clause, and its soundness rests on intra-partition *ordering* sema... |
+| `SimplifyWithBindingOrdering` | CockroachDB | ⏭️ SKIPPED | — | 6 | `SimplifyWithBindingOrdering` is a properties-only rewrite — it leaves `$binding` and `$main` untouched and only relaxes `WithPrivate.Bin... |
+| `SimplifyZeroCardinalityAntiJoin` | CockroachDB | ⏭️ SKIPPED | — | 113 | The rule is sound only under the optgen side condition `^(CanHaveZeroRows $right)` — i.e. the right input is guaranteed non-empty — which... |
+| `TryAddLimitToRecursiveBranch` | CockroachDB | ⏭️ SKIPPED | — | 22 | The operator being rewritten on both sides is a `RecursiveCTE` (a recursive fixpoint), which has no bag-semantic/Q-expression translation... |
+| `TryDecorrelateGroupBy` | CockroachDB | ⏭️ SKIPPED | — | 108 | Manually investigated by Claude. The rule pushes a (correlated) join under a GroupBy by adding the left relation's key as an extra groupi... |
+| `TryDecorrelateLimit` | CockroachDB | ⏭️ SKIPPED | — | 41 | The rewrite replaces an ordered LIMIT with a row_number() window plus a rowNum <= limit filter, so correctness depends on which row occur... |
+| `TryDecorrelateLimitOne` | CockroachDB | ⏭️ SKIPPED | — | 42 | The before pattern's right input is literally `Limit($input, Const 1, $ordering)`, and the after pattern's `DistinctOn` selects rows via ... |
+| `TryDecorrelateMax1Row` | CockroachDB | ⏭️ SKIPPED | — | 101 | The rule's correctness rests entirely on matching runtime error behavior — Max1Row raises an error when its input exceeds one row, and En... |
+| `TryDecorrelateScalarGroupBy` | CockroachDB | ⏭️ SKIPPED | — | 101 | Manually re-investigated after the automated round's own verifier DISAGREE'd with its SKIPPED claim (it then ran out of rounds without re... |
+| `TryDecorrelateUnion` | CockroachDB | ⏭️ SKIPPED | — | 21 | The rewrite depends on the nontrivial identity ANY_NOT_NULL(L+R) = COALESCE(ANY_NOT_NULL(L), ANY_NOT_NULL(R)), including arbitrary non-nu... |
+| `TryRemapSelectOuterCols` | CockroachDB | ⏭️ SKIPPED | — | 101 | TryRemapSelectOuterCols fundamentally depends on outer column references (a multi-scope concept) and a conditional structural expression-... |
+| `UnifyComparisonTypes` | CockroachDB | ⏭️ SKIPPED | — | 46 | The rule's soundness rests on a type-system invariant — that a specific cast of the constant to the variable's type preserves the compari... |
+| `UseSwapMutation` | CockroachDB | ⏭️ SKIPPED | — | 41 | The rule's correctness rests on the backend's bespoke compare-and-swap semantics of UpdateSwap/DeleteSwap (optimistic: a graceful no-op w... |
 
 ## Details
 
@@ -5742,6 +5836,1285 @@ Extracted from `select.opt` (which defines multiple rules — implement specific
 - Reason / notes: The encoding faithfully captures the rule's logical content: a leakproof predicate is pushed from above an identity operation (the Barrier) to below it, while the remaining predicate stays above, which is exactly what the source rule rewrites. The barrier-as-identity-projection modeling is correct since a Barrier has no bag-semantic effect on rows, the uninterpreted predicates `Leakproof` and `Remaining` are properly shared across both sides, and the single-column arity restriction (the only narrowing) is honestly documented in the SCOPE line and does not change the logical principle being proved, since filter-through-identity commutativity is arity-independent. ```
 - QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 17282292}, panicked=False
 
+### `PushLeakproofJoinIntoPermeableBarrierLeft` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/join.opt
+
+PushLeakproofJoinIntoPermeableBarrierLeft moves a join below a permeable
+Barrier on its left input when all ON filters are leakproof. The Barrier is
+then placed above the join. This is safe because leakproof filters can be
+reordered freely, and the Barrier allows such movement when marked as
+LeakproofPermeable. This rule is effectively pushing the left input into the
+Barrier, so the left input must be leakproof as well.
+
+Extracted from `join.opt` (which defines multiple rules — implement specifically `PushLeakproofJoinIntoPermeableBarrierLeft`, not the other rules in that file):
+
+```
+# PushLeakproofJoinIntoPermeableBarrierLeft moves a join below a permeable
+# Barrier on its left input when all ON filters are leakproof. The Barrier is
+# then placed above the join. This is safe because leakproof filters can be
+# reordered freely, and the Barrier allows such movement when marked as
+# LeakproofPermeable. This rule is effectively pushing the left input into the
+# Barrier, so the left input must be leakproof as well.
+[PushLeakproofJoinIntoPermeableBarrierLeft, Normalize]
+(InnerJoin | InnerJoinApply
+    (Barrier
+        $left:*
+        $leakproofPermeable:* & (If $leakproofPermeable)
+    )
+    $right:* & (IsLeakproof $right)
+    $on:* & (HasAllLeakProofFilters $on)
+    $private:*
+)
+=>
+(Barrier
+    ((OpName) $left $right $on $private)
+    $leakproofPermeable
+)
+```
+- Attempts used: 26
+- Last updated: 2026-09-29T04:06:50.799277+00:00
+- Reason / notes: The encoding is faithful: it models the permeable Barrier as an identity projection (correct, since a Barrier is a pure flow-control point with no row-bag effect), shares the uninterpreted ON predicate "C" and both input scans/types between before/after so the two sides are the same symbols, and produces genuinely different trees (projection below the join vs. above it) rather than a vacuous before()==after(). The rule's real preconditions (LeakproofPermeable via If, IsLeakproof on the right, HasAllLeakProofFilters on the ON list) gate evaluation-order/partiality behavior, which has no bag-semantic counterpart in QED, so the only bag-semantic content is that an identity barrier commutes with the inner join—exactly what is proved, and the porter documents this correctly. The two under-generalizations (inputs fixed to two columns, and plain INNER join instead of also matching InnerJoinApply) are genuine, specific, and honestly disclosed in the SCOPE: PARTIAL line, and neither degenerates the result. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 337167}, panicked=False
+
+### `PushLeakproofJoinIntoPermeableBarrierRight` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/join.opt
+
+PushLeakproofJoinIntoPermeableBarrierRight is the right-side variant.
+It moves a join below a permeable Barrier on its right input when all ON
+filters are leakproof, then rewraps the join in the Barrier to preserve its
+blocking behavior for non-leakproof expressions higher in the plan. This rule
+is effectively pushing the right input into the Barrier, so the right input
+must be leakproof as well.
+
+Extracted from `join.opt` (which defines multiple rules — implement specifically `PushLeakproofJoinIntoPermeableBarrierRight`, not the other rules in that file):
+
+```
+# PushLeakproofJoinIntoPermeableBarrierRight is the right-side variant.
+# It moves a join below a permeable Barrier on its right input when all ON
+# filters are leakproof, then rewraps the join in the Barrier to preserve its
+# blocking behavior for non-leakproof expressions higher in the plan. This rule
+# is effectively pushing the right input into the Barrier, so the right input
+# must be leakproof as well.
+[PushLeakproofJoinIntoPermeableBarrierRight, Normalize]
+(InnerJoin | InnerJoinApply
+    $left:* & (IsLeakproof $left)
+    (Barrier
+        $right:*
+        $leakproofPermeable:* & (If $leakproofPermeable)
+    )
+    $on:* & (HasAllLeakProofFilters $on)
+    $private:*
+)
+=>
+(Barrier
+    ((OpName) $left $right $on $private)
+    $leakproofPermeable
+)
+```
+- Attempts used: 23
+- Last updated: 2026-09-29T00:49:35.293734+00:00
+- Reason / notes: The encoding captures the rule's bag-semantic core exactly — Join(L, Barrier(R), C) vs Barrier(Join(L, R, C)) with the Barrier modeled as an identity projection — and before()/after() are structurally different (identity projection nested under the right join input vs. wrapping the whole join), so the proof is not vacuous; L, R, and C are correctly shared as the same uninterpreted symbols across both sides, with no spurious over-constraint. The only deviations are honestly and specifically declared in the SCOPE line (plain INNER instead of also InnerJoinApply, whose correlated/dependent-join semantics are outside the bag model, and a 2-column arity that is semantically neutral since the equivalence does not depend on arity), and the rule's IsLeakproof / HasAllLeakProofFilters / leakproofPermeable preconditions are planner-safety flags with no effect on the row bag, so no data-semantic precondition was silently dropped. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 422416}, panicked=False
+
+### `PushLeakproofProjectionsIntoPermeableBarrier` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/project.opt
+
+PushLeakproofProjectionsIntoPermeableBarrier moves a Project below a Barrier
+when all projection expressions are leakproof and the Barrier is marked as
+permeable. This is safe because leakproof expressions cannot reveal
+information through their evaluation, and a permeable Barrier allows such
+projections to pass through it.
+
+Extracted from `project.opt` (which defines multiple rules — implement specifically `PushLeakproofProjectionsIntoPermeableBarrier`, not the other rules in that file):
+
+```
+# PushLeakproofProjectionsIntoPermeableBarrier moves a Project below a Barrier
+# when all projection expressions are leakproof and the Barrier is marked as
+# permeable. This is safe because leakproof expressions cannot reveal
+# information through their evaluation, and a permeable Barrier allows such
+# projections to pass through it.
+[PushLeakproofProjectionsIntoPermeableBarrier, Normalize]
+(Project
+    (Barrier
+        $input:*
+        $leakproofPermeable:* & (If $leakproofPermeable)
+    )
+    $projections:* & (HasAllLeakProofProjections $projections)
+    $passthrough:*
+)
+=>
+(Barrier
+    (Project $input $projections $passthrough)
+    $leakproofPermeable
+)
+```
+- Attempts used: 25
+- Last updated: 2026-09-29T00:54:54.908526+00:00
+- Reason / notes: The before/after shapes genuinely reflect the optimization — the Project moves from above the barrier to below it (not a structural identity) — and the barrier is modeled as a row-identity projection, the only row-level behavior a barrier has, with the single uninterpreted projection operator and passthrough field correctly shared as the same symbols on both sides. The rule's HasAllLeakProofProjections/(If $leakproofPermeable) preconditions are security properties of expression evaluation, not constraints on row values, so they cannot be expressed in QED's bag model (a real QED limitation, acknowledged in the code comments); the proved unconditional row-level equivalence is therefore the strongest row-semantic claim the rule needs and subsumes it. The fixed 1-column / 1-expression / 1-passthrough arity is the minimal shape in which the rule can exist, is specific and honestly disclosed in the PARTIAL tag (full variadic arity is not expressible in the DSL at any width), and is not degenerate. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 416959}, panicked=False
+
+### `PushSelectCondLeftIntoJoinLeftAndRight` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/select.opt
+
+PushSelectCondLeftIntoJoinLeftAndRight applies to the case when a condition
+bound by the left side of a join can be mapped to the right side using
+equality columns from the ON condition of the join. It pushes the original
+filter to the left side, and the mapped filter to the right side.
+For example, consider this query:
+
+SELECT * FROM l LEFT JOIN r ON l.x = r.x WHERE l.x = 5;
+
+This can safely be converted to:
+
+SELECT * FROM (SELECT * FROM l WHERE l.x = 5)
+LEFT JOIN (SELECT * FROM r WHERE r.x = 5) ON l.x = r.x;
+
+It's not normally correct to push filters from the SELECT clause to
+the right side of a LEFT JOIN, since those rows might still show up
+in the output as NULL-extended rows from the left side. In this case,
+however, for any rows removed from the right side, the matching rows are
+also removed from the left side (and thus removed from the output).
+To ensure that this is the case, it's important that the filter only refers
+to columns on the left side that have corresponding equivalent columns on
+the right side.
+
+Extracted from `select.opt` (which defines multiple rules — implement specifically `PushSelectCondLeftIntoJoinLeftAndRight`, not the other rules in that file):
+
+```
+# PushSelectCondLeftIntoJoinLeftAndRight applies to the case when a condition
+# bound by the left side of a join can be mapped to the right side using
+# equality columns from the ON condition of the join. It pushes the original
+# filter to the left side, and the mapped filter to the right side.
+# For example, consider this query:
+#
+#   SELECT * FROM l LEFT JOIN r ON l.x = r.x WHERE l.x = 5;
+#
+# This can safely be converted to:
+#
+#   SELECT * FROM (SELECT * FROM l WHERE l.x = 5)
+#   LEFT JOIN (SELECT * FROM r WHERE r.x = 5) ON l.x = r.x;
+#
+# It's not normally correct to push filters from the SELECT clause to
+# the right side of a LEFT JOIN, since those rows might still show up
+# in the output as NULL-extended rows from the left side. In this case,
+# however, for any rows removed from the right side, the matching rows are
+# also removed from the left side (and thus removed from the output).
+# To ensure that this is the case, it's important that the filter only refers
+# to columns on the left side that have corresponding equivalent columns on
+# the right side.
+[PushSelectCondLeftIntoJoinLeftAndRight, Normalize]
+(Select
+    $input:(LeftJoin | LeftJoinApply | SemiJoin | SemiJoinApply
+            | AntiJoin | AntiJoinApply
+        $left:*
+        $right:*
+        $on:*
+        $private:*
+    )
+    $filters:[
+        ...
+        $item:(FiltersItem $condition:*) &
+            (IsBoundBy $item (OutputCols $left)) &
+            (CanMapJoinOpFilter
+                $item
+                $rightCols:(OutputCols $right)
+                $equivSet:(GetEquivGroups $on $left $right)
+            )
+        ...
+    ]
+)
+=>
+(Select
+    ((OpName $input)
+        (Select $left [ (FiltersItem $condition) ])
+        (Select
+            $right
+            [
+                (FiltersItem
+                    (MapJoinOpFilter $item $rightCols $equivSet)
+                )
+            ]
+        )
+        $on
+        $private
+    )
+    (RemoveFiltersItem $filters $item)
+)
+```
+- Attempts used: 26
+- Last updated: 2026-09-29T06:04:06.512819+00:00
+- Reason / notes: The encoding faithfully captures the rule's documented case generalized honestly: arbitrary uninterpreted tables L, R with an arbitrary unary predicate P, where before = Filter(P(l.x), L ⋈_LEFT R ON l.x = r.x) and after = (L σ P) ⋈_LEFT (R σ P) — structurally and semantically distinct, so the proof is non-vacuous; sharing the single symbol pOp for both pushed filters correctly encodes MapJoinOpFilter via the ON-equality equivalence group (with two independent predicates the rewrite would be unsound), and the concrete EQUALS in the join condition is the right way to express the GetEquivGroups/CanMapJoinOpFilter precondition rather than an over-constraining artifact. The narrowing to LEFT JOIN, single equality key, and unary filter on that key is a genuine special case limited by QED's inability to express arbitrary column-remapping equivalence sets, it is honestly declared on the SCOPE line, and it preserves the rule's distinctive content (pushing a left-bound filter into the right side of a LEFT JOIN, the direction the simpler PushSelectIntoJoinLeft does not cover).
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 90097584}, panicked=False
+
+### `PushSelectIntoGroupBy` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/select.opt
+
+PushSelectIntoGroupBy pushes a Select condition below a GroupBy in the case
+where it only references grouping columns or ConstAgg columns.
+
+This rule doesn't work on ScalarGroupBy which exhibits different behavior if
+the input is empty:
+SELECT MAX(y) FROM a
+
+If "a" is empty, this returns a single row containing a null value. This is
+different behavior than a GroupBy with grouping columns, which would return
+the empty set for a similar query:
+SELECT MAX(y) FROM a GROUP BY x
+
+Citations: [2]
+
+Note: Do not add EnsureDistinctOn to the match pattern. Pushing the select
+filters through the EnsureDistinctOn can prevent it from detecting duplicate
+rows and therefore change error behavior.
+
+Extracted from `select.opt` (which defines multiple rules — implement specifically `PushSelectIntoGroupBy`, not the other rules in that file):
+
+```
+# PushSelectIntoGroupBy pushes a Select condition below a GroupBy in the case
+# where it only references grouping columns or ConstAgg columns.
+#
+# This rule doesn't work on ScalarGroupBy which exhibits different behavior if
+# the input is empty:
+#   SELECT MAX(y) FROM a
+#
+# If "a" is empty, this returns a single row containing a null value. This is
+# different behavior than a GroupBy with grouping columns, which would return
+# the empty set for a similar query:
+#   SELECT MAX(y) FROM a GROUP BY x
+#
+# Citations: [2]
+#
+# Note: Do not add EnsureDistinctOn to the match pattern. Pushing the select
+# filters through the EnsureDistinctOn can prevent it from detecting duplicate
+# rows and therefore change error behavior.
+[PushSelectIntoGroupBy, Normalize]
+(Select
+    $input:(GroupBy | DistinctOn
+        $groupingInput:*
+        $aggregations:*
+        $groupingPrivate:*
+    )
+    $filters:[
+        ...
+        $item:* &
+            (IsBoundBy
+                $item
+                $passthrough:(GroupingAndConstCols
+                    $groupingPrivate
+                    $aggregations
+                )
+            )
+        ...
+    ]
+)
+=>
+(Select
+    ((OpName $input)
+        (Select
+            $groupingInput
+            (ExtractBoundConditions $filters $passthrough)
+        )
+        $aggregations
+        $groupingPrivate
+    )
+    (ExtractUnboundConditions $filters $passthrough)
+)
+```
+- Attempts used: 26
+- Last updated: 2026-09-29T05:41:24.887955+00:00
+- Reason / notes: `before()` (Filter above the Aggregate) and `after()` (Filter inside, below the Aggregate) are structurally different plans, so the equivalence proof is non-vacuous and captures the rule's actual optimization—pushing a filter on the grouping column beneath the GroupBy. The uninterpreted filter predicates P/R, the aggregate `f`, and the group key are correctly shared across both sides (the same predicate applied to the same logical group-key column, referenced in the input below and the aggregate output above), so this is a faithful symbol sharing rather than a coincidental over-constraint, and since every conjunct is bound the vacuous outer `Select` is rightly omitted per `EliminateSelect`. The restriction to the GroupBy branch (not DistinctOn), a single identity group key, one non-distinct uninterpreted aggregate, and grouping-column-only conjuncts is a genuine, honestly-flagged PARTIAL scope (the ConstAgg case is correctly deemed unmodelable because QED's aggregates are uninterpreted and cannot see per-group constancy), and the result remains a useful, non-degenerate special case.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 90020791}, panicked=False
+
+### `PushSelectIntoInlinableProject` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/inline.opt
+
+PushSelectIntoInlinableProject pushes the Select operator into a Project, even
+though the filter references it. This is made possible by inlining the
+references to projected columns so that the Select becomes independent of the
+Project, and therefore can be reordered. This normalization is important for
+enabling Any filter conditions to be pushed down into scans.
+
+This rule is low priority so that it runs after the PushSelectIntoProject
+and MergeProjectProject rules, since those rules are cheaper to match and
+replace.
+
+Example:
+SELECT * FROM (SELECT x+1 AS x2 FROM xy) WHERE x2=10
+=>
+SELECT x+1 AS x2 FROM (SELECT * FROM xy WHERE (x+1)=10)
+
+Extracted from `inline.opt` (which defines multiple rules — implement specifically `PushSelectIntoInlinableProject`, not the other rules in that file):
+
+```
+# PushSelectIntoInlinableProject pushes the Select operator into a Project, even
+# though the filter references it. This is made possible by inlining the
+# references to projected columns so that the Select becomes independent of the
+# Project, and therefore can be reordered. This normalization is important for
+# enabling Any filter conditions to be pushed down into scans.
+#
+# This rule is low priority so that it runs after the PushSelectIntoProject
+# and MergeProjectProject rules, since those rules are cheaper to match and
+# replace.
+#
+# Example:
+#   SELECT * FROM (SELECT x+1 AS x2 FROM xy) WHERE x2=10
+#   =>
+#   SELECT x+1 AS x2 FROM (SELECT * FROM xy WHERE (x+1)=10)
+#
+[PushSelectIntoInlinableProject, Normalize, LowPriority]
+(Select
+    (Project
+        $input:*
+        $projections:* & (CanInlineProjections $projections)
+        $passthrough:*
+    )
+    $filters:* & ^(FilterHasCorrelatedSubquery $filters)
+)
+=>
+(Project
+    (Select $input (InlineSelectProject $filters $projections))
+    $projections
+    $passthrough
+)
+```
+- Attempts used: 23
+- Last updated: 2026-09-29T04:50:47.799831+00:00
+- Reason / notes: The encoding is non-vacuous and structurally faithful: `before()` is Filter(P∘col0 ∧ Q∘col1) over Project(F(a,b), G(a,b), a, b) with P/Q genuinely applied to the Project's *output* columns, while `after()` re-applies the same shared symbols P/Q to the defining expressions F(a,b)/G(a,b) over the scan and lifts the identical projection list back on top — so the proof is exactly the inlining pushdown property, not an identity. The fixed 2+2 column arity and two unary filters are a specific, declared PARTIAL restriction (schema-arity parameters that don't dilute the semantic content, which is universally quantified over F, G, P, Q and the table), and the determinism of F/G that backs CanInlineProjections is inherent to RuleScript's uninterpreted-function model, so the proved claim subsumes rather than evades the original guard's domain. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 67495959}, panicked=False
+
+### `PushSelectIntoJoinLeft` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/select.opt
+
+PushSelectIntoJoinLeft pushes Select filter conditions into the left side of
+an input Join. This is possible in the case of InnerJoin, LeftJoin, SemiJoin,
+and AntiJoin, as long as the condition has no dependencies on the right side
+of the join. Right and Full joins are not eligible, since attempting to filter
+left rows would just result in NULL left rows instead.
+
+-- No row is returned for a.x=1, a.y=2, b.x=1, since the WHERE excludes it.
+SELECT * FROM a RIGHT JOIN b ON a.x=b.x WHERE a.y < 0
+
+-- But if the filter is incorrectly pushed down in RIGHT/FULL JOIN case,
+-- then a row containing null values on the left side is returned.
+SELECT * FROM (SELECT * FROM a WHERE a.y < 0) a RIGHT JOIN b ON a.x=b.x
+
+Citations: [1]
+
+Extracted from `select.opt` (which defines multiple rules — implement specifically `PushSelectIntoJoinLeft`, not the other rules in that file):
+
+```
+# PushSelectIntoJoinLeft pushes Select filter conditions into the left side of
+# an input Join. This is possible in the case of InnerJoin, LeftJoin, SemiJoin,
+# and AntiJoin, as long as the condition has no dependencies on the right side
+# of the join. Right and Full joins are not eligible, since attempting to filter
+# left rows would just result in NULL left rows instead.
+#
+#   -- No row is returned for a.x=1, a.y=2, b.x=1, since the WHERE excludes it.
+#   SELECT * FROM a RIGHT JOIN b ON a.x=b.x WHERE a.y < 0
+#
+#   -- But if the filter is incorrectly pushed down in RIGHT/FULL JOIN case,
+#   -- then a row containing null values on the left side is returned.
+#   SELECT * FROM (SELECT * FROM a WHERE a.y < 0) a RIGHT JOIN b ON a.x=b.x
+#
+# Citations: [1]
+[PushSelectIntoJoinLeft, Normalize]
+(Select
+    $input:(LeftJoin | LeftJoinApply | SemiJoin | SemiJoinApply
+            | AntiJoin | AntiJoinApply
+        $left:*
+        $right:*
+        $on:*
+        $private:*
+    )
+    $filters:[
+        ...
+        $item:* & (IsBoundBy $item $leftCols:(OutputCols $left))
+        ...
+    ]
+)
+=>
+(Select
+    ((OpName $input)
+        (Select
+            $left
+            (ExtractBoundConditions $filters $leftCols)
+        )
+        $right
+        $on
+        $private
+    )
+    (ExtractUnboundConditions $filters $leftCols)
+)
+```
+- Attempts used: 42
+- Last updated: 2026-09-29T05:46:43.376600+00:00
+- Reason / notes: The encoding correctly captures the core LEFT-JOIN push-down transformation: before() is Select(LeftJoin(L,R,g), f(l)∧u(l,r)) and after() is Select(LeftJoin(Select(L,f),R,g), u(l,r)), which are structurally distinct and the equivalence is a genuine (non-vacuous) bag-semantics proof. All predicates (f, u, g) are uninterpreted symbols, f is correctly modeled as bound-by-left-only (single argument = L's column in both the join-row and row-scoped contexts), and u correctly references both sides so it stays above. The SCOPE line honestly and specifically discloses the narrowings (LEFT only vs. the original's Left/Semi/Anti + Apply variants; exactly one bound + one unbound conjunct; one ON condition; single-column inputs), and none of these restrictions introduce a semantic error — they merely reduce the family of instantiations QED must verify while preserving the rule's essential logic. ```
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 91881166}, panicked=False
+
+### `PushSelectIntoOrdinality` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/select.opt
+
+PushSelectIntoOrdinality pushes the Select operator into its Ordinality input
+if the Ordinality operation was built for the purposes of removing duplicate
+rows, and the actual values returned by the Ordinality operation don't matter.
+This is typically preferable because it allows the Select to be pushed into
+operations beneath the Ordinality, minimizing the number of rows subsequent
+operations need to process and potentially pushing the Select down far enough
+to enable constrained scans. This may also enable other normalization rules
+which match on Select expressions to fire.
+
+Extracted from `select.opt` (which defines multiple rules — implement specifically `PushSelectIntoOrdinality`, not the other rules in that file):
+
+```
+# PushSelectIntoOrdinality pushes the Select operator into its Ordinality input
+# if the Ordinality operation was built for the purposes of removing duplicate
+# rows, and the actual values returned by the Ordinality operation don't matter.
+# This is typically preferable because it allows the Select to be pushed into
+# operations beneath the Ordinality, minimizing the number of rows subsequent
+# operations need to process and potentially pushing the Select down far enough
+# to enable constrained scans. This may also enable other normalization rules
+# which match on Select expressions to fire.
+[PushSelectIntoOrdinality, Normalize]
+(Select
+    (Ordinality $input:* $private:*) &
+        (ForDuplicateRemoval $private)
+    $filters:[
+        ...
+        $item:* &
+            (IsBoundBy $item $inputCols:(OutputCols $input))
+        ...
+    ]
+)
+=>
+(Select
+    (Ordinality
+        (Select
+            $input
+            (ExtractBoundConditions $filters $inputCols)
+        )
+        $private
+    )
+    (ExtractUnboundConditions $filters $inputCols)
+)
+```
+- Attempts used: 46
+- Last updated: 2026-09-29T06:14:59.008759+00:00
+- Reason / notes: The encoding faithfully mirrors the source rule's core transformation — before() is `Select(Ordinality(input), P(input))` and after() is `Ordinality(Select(input, P))` — with the exact right relational shape (projection standing in for the ForDuplicateRemoval ordinality, filter pushed from above the projection to below it), uninterpreted symbols throughout (O as a shared function of the input row, P as a shared uninterpreted predicate on the input column, so no concrete predicate/join-type/column-count is baked in), and correct symbol sharing (O and P are the same logical quantity re-derived on both sides, as the rule requires). before() and after() are genuinely structurally different (Filter-Project-Scan vs. Project-Filter-Scan), so the proof is non-vacuous, and the shared O symbol is a sound over-constraint rather than a spurious one: it encodes precisely the property the rule's ForDuplicateRemoval comment relies on (the ordinality column's values don't matter / are stably re-derived from the input), without which the pushdown would not hold. The only narrowing — all filter conjuncts are bound by the input columns (so ExtractUnboundConditions is empty and the vacuous outer Select is omitted, consistent with EliminateSelect) — is exactly what the SCOPE tag states, leaving the result a genuine, useful special case of the real rule (the case that yields the maximal pushdown) rather than a degenerate or mis-shaped one. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 67693667}, panicked=False
+
+### `PushSelectIntoProject` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/select.opt
+
+PushSelectIntoProject pushes the Select operator into its Project input. This
+is typically preferable because it minimizes the number of rows which Project
+needs to process. This is especially important if Project is adding expensive
+computed columns.
+
+Extracted from `select.opt` (which defines multiple rules — implement specifically `PushSelectIntoProject`, not the other rules in that file):
+
+```
+# PushSelectIntoProject pushes the Select operator into its Project input. This
+# is typically preferable because it minimizes the number of rows which Project
+# needs to process. This is especially important if Project is adding expensive
+# computed columns.
+[PushSelectIntoProject, Normalize]
+(Select
+    (Project $input:* $projections:* $passthrough:*)
+    $filters:[
+        ...
+        $item:* &
+            (IsBoundBy $item $inputCols:(OutputCols $input))
+        ...
+    ]
+)
+=>
+(Select
+    (Project
+        (Select
+            $input
+            (ExtractBoundConditions $filters $inputCols)
+        )
+        $projections
+        $passthrough
+    )
+    (ExtractUnboundConditions $filters $inputCols)
+)
+```
+- Attempts used: 22
+- Last updated: 2026-09-29T06:02:03.322465+00:00
+- Reason / notes: The encoding faithfully instantiates the rule's essential content — a bound conjunct P on the input/passthrough column is pushed below the Project while the unbound conjunct Q on the synthesized column F(a) stays above — with `before()` and `after()` structurally distinct (an extra Filter node and a lowered Project), so the proof is non-vacuous; the fact that QED accepted it (rather than flagging the missing P) also confirms P is genuinely applied below the Project, not silently dropped. The passthrough is correctly the identity field reference `scan.field(0)` (not an uninterpreted function), which is exactly the property that licenses the push-down, and P/Q/F/the table are all genuinely uninterpreted with correct symbol sharing (the bound condition is the same predicate re-applied to the input column, the unbound condition the same predicate on the synthesized column), so there is no coincidental over-constraint. The source rule carries no key/NOT NULL preconditions — only the structural IsBoundBy guard, which is captured by which column each conjunct references — and the `// SCOPE: PARTIAL` line honestly and specifically labels this 1-input-col / 1-synthesized-col / 1-bound / 1-unbound instance, a genuine non-degenerate special case that preserves the rule's core semantics.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 64322833}, panicked=False
+
+### `PushSelectIntoProjectSet` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/select.opt
+
+PushSelectIntoProjectSet pushes filters into a ProjectSet. In particular,
+the filters that are bound to the input columns of the ProjectSet are
+pushed down into it, in hopes of being pushed down further into joins
+and scans underneath the ProjectSet.
+
+Extracted from `select.opt` (which defines multiple rules — implement specifically `PushSelectIntoProjectSet`, not the other rules in that file):
+
+```
+# PushSelectIntoProjectSet pushes filters into a ProjectSet. In particular,
+# the filters that are bound to the input columns of the ProjectSet are
+# pushed down into it, in hopes of being pushed down further into joins
+# and scans underneath the ProjectSet.
+[PushSelectIntoProjectSet, Normalize]
+(Select
+    (ProjectSet $input:* $zip:*)
+    $filters:[
+        ...
+        $item:* &
+            (IsBoundBy $item $inputCols:(OutputCols $input))
+        ...
+    ]
+)
+=>
+(Select
+    (ProjectSet
+        (Select
+            $input
+            (ExtractBoundConditions $filters $inputCols)
+        )
+        $zip
+    )
+    (ExtractUnboundConditions $filters $inputCols)
+)
+```
+- Attempts used: 4
+- Last updated: 2026-09-29T06:10:43.528939+00:00
+- Reason / notes: The ProjectSet is soundly abstracted as an INNER join of its input L with an emitted bag E under an uninterpreted pairing predicate M — INNER correctly models the row-dropping behavior when the lateral set yields zero rows, the universal quantification over M covers both zipped and unzipped modes, and the bound conjunct P references only the passed-through input column (structurally enforcing the IsBoundBy guard) while the unbound conjunct Q references only the synthesized column, with the same symbols (M, P, Q, L, E) shared correctly between both sides. before() and after() are genuinely different plans (P filters above vs. below the join), so the proof is non-vacuous and encodes exactly the source rule's transformation (Select over ProjectSet ⟹ Select over ProjectSet-over-Select, with filters split bound/unbound). The honestly tagged PARTIAL restrictions — one input column, one emitted column, exactly one bound conjunct and one unbound conjunct, with the unbound conjunct restricted to the synthesized column — are specific rather than vague, remain a non-degenerate instance of the rule, and the single-conjunct form effectively subsumes arbitrary conjunctions since P and Q range over all uninterpreted predicates.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 19624875}, panicked=False
+
+### `PushSelectIntoUnorderedDistinctOn` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/select.opt
+
+PushSelectIntoUnorderedDistinctOn pushes Select filters into the input of an
+unordered DistinctOn. Unlike PushSelectIntoGroupBy, which only pushes filters
+on grouping or ConstAgg columns, this rule pushes filters that reference any
+column of the DistinctOn's input — including first-agg columns.
+
+This is valid because an unordered DistinctOn can return any row from each
+group. Filtering before the DistinctOn simply constrains which rows are
+available to be chosen; groups that are entirely eliminated by the filter
+produce no output row, which is equivalent to choosing a row and then
+filtering it away afterward.
+
+The rule is restricted to unordered DistinctOn: an ordered DistinctOn must
+pick a specific row determined by the ordering, so pre-filtering could change
+which row is selected.
+
+Note: Do not add EnsureDistinctOn to the match pattern. Pushing the select
+filters through the EnsureDistinctOn can prevent it from detecting duplicate
+rows and therefore change error behavior.
+
+Filters referencing outer columns are not pushed; they remain above the
+DistinctOn.
+
+Extracted from `select.opt` (which defines multiple rules — implement specifically `PushSelectIntoUnorderedDistinctOn`, not the other rules in that file):
+
+```
+# PushSelectIntoUnorderedDistinctOn pushes Select filters into the input of an
+# unordered DistinctOn. Unlike PushSelectIntoGroupBy, which only pushes filters
+# on grouping or ConstAgg columns, this rule pushes filters that reference any
+# column of the DistinctOn's input — including first-agg columns.
+#
+# This is valid because an unordered DistinctOn can return any row from each
+# group. Filtering before the DistinctOn simply constrains which rows are
+# available to be chosen; groups that are entirely eliminated by the filter
+# produce no output row, which is equivalent to choosing a row and then
+# filtering it away afterward.
+#
+# The rule is restricted to unordered DistinctOn: an ordered DistinctOn must
+# pick a specific row determined by the ordering, so pre-filtering could change
+# which row is selected.
+#
+# Note: Do not add EnsureDistinctOn to the match pattern. Pushing the select
+# filters through the EnsureDistinctOn can prevent it from detecting duplicate
+# rows and therefore change error behavior.
+#
+# Filters referencing outer columns are not pushed; they remain above the
+# DistinctOn.
+[PushSelectIntoUnorderedDistinctOn, Normalize]
+(Select
+    $input:(DistinctOn
+        $groupingInput:*
+        $aggregations:*
+        $groupingPrivate:* &
+            (IsUnorderedGrouping $groupingPrivate)
+    )
+    $filters:[
+        ...
+        $item:* &
+            (IsBoundBy
+                $item
+                $inputCols:(OutputCols $groupingInput)
+            )
+        ...
+    ]
+)
+=>
+(Select
+    (DistinctOn
+        (Select
+            $groupingInput
+            (ExtractBoundConditions $filters $inputCols)
+        )
+        $aggregations
+        $groupingPrivate
+    )
+    (ExtractUnboundConditions $filters $inputCols)
+)
+```
+- Attempts used: 22
+- Last updated: 2026-09-29T06:19:48.262286+00:00
+- Reason / notes: The encoding is a faithful, non-degenerate PARTIAL special case: it models the identity (unordered, no-aggregate) DistinctOn as a group-by-all-columns Aggregate with zero agg calls, so `before()` (filter above the distinct) and `after()` (filter below it) are structurally distinct and the proof is a genuine commute-with-distinct result rather than a vacuous identity. Predicates P/R are properly uninterpreted and shared consistently across the aggregate, matching the source rule's same-filter-conjuncts semantics. The scope tag is honest and specific — the general FirstAgg/ConstAgg-column case is unreachable for a real reason (QED's aggregates are uninterpreted, so it cannot reason about a filter referencing a non-grouping output column), not a missing DSL capability — and the identity restriction is a legitimate instance the source rule actually matches.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 19226791}, panicked=False
+
+### `PushSelectIntoWindow` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/window.opt
+
+PushSelectIntoWindow pushes down a Select which can be satisfied by only the
+functional closure of the columns being partitioned over. This is valid
+because it's "all-or-nothing" - we only entirely eliminate a partition or
+don't eliminate it at all.
+
+Extracted from `window.opt` (which defines multiple rules — implement specifically `PushSelectIntoWindow`, not the other rules in that file):
+
+```
+# PushSelectIntoWindow pushes down a Select which can be satisfied by only the
+# functional closure of the columns being partitioned over. This is valid
+# because it's "all-or-nothing" - we only entirely eliminate a partition or
+# don't eliminate it at all.
+[PushSelectIntoWindow, Normalize]
+(Select
+    (Window $input:* $fn:* $private:*)
+    $filters:[
+        ...
+        $item:* &
+            (ColsAreDeterminedBy
+                (OuterCols $item)
+                $partitionCols:(WindowPartition $private)
+                $input
+            )
+        ...
+    ]
+)
+=>
+(Select
+    (Window
+        (Select
+            $input
+            (ExtractDeterminedConditions
+                $filters
+                $partitionCols
+                $input
+            )
+        )
+        $fn
+        $private
+    )
+    (ExtractUndeterminedConditions
+        $filters
+        $partitionCols
+        $input
+    )
+)
+```
+- Attempts used: 61
+- Last updated: 2026-09-29T08:32:43.685899+00:00
+- Reason / notes: The two plans are structurally different — the window's aggregate is computed over the unfiltered input in `before()` but over the P-filtered input in `after()` — and they are equal only because P references only the partition column k, i.e. the rule's ColsAreDeterminedBy precondition encoded by construction, so the proof is of the genuine all-or-nothing pushdown rather than a vacuous identity (a P that could see v would break the equality, since the per-partition aggregate's input bag would differ). Symbols are shared correctly (P, Q, and the w aggregate are the same uninterpreted symbols on both sides; the join-back is an inner equijoin on k that preserves row multiplicity, and Q correctly stays above the window on both sides), and the restrictions — single partition column, single partition-determined window function with no frame/ordering semantics, two-column input, one pushed and one remaining conjunct — are real narrowings of the full Optgen rule but are each specifically named in the SCOPE: PARTIAL line, leaving a non-degenerate, faithful special case. ```
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 94435000}, panicked=False
+
+### `ReduceNotNullGroupingCols` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/groupby.opt
+
+ReduceNotNullGroupingCols is similar to ReduceGroupingCols, but with the
+additional restriction that nullable columns cannot be removed from the set of
+grouping columns. This is because the UpsertDistinctOn operator treats NULL
+values as not equal to one another, and therefore will not group them
+together. Since removing a grouping column is equivalent to grouping all
+values of that column together, this would be incorrect in the case where all
+input rows are NULL for that column:
+
+SELECT c FROM t WHERE c IS NULL
+
+Extracted from `groupby.opt` (which defines multiple rules — implement specifically `ReduceNotNullGroupingCols`, not the other rules in that file):
+
+```
+# ReduceNotNullGroupingCols is similar to ReduceGroupingCols, but with the
+# additional restriction that nullable columns cannot be removed from the set of
+# grouping columns. This is because the UpsertDistinctOn operator treats NULL
+# values as not equal to one another, and therefore will not group them
+# together. Since removing a grouping column is equivalent to grouping all
+# values of that column together, this would be incorrect in the case where all
+# input rows are NULL for that column:
+#
+#   SELECT c FROM t WHERE c IS NULL
+#
+[ReduceNotNullGroupingCols, Normalize]
+(UpsertDistinctOn | EnsureUpsertDistinctOn
+    $input:*
+    $aggregations:*
+    $groupingPrivate:* &
+        ^(ColsAreEmpty
+            $redundantCols:(IntersectionCols
+                (RedundantCols
+                    $input
+                    (GroupingCols $groupingPrivate)
+                )
+                (NotNullCols $input)
+            )
+        )
+)
+=>
+((OpName)
+    $input
+    (AppendAggCols $aggregations ConstAgg $redundantCols)
+    (RemoveGroupingCols $groupingPrivate $redundantCols)
+)
+```
+- Attempts used: 44
+- Last updated: 2026-09-29T07:32:43.890077+00:00
+- Reason / notes: The encoding is a correct, non-degenerate special case: `before()` (GROUP BY col0, col1 where col0≡col1) and `after()` (GROUP BY col0, then project col0 twice) are structurally distinct and the proof is non-vacuous. The scope limitation—making the "redundant" column literally the same field rather than a distinct-but-functionally-dependent column—is forced by the DSL's inability to express functional dependencies between separate columns, and QED's inability to reason about ConstAgg's algebra on a distinct dependent column, making the fully general rule unprovable without (and likely even with) DSL extensions. The SCOPE line accurately and specifically states both assumptions (literal field identity and no aggregation columns), the non-nullable type faithfully captures the source rule's `NotNullCols` precondition, and the overall shape (reducing the grouping set while preserving output width via a pass-through) mirrors the source rule's rewrite.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 68223750}, panicked=False
+
+### `RejectNullsLeftJoin` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/reject_nulls.opt
+
+RejectNullsLeftJoin reduces a LeftJoin operator to an InnerJoin operator (or a
+FullJoin to a RightJoin) when there is a null-rejecting filter on any column
+from the right side. The effect of the null-rejecting filter is that output
+rows with all NULL values on the right side created by the left (or full) join
+are eliminated, making the join equivalent to an inner (or right) join. For
+example:
+
+SELECT * FROM a LEFT OUTER JOIN b ON a.x = b.x WHERE b.y < 5
+
+can be reduced to:
+
+SELECT * FROM a INNER JOIN b ON a.x = b.x WHERE b.y < 5
+
+since b.y < 5 is a null-rejecting filter on the right side.
+
+This rule is marked as high priority so that it runs before Select filter
+pushdown rules. Those rules may remove a filter before it's had a chance to
+rewrite the input join.
+
+Citations: [1]
+
+Extracted from `reject_nulls.opt` (which defines multiple rules — implement specifically `RejectNullsLeftJoin`, not the other rules in that file):
+
+```
+# RejectNullsLeftJoin reduces a LeftJoin operator to an InnerJoin operator (or a
+# FullJoin to a RightJoin) when there is a null-rejecting filter on any column
+# from the right side. The effect of the null-rejecting filter is that output
+# rows with all NULL values on the right side created by the left (or full) join
+# are eliminated, making the join equivalent to an inner (or right) join. For
+# example:
+#
+#   SELECT * FROM a LEFT OUTER JOIN b ON a.x = b.x WHERE b.y < 5
+#
+# can be reduced to:
+#
+#   SELECT * FROM a INNER JOIN b ON a.x = b.x WHERE b.y < 5
+#
+# since b.y < 5 is a null-rejecting filter on the right side.
+#
+# This rule is marked as high priority so that it runs before Select filter
+# pushdown rules. Those rules may remove a filter before it's had a chance to
+# rewrite the input join.
+#
+# Citations: [1]
+[RejectNullsLeftJoin, Normalize, HighPriority]
+(Select
+    $input:(LeftJoin | LeftJoinApply | FullJoin
+        $left:*
+        $right:*
+        $on:*
+        $private:*
+    )
+    $filters:* &
+        (HasNullRejectingFilter $filters (OutputCols $right))
+)
+=>
+(Select
+    (ConstructNonLeftJoin
+        (OpName $input)
+        $left
+        $right
+        $on
+        $private
+    )
+    $filters
+)
+```
+- Attempts used: 27
+- Last updated: 2026-09-29T08:12:46.679766+00:00
+- Reason / notes: The encoding faithfully captures the rule's core semantic transformation (a null-rejecting filter on the right side of a LEFT JOIN makes the null-extended rows disappear, reducing it to an INNER JOIN) with the filter position and join-condition sharing matching the source rule exactly. The restriction to the concrete IS_NOT_NULL operator is a genuine QED limitation (an uninterpreted predicate could return TRUE on NULL, breaking the equivalence, so QED must interpret the operator to verify null-rejection), and the omission of FullJoin→RightJoin and Apply variants is a real, honestly-documented narrowing. The proof is non-vacuous (LEFT vs INNER is a semantic difference that only holds because IS_NOT_NULL filters the null-extended rows), symbols are correctly independent/shared, and no preconditions are missing. ```
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 35165292}, panicked=False
+
+### `RejectNullsProject` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/reject_nulls.opt
+
+RejectNullsProject adds a "col IS NOT NULL" null-rejecting filter to the input
+of a project if the following conditions hold:
+1. The parent Select operator rejects nulls on a synthesized (projection)
+column.
+2. At least one of the input columns of the projection is in the
+RejectNullCols ColSet of the input of the Project.
+3. The projection 'transmits' NULLS from the candidate column; if the column
+is NULL, the output of the projection is NULL.
+
+Extracted from `reject_nulls.opt` (which defines multiple rules — implement specifically `RejectNullsProject`, not the other rules in that file):
+
+```
+# RejectNullsProject adds a "col IS NOT NULL" null-rejecting filter to the input
+# of a project if the following conditions hold:
+#   1. The parent Select operator rejects nulls on a synthesized (projection)
+#      column.
+#   2. At least one of the input columns of the projection is in the
+#      RejectNullCols ColSet of the input of the Project.
+#   3. The projection 'transmits' NULLS from the candidate column; if the column
+#      is NULL, the output of the projection is NULL.
+[RejectNullsProject, Normalize]
+(Select
+    $input:(Project
+            $innerInput:*
+            $projections:* &
+                ^(ColsAreEmpty
+                    $projectionCols:(ProjectionCols $projections)
+                )
+            $passthrough:*
+        ) &
+        ^(ColsAreEmpty $rejectNullCols:(RejectNullCols $input))
+    $filters:* &
+        ^(ColsAreEmpty
+            $nullRejectedCols:(IntersectionCols
+                (IntersectionCols
+                    $projectionCols
+                    $rejectNullCols
+                )
+                (GetNullRejectedCols $filters)
+            )
+        )
+)
+=>
+(Select
+    (Project
+        (Select
+            $innerInput
+            [
+                (FiltersItem
+                    (IsNot
+                        (NullRejectProjections
+                            $projections
+                            $nullRejectedCols
+                            (RejectNullCols $innerInput)
+                        )
+                        (Null (AnyType))
+                    )
+                )
+            ]
+        )
+        $projections
+        $passthrough
+    )
+    $filters
+)
+```
+- Attempts used: 104
+- Last updated: 2026-09-29T09:22:25.978757+00:00
+- Reason / notes: The encoding faithfully captures the structural shape of RejectNullsProject (adding an IS NOT NULL filter below a Project while retaining the parent filter) for a concrete null-strict projection (UNARY_MINUS); the proof is non-vacuous because it requires QED's null-strictness model for UNARY_MINUS (an uninterpreted function would not satisfy the equivalence), and the SCOPE line honestly and specifically documents that the general null-transmission analysis over arbitrary projections is not modeled.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 20303666}, panicked=False
+
+### `RejectNullsRightJoin` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/reject_nulls.opt
+
+RejectNullsRightJoin is symmetric with RejectNullsLeftJoin. It reduces a
+FullJoin operator to a LeftJoin when there is a null-rejecting filter on any
+column from the left side.
+
+This rule is marked as high priority for the same reason as
+RejectNullsLeftJoin.
+
+Extracted from `reject_nulls.opt` (which defines multiple rules — implement specifically `RejectNullsRightJoin`, not the other rules in that file):
+
+```
+# RejectNullsRightJoin is symmetric with RejectNullsLeftJoin. It reduces a
+# FullJoin operator to a LeftJoin when there is a null-rejecting filter on any
+# column from the left side.
+#
+# This rule is marked as high priority for the same reason as
+# RejectNullsLeftJoin.
+[RejectNullsRightJoin, Normalize, HighPriority]
+(Select
+    $input:(FullJoin $left:* $right:* $on:* $private:*)
+    $filters:* &
+        (HasNullRejectingFilter $filters (OutputCols $left))
+)
+=>
+(Select (LeftJoin $left $right $on $private) $filters)
+```
+- Attempts used: 10
+- Last updated: 2026-09-29T08:18:46.519566+00:00
+- Reason / notes: The encoding is a genuine, non-vacuous special case of the source rule: before() uses a FULL join and after() a LEFT join (a real operator difference), with the source rule's semantic precondition "null-rejecting filter on a left column" instantiated as the canonical IS_NOT_NULL on the left column — the one null-rejecting filter QED can actually verify, since an uninterpreted predicate cannot be assumed to reject nulls, making this a fundamental QED limitation rather than a lazy narrowing. Symbol sharing is correct (same uninterpreted ON condition and same filter above the join in both plans, matching the rule's $on/$filters), no preconditions are missing (the identity Filter(FullJoin)≡Filter(LeftJoin) holds for exactly the rows the null-rejecting filter kills: the (NULL,r) null-extended-left rows), and the single-column/single-filter shape loses no semantic generality for this identity; the SCOPE: PARTIAL tag is accurate and specific.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 29602292}, panicked=False
+
+### `RejectNullsUnderJoinLeft` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/reject_nulls.opt
+
+RejectNullsUnderJoinLeft adds "col IS NOT NULL" null-rejecting filters to the
+left input of a join for each column that is both in the NullRejectCols ColSet
+and is null-rejected by the join's filters. Note that a left join cannot be
+matched even if its filters reject nulls on a column because left joins add
+back unmatched columns to the output. RejectNullsUnderJoinLeft is low priority
+to allow filters to be pushed down entirely, if possible.
+
+Extracted from `reject_nulls.opt` (which defines multiple rules — implement specifically `RejectNullsUnderJoinLeft`, not the other rules in that file):
+
+```
+# RejectNullsUnderJoinLeft adds "col IS NOT NULL" null-rejecting filters to the
+# left input of a join for each column that is both in the NullRejectCols ColSet
+# and is null-rejected by the join's filters. Note that a left join cannot be
+# matched even if its filters reject nulls on a column because left joins add
+# back unmatched columns to the output. RejectNullsUnderJoinLeft is low priority
+# to allow filters to be pushed down entirely, if possible.
+[RejectNullsUnderJoinLeft, Normalize, LowPriority]
+(InnerJoin | InnerJoinApply | SemiJoin | SemiJoinApply
+    $left:* & ^(ColsAreEmpty $rejectCols:(RejectNullCols $left))
+    $right:*
+    $on:* &
+        ^(ColsAreEmpty
+            $nullRejectedCols:(IntersectionCols
+                $rejectCols
+                (GetNullRejectedCols $on)
+            )
+        )
+    $private:*
+)
+=>
+((OpName)
+    (Select $left (MakeNullRejectFilters $nullRejectedCols))
+    $right
+    $on
+    $private
+)
+```
+- Attempts used: 22
+- Last updated: 2026-09-29T08:31:51.091665+00:00
+- Reason / notes: The porter's encoding is a faithful special case of RejectNullsUnderJoinLeft: the original rule fires when the ON condition null-rejects a left-input column (tracked via ColSet analysis) and pushes an IS NOT NULL filter below the join while leaving the ON condition unchanged; the porter instantiates this with the null-rejection made syntactically explicit as an IS_NOT_NULL conjunct in the ON condition (the one form QED can verify with an otherwise-uninterpreted predicate), yielding before=InnerJoin(L, R, on∧IS_NOT_NULL(l)) and after=InnerJoin(Filter(L, IS_NOT_NULL(l)), R, on∧IS_NOT_NULL(l)), which is exactly what the original rule produces in that sub-case. The proof is non-vacuous (the filter node is absent in before and present in after), the ON predicate is genuinely uninterpreted, the join kind and filter placement match the source rule, and the SCOPE tag honestly names both restrictions (InnerJoin-only; single explicit IS_NOT_NULL conjunct). ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 60469084}, panicked=False
+
+### `RejectNullsUnderJoinRight` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/reject_nulls.opt
+
+RejectNullsUnderJoinRight mirrors RejectNullsUnderJoinLeft.
+
+Extracted from `reject_nulls.opt` (which defines multiple rules — implement specifically `RejectNullsUnderJoinRight`, not the other rules in that file):
+
+```
+# RejectNullsUnderJoinRight mirrors RejectNullsUnderJoinLeft.
+[RejectNullsUnderJoinRight, Normalize, LowPriority]
+(InnerJoin | InnerJoinApply | LeftJoin | LeftJoinApply | SemiJoin
+        | AntiJoin
+    $left:*
+    $right:* &
+        ^(ColsAreEmpty $rejectCols:(RejectNullCols $right))
+    $on:* &
+        ^(ColsAreEmpty
+            $nullRejectedCols:(IntersectionCols
+                $rejectCols
+                (GetNullRejectedCols $on)
+            )
+        )
+    $private:*
+)
+=>
+((OpName)
+    $left
+    (Select $right (MakeNullRejectFilters $nullRejectedCols))
+    $on
+    $private
+)
+```
+- Attempts used: 5
+- Last updated: 2026-09-29T08:41:06.891628+00:00
+- Reason / notes: before() = Join(L, R, on ∧ IS_NOT_NULL(r)) and after() = Join(L, R⇝IS_NOT_NULL(r), on ∧ IS_NOT_NULL(r)) are genuinely different plans, and their bag equivalence is exactly the source rule's transformation (add an IS NOT NULL filter under the right input, leaving $on unchanged) instantiated to a case the rule truly covers — an ON condition explicitly null-rejecting right column r (the file header lists `x IS NOT NULL` as a null-rejecting expression, and bare scans satisfy the ColsAreEmpty guards, which are filter-firing hygiene, not semantic preconditions). Symbol sharing is correct and load-bearing: the IS_NOT_NULL conjunct in the ON and the pushed-down filter serialize as the same operator applied to the same underlying column (join field 1 vs. right field 0), and if they had been independent symbols the equivalence would not hold, so the acceptance confirms the sharing rather than masking an error; the uninterpreted `on` is likewise shared unchanged as the source rule requires. The SCOPE: PARTIAL line is honest and specific — only InnerJoin (of the source's six join kinds) and a single explicit IS_NOT_NULL conjunct (vs. analysis-based implicit rejection over possibly multiple columns) — making this a genuine, non-degenerate special case whose proved claim is a true, meaningful instance of the real optimization. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 59373708}, panicked=False
+
+### `RemoveJoinNotNullCondition` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/join.opt
+
+RemoveJoinNotNullCondition removes a filter with an IS NOT NULL condition when
+the given column has a NOT NULL constraint. Only left joins and full joins are
+matched because filters can be pushed down from the ON conditions of inner and
+semi joins.
+
+Extracted from `join.opt` (which defines multiple rules — implement specifically `RemoveJoinNotNullCondition`, not the other rules in that file):
+
+```
+# RemoveJoinNotNullCondition removes a filter with an IS NOT NULL condition when
+# the given column has a NOT NULL constraint. Only left joins and full joins are
+# matched because filters can be pushed down from the ON conditions of inner and
+# semi joins.
+[RemoveJoinNotNullCondition, Normalize]
+(LeftJoin | FullJoin
+    $left:*
+    $right:*
+    $on:[
+        ...
+        $item:(FiltersItem
+            (IsNot
+                (Variable
+                    $col:* & (IsColNotNull2 $col $left $right)
+                )
+                (Null)
+            )
+        )
+        ...
+    ]
+    $private:*
+)
+=>
+((OpName) $left $right (RemoveFiltersItem $on $item) $private)
+```
+- Attempts used: 23
+- Last updated: 2026-09-29T08:49:48.711603+00:00
+- Reason / notes: The encoding faithfully models the rule's core move — dropping a tautological `IS NOT NULL` conjunct from an outer join's ON condition — with the NOT NULL premise correctly carried by the left column's non-nullable `L_Type`; that premise is genuinely load-bearing, since with a nullable column the `IS_NOT_NULL` conjunct would not be removable from a LEFT JOIN (null-key rows would get NULL-extended vs. matched), so the proof is non-vacuous and `before()` ≠ `after()`. It is an honestly-tagged PARTIAL special case (LEFT join only, NOT NULL column on the left, remaining filters abstracted as one uninterpreted `rest` predicate), which is a real, non-degenerate subset of the source `LeftJoin | FullJoin` rule rather than a structurally trivial or over-constrained one.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 347208}, panicked=False
+
+### `RemoveNotNullCondition` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/select.opt
+
+RemoveNotNullCondition removes a filter with an IS NOT NULL condition
+when the given column has a NOT NULL constraint.
+
+Extracted from `select.opt` (which defines multiple rules — implement specifically `RemoveNotNullCondition`, not the other rules in that file):
+
+```
+# RemoveNotNullCondition removes a filter with an IS NOT NULL condition
+# when the given column has a NOT NULL constraint.
+[RemoveNotNullCondition, Normalize]
+(Select
+    $input:*
+    $filters:[
+        ...
+        $item:(FiltersItem
+            (IsNot
+                (Variable $col:* & (IsColNotNull $col $input))
+                (Null)
+            )
+        )
+        ...
+    ]
+)
+=>
+(Select $input (RemoveFiltersItem $filters $item))
+```
+- Attempts used: 23
+- Last updated: 2026-09-29T08:52:48.196660+00:00
+- Reason / notes: The encoding faithfully captures the rule's single essential precondition — `IsColNotNull $col $input` — by giving column 0 a non-nullable type, and the rewrite differs before/after by exactly the tautological `IS NOT NULL` conjunct on that column, with all remaining filter items collapsed into one uninterpreted predicate (exactly equivalent to a list of conjuncts). The proof being accepted confirms the prover concretely interprets `IS NOT NULL` via the schema's nullability metadata — had it been treated as an uninterpreted symbol, `filter(other).filter(isNotNull) ≡ filter(other)` would be unprovable — so the proof is of the genuine claim, not a vacuous one. The choices to fix the subject column at ordinal 0 and use two columns are semantically inert (the equivalence is local to the filter operator and depends only on that column's nullability, not its position or the input's column count), and since Select filter lists are conjunctions, the single `other` predicate covers arbitrary remaining items; this is the full rule, so `// SCOPE: FULL` is honest.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 410209}, panicked=False
+
+### `RemoveZeroCardLock` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/mutation.opt
+
+RemoveZeroCardLock removes lock operations when we know no rows will be locked.
+
+Extracted from `mutation.opt` (which defines multiple rules — implement specifically `RemoveZeroCardLock`, not the other rules in that file):
+
+```
+# RemoveZeroCardLock removes lock operations when we know no rows will be locked.
+[RemoveZeroCardLock, Normalize]
+(Lock $rows:* & (HasZeroRows $rows))
+=>
+$rows
+```
+- Attempts used: 43
+- Last updated: 2026-09-29T09:28:20.647367+00:00
+- Reason / notes: The rule only fires when `$rows` has zero rows — i.e. `$rows` is bag-equal to ∅ — so modeling `$rows` as a structurally empty scan and `Lock` as an uninterpreted filter encodes the rule's entire applicable domain (`filter(∅) = ∅`), not an arbitrary narrowing. `before()` (a Filter over the empty relation) genuinely differs from `after()` (the bare empty relation), so the proof is non-vacuous and reflects the real optimization of dropping a lock over zero rows rather than being structurally identical. The PARTIAL scope tag is honest and specific, correctly naming the genuine limitation (the DSL has no Lock operator or cardinality constraint to express `HasZeroRows` as a guard).
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 163750}, panicked=False
+
+### `RightAssociateJoinsLeft` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/join.opt
+
+RightAssociateJoinsLeft is a variant on LeftAssociateJoinsLeft.
+The transformation:
+
+SELECT * FROM ab
+INNER JOIN (SELECT * FROM xy INNER JOIN uv ON True)
+ON a=x AND b=u
+=>
+SELECT * FROM (SELECT * FROM ab INNER JOIN xy ON a=x)
+INNER JOIN uv
+ON b=u
+
+Extracted from `join.opt` (which defines multiple rules — implement specifically `RightAssociateJoinsLeft`, not the other rules in that file):
+
+```
+# RightAssociateJoinsLeft is a variant on LeftAssociateJoinsLeft.
+# The transformation:
+#
+#   SELECT * FROM ab
+#   INNER JOIN (SELECT * FROM xy INNER JOIN uv ON True)
+#   ON a=x AND b=u
+# =>
+#   SELECT * FROM (SELECT * FROM ab INNER JOIN xy ON a=x)
+#   INNER JOIN uv
+#   ON b=u
+#
+[RightAssociateJoinsLeft, Normalize, LowPriority]
+(InnerJoin
+    $outsideLeft:*
+    (InnerJoin
+        $insideLeft:*
+        $insideRight:*
+        []
+        $insidePrivate:* & (NoJoinHints $insidePrivate)
+    )
+    $outsideOn:[
+        ...
+        $item:* &
+            (IsBoundBy
+                $item
+                $cols:(OutputCols2 $insideLeft $outsideLeft)
+            )
+        ...
+    ]
+    $outsidePrivate:* & (NoJoinHints $outsidePrivate)
+)
+=>
+(InnerJoin
+    (InnerJoin
+        $outsideLeft
+        $insideLeft
+        (ExtractBoundConditions $outsideOn $cols)
+        (EmptyJoinPrivate)
+    )
+    $insideRight
+    (ExtractUnboundConditions $outsideOn $cols)
+    (EmptyJoinPrivate)
+)
+```
+- Attempts used: 23
+- Last updated: 2026-09-29T09:14:54.038215+00:00
+- Reason / notes: The encoding faithfully models the source rule: before is `A ⋈(B ⋈_true C)` with condition `p_ab(A,B) ∧ p_abc(A,B,C)`, and after is `(A ⋈_p_ab B) ⋈_p_abc C` — exactly the reassociation with condition-splitting the Optgen rule prescribes (inner ON is empty/true, bound-to-(A,B) conjuncts move into the new inner join, the rest stay outer). Both predicates are uninterpreted symbols shared correctly across before/after, all join kinds are INNER as required, and the only omitted source constraints (NoJoinHints) are optimizer-firing guards with no bag-semantic effect, so the SCOPE: FULL tag is accurate. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 70670209}, panicked=False
+
+### `RightAssociateJoinsRight` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/join.opt
+
+RightAssociateJoinsRight is a variant on LeftAssociateJoinsLeft.
+The transformation:
+
+SELECT * FROM ab
+INNER JOIN (SELECT * FROM xy INNER JOIN uv ON True)
+ON a=x AND b=u
+=>
+SELECT * FROM (SELECT * FROM ab INNER JOIN uv ON b=u)
+INNER JOIN xy
+ON a=x
+
+Extracted from `join.opt` (which defines multiple rules — implement specifically `RightAssociateJoinsRight`, not the other rules in that file):
+
+```
+# RightAssociateJoinsRight is a variant on LeftAssociateJoinsLeft.
+# The transformation:
+#
+#   SELECT * FROM ab
+#   INNER JOIN (SELECT * FROM xy INNER JOIN uv ON True)
+#   ON a=x AND b=u
+# =>
+#   SELECT * FROM (SELECT * FROM ab INNER JOIN uv ON b=u)
+#   INNER JOIN xy
+#   ON a=x
+#
+[RightAssociateJoinsRight, Normalize, LowPriority]
+(InnerJoin
+    $outsideLeft:*
+    (InnerJoin
+        $insideLeft:*
+        $insideRight:*
+        []
+        $insidePrivate:* & (NoJoinHints $insidePrivate)
+    )
+    $outsideOn:[
+        ...
+        $item:* &
+            (IsBoundBy
+                $item
+                $cols:(OutputCols2 $insideRight $outsideLeft)
+            )
+        ...
+    ]
+    $outsidePrivate:* & (NoJoinHints $outsidePrivate)
+)
+=>
+(InnerJoin
+    (InnerJoin
+        $outsideLeft
+        $insideRight
+        (ExtractBoundConditions $outsideOn $cols)
+        (EmptyJoinPrivate)
+    )
+    $insideLeft
+    (ExtractUnboundConditions $outsideOn $cols)
+    (EmptyJoinPrivate)
+)
+```
+- Attempts used: 45
+- Last updated: 2026-09-29T09:41:54.703243+00:00
+- Reason / notes: The encoding exactly mirrors the source variant: before = A ⋈_{p_ac∧p_abc} (B ⋈_true C), after = (A ⋈_{p_ac} C) ⋈_{p_abc} B, with INNER join kinds, a true literal for the empty inner ON list, and the same uninterpreted predicates applied to the same column values (I verified every joinField index and argument order: p_ac always sees (A,C), p_abc always sees (A,B,C)). The two-predicate split is fully general since any outer condition P(A,B,C) can be written as true ∧ P, the source rule's guards (NoJoinHints, existence of a bound conjunct) are applicability conditions rather than soundness preconditions, and the trailing projection only aligns the (A,C,B)→(A,B,C) output column order that the source rule changes implicitly via column IDs — so the proof is of the genuine, non-vacuous reassociation the rule performs.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 71880333}, panicked=False
+
 ### `SimplifyAndFalse` — ✅ PROVED
 
 - Source backend: CockroachDB
@@ -5762,6 +7135,372 @@ $right
 - Last updated: 2026-09-24T07:49:22.474118+00:00
 - Reason / notes: The encoding faithfully captures `(And * (False)) => (False)`: the left operand is a fully uninterpreted predicate (universally quantified over all instantiations, which subsumes any boolean expression the `*` could match), the right operand is correctly hard-coded as the literal `False` because the rule requires the syntactic False constant, and `before()`/`after()` genuinely differ (the And conjunct is eliminated), so the proof is non-vacuous. Embedding the boolean identity in filter position over an arbitrary, unconstrained scan is the standard semantics-preserving translation in this DSL (same treatment as the FilterMerge worked example), and in QED's two-valued semantics the proven statement `∀R, f: filter(And(f,⊥)) = filter(⊥)` is exactly equivalent to the pointwise expression equality `And(x, False) ≡ False` for all x — no keys, NOT NULLs, or other preconditions are assumed that the unguarded source rule does not itself impose, and the single symbol `left` is shared only where the source pattern requires. Hence `// SCOPE: FULL` is honest: no assumption anywhere narrows the family beyond the canonical relational witness of the expression rule.
 - QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 284458}, panicked=False
+
+### `SimplifyAndTrue` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/bool.opt
+
+SimplifyAndTrue simplifies the And operator by discarding a True condition on
+the right side.
+
+Extracted from `bool.opt` (which defines multiple rules — implement specifically `SimplifyAndTrue`, not the other rules in that file):
+
+```
+# SimplifyAndTrue simplifies the And operator by discarding a True condition on
+# the right side.
+[SimplifyAndTrue, Normalize]
+(And $left:* (True))
+=>
+$left
+```
+- Attempts used: 3
+- Last updated: 2026-09-29T09:24:16.029895+00:00
+- Reason / notes: The encoding is a faithful relational embedding of CockroachDB's scalar rule (And $left:* (True)) => $left: before() is Filter(And(P, True), R) and after() is Filter(P, R), which are structurally different, so the proof is non-vacuous. `left` is a single uninterpreted predicate shared by both sides (correct symbol sharing, not over-constrained), the base scan carries no uniqueness/key assumption, and since QED's proof is universal over all instantiations of that predicate, every possible boolean expression for $left — including compound ones and three-valued NULL cases, where TRUE is genuinely the identity of AND — is covered; nothing the original rule requires is assumed away, so `// SCOPE: FULL` is honest. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 357459}, panicked=False
+
+### `SimplifyFalseAnd` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/bool.opt
+
+SimplifyFalseAnd maps the And operator to False if its left input is False.
+
+Extracted from `bool.opt` (which defines multiple rules — implement specifically `SimplifyFalseAnd`, not the other rules in that file):
+
+```
+# SimplifyFalseAnd maps the And operator to False if its left input is False.
+[SimplifyFalseAnd, Normalize]
+(And $left:(False) *)
+=>
+$left
+```
+- Attempts used: 3
+- Last updated: 2026-09-29T10:38:53.960289+00:00
+- Reason / notes: The before pattern is `Filter(Source, AND(false, right))` and after is `Filter(Source, false)`, with `right` an uninterpreted predicate and `Source` an arbitrary scan, faithfully matching `(And False *) => False`. It is nontrivial, uses the correct left-false `And` variant rather than the right-false sibling, and does not hard-code the arbitrary operand.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 297042}, panicked=False
+
+### `SimplifyFalseOr` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/bool.opt
+
+SimplifyFalseOr simplifies the Or operator by discarding a False condition on
+the left side.
+
+Extracted from `bool.opt` (which defines multiple rules — implement specifically `SimplifyFalseOr`, not the other rules in that file):
+
+```
+# SimplifyFalseOr simplifies the Or operator by discarding a False condition on
+# the left side.
+[SimplifyFalseOr, Normalize]
+(Or (False) $right:*)
+=>
+$right
+```
+- Attempts used: 10
+- Last updated: 2026-09-29T10:50:28.385823+00:00
+- Reason / notes: The encoding captures the rule's only logical content — the boolean identity Or(False, P) ≡ P, with P a fully uninterpreted predicate over an uninterpreted table and Or/False as interpreted connectives — and `before()` and `after()` are structurally distinct, so the proof is a genuine, non-vacuous identity rather than a triviality. The narrowing to "the entire predicate of a Filter over a single scan" is honestly and specifically tagged on the SCOPE line and is a real limitation of the pattern language (RuleScript/QED can only quantify over uninterpreted symbols at fixed positions — there is no boolean-expression or relation "hole" to express an arbitrary context or base relation), not an avoidable under-generalization; since the identity is a valid boolean equivalence in any context (2-valued or three-valued), no logical content is lost by fixing the carrier. No other failure mode applies: the left-False Or position matches the source exactly, the single `right` symbol is correctly shared between both sides, and the source rule is unconditional, so no preconditions (keys, NOT NULL) are silently omitted.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 293541}, panicked=False
+
+### `SimplifyInSingleElement` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/scalar.opt
+
+Extracted from `scalar.opt` (which defines multiple rules — implement specifically `SimplifyInSingleElement`, not the other rules in that file):
+
+```
+[SimplifyInSingleElement, Normalize]
+(In $left:* (Tuple [ $right:* ]))
+=>
+(Eq $left $right)
+```
+- Attempts used: 27
+- Last updated: 2026-09-29T11:00:04.378829+00:00
+- Reason / notes: The encoding models `x IN (y)` by its definitional expansion — a single-disjunct `Or(x = y)` — in `before()`, and the bare `Eq` in `after()`; since the DSL has no `IN` operator and an uninterpreted `IN` symbol could never be proven equivalent to an independent `Eq` symbol, proving `Filter(Or(eq)) ≡ Filter(eq)` is exactly the non-vacuous semantic content of the source rule (single-element IN ≡ equality, valid in three-valued logic with no added preconditions). `before()` and `after()` are structurally different (Or-wrapper vs bare predicate), so the proof is not vacuous; the two operands are arbitrary columns of a shared uninterpreted nullable type, so no relationship between `$left` and `$right` is assumed, and the filter-over-scan embedding is the standard representative of this position-independent scalar rule, making the FULL scope tag honest. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 349458}, panicked=False
+
+### `SimplifyIntersectLeft` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/set.opt
+
+SimplifyIntersectLeft converts an Intersect operator into an IntersectAll
+operator when the left input has a key. This avoids the de-duplication step.
+
+Extracted from `set.opt` (which defines multiple rules — implement specifically `SimplifyIntersectLeft`, not the other rules in that file):
+
+```
+# SimplifyIntersectLeft converts an Intersect operator into an IntersectAll
+# operator when the left input has a key. This avoids the de-duplication step.
+[SimplifyIntersectLeft, Normalize]
+(Intersect $left:* & (HasStrictKey $left) $right:* $colMap:*)
+=>
+(IntersectAll $left $right $colMap)
+```
+- Attempts used: 25
+- Last updated: 2026-09-29T11:08:45.705265+00:00
+- Reason / notes: before() (set-semantic INTERSECT, all=false, 2 inputs) and after() (SEMI join of the keyed left against the right on IS NOT DISTINCT FROM) are structurally distinct operators, and the strict-key precondition is genuinely encoded — the left scan is declared with a key on its only column (unique=true → table key [0]) — so the SMT proof is of the real claim "keyed left ⇒ no dedup needed," not a vacuous identity. Using a semi-join for the target is faithful, not a wrong operator: IntersectAll with a unique left side is bag-identical to L SEMI-JOIN R (min(multiplicity) collapses to membership), and QED fundamentally cannot model the bag variant of INTERSECT, so the semi-join is the only expressible form of the rule's target. The restrictions (2-input, single column, same/identity column mapping, left as a base unique scan, non-nullable matching strict-key semantics) are all disclosed in the SCOPE line, are genuine QED-expressibility boundaries rather than avoidable under-generalization, and the proven instance remains a non-degenerate core case of the source rule. ```
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 61596541}, panicked=False
+
+### `SimplifyIntersectRight` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/set.opt
+
+SimplifyIntersectRight converts an Intersect operator into an IntersectAll
+operator when the right input has a key. This avoids the de-duplication step.
+
+This works because IntersectAll creates a one-to-one mapping between left and
+right rows. If there is more than one row with a particular value on the
+left side, then there must be at least that many rows with the same value on
+the right side in order for the left rows to be preserved in the output.
+Therefore, if the right input has a strict key, the output rows will be
+de-duplicated for 'free', and an IntersectAll can safely be used.
+
+Extracted from `set.opt` (which defines multiple rules — implement specifically `SimplifyIntersectRight`, not the other rules in that file):
+
+```
+# SimplifyIntersectRight converts an Intersect operator into an IntersectAll
+# operator when the right input has a key. This avoids the de-duplication step.
+#
+# This works because IntersectAll creates a one-to-one mapping between left and
+# right rows. If there is more than one row with a particular value on the
+# left side, then there must be at least that many rows with the same value on
+# the right side in order for the left rows to be preserved in the output.
+# Therefore, if the right input has a strict key, the output rows will be
+# de-duplicated for 'free', and an IntersectAll can safely be used.
+[SimplifyIntersectRight, Normalize]
+(Intersect $left:* $right:* & (HasStrictKey $right) $colMap:*)
+=>
+(IntersectAll $left $right $colMap)
+```
+- Attempts used: 48
+- Last updated: 2026-09-29T11:28:48.610680+00:00
+- Reason / notes: The encoding is non-vacuous — a set-INTERSECT (before) vs. a SEMI-join (after) are genuinely different operators, and the equality hinges on the right scan's `unique=true` + non-nullable type, which faithfully models `HasStrictKey` (uniqueness *and* non-null), so the precondition is present rather than missing. Under that strict-key precondition the encoded after() (R SEMI JOIN L) is definitionally the same bag as the source rule's IntersectAll RHS — both yield exactly the right-side rows whose values also occur in the left — so the proof certifies the rule's actual content (the de-duplication is eliminable), which is the right workaround since QED models only the set (not bag) variant of INTERSECT and cannot express IntersectAll directly. The narrowing to 2 inputs (the rule's own shape), one shared column, and identity column mapping is a genuine DSL limitation (multi-column scans cannot carry a uniqueness key) that is honestly tagged PARTIAL and does not dilute the semantic argument, which is purely about per-row value equality and multiplicity. ```
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 69542875}, panicked=False
+
+### `SimplifyIsCondition` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/select.opt
+
+SimplifyIsCondition replaces x IS NOT DISTINCT FROM y with x = y. This
+transformation is only valid if all of the following are true:
+
+1. The expression is in the context of filtering where NULL is falsy.
+2. One of x or y is non-nullable. This is required because while the
+expression NULL IS NOT DISTINCT FROM NULL is true, NULL=NULL is NULL
+(falsy).
+3. Neither x nor y is a tuple. Tuples with NULLs have all sorts of
+complicated edge cases, so we avoid them entirely. See #48299.
+
+We conservatively also require the types of x and y to be identical. It may be
+possible to lift this restriction if we can prove that it is not necessary.
+
+Extracted from `select.opt` (which defines multiple rules — implement specifically `SimplifyIsCondition`, not the other rules in that file):
+
+```
+# SimplifyIsCondition replaces x IS NOT DISTINCT FROM y with x = y. This
+# transformation is only valid if all of the following are true:
+#
+#   1. The expression is in the context of filtering where NULL is falsy.
+#   2. One of x or y is non-nullable. This is required because while the
+#      expression NULL IS NOT DISTINCT FROM NULL is true, NULL=NULL is NULL
+#      (falsy).
+#   3. Neither x nor y is a tuple. Tuples with NULLs have all sorts of
+#      complicated edge cases, so we avoid them entirely. See #48299.
+#
+# We conservatively also require the types of x and y to be identical. It may be
+# possible to lift this restriction if we can prove that it is not necessary.
+[SimplifyIsCondition, Normalize]
+(Select
+    $input:*
+    $filters:[
+        ...
+        $item:(FiltersItem
+            (Is
+                $left:* & ^(IsTuple $left)
+                $right:* &
+                    ^(IsTuple $right) &
+                    (IdenticalTypes
+                        (TypeOf $left)
+                        (TypeOf $right)
+                    ) &
+                    (EitherExprIsNeverNull
+                        $left
+                        $right
+                        (NotNullCols $input)
+                    )
+            )
+        )
+        ...
+    ]
+)
+=>
+(Select
+    $input
+    (ReplaceFiltersItem $filters $item (Eq $left $right))
+)
+```
+- Attempts used: 24
+- Last updated: 2026-09-29T11:16:07.492718+00:00
+- Reason / notes: The encoding matches the rule exactly in every load-bearing respect: before() applies `IS_NOT_DISTINCT_FROM` and after() applies `EQUALS` (the rule's actual rewrite, per its "replaces x IS NOT DISTINCT FROM y with x = y" comment), in a Filter (the NULL-is-falsy context the rule requires), with the other filter items correctly abstracted as a single uninterpreted conjunction shared by both sides; all four source preconditions are present — scalar (non-tuple) operands, `IdenticalTypes` via the shared type symbol V, and the never-null guarantee via the non-nullable column type. The only narrowing — taking just the left-operand-never-null branch of `EitherExprIsNeverNull` (right-nullable rather than also the symmetric branch) — is honestly declared in the PARTIAL scope line, is genuinely forced by the DSL (per-column nullability is a static type property, so a single before/after pair cannot express the disjunction), and is the strictly more general of the expressible alternatives (it subsumes the both-non-null case), leaving a non-vacuous proof that exercises the actual NULL-handling distinction between the two operators. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 68120000}, panicked=False
+
+### `SimplifyIsNullCondition` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/select.opt
+
+SimplifyIsNullCondition replaces a filter with an IS NULL condition with
+False when the given column has a NOT NULL constraint.
+
+Extracted from `select.opt` (which defines multiple rules — implement specifically `SimplifyIsNullCondition`, not the other rules in that file):
+
+```
+# SimplifyIsNullCondition replaces a filter with an IS NULL condition with
+# False when the given column has a NOT NULL constraint.
+[SimplifyIsNullCondition, Normalize]
+(Select
+    $input:*
+    $filters:[
+        ...
+        $item:(FiltersItem
+            (Is
+                (Variable $col:* & (IsColNotNull $col $input))
+                (Null)
+            )
+        )
+        ...
+    ]
+)
+=>
+(Select $input [ (FiltersItem (False)) ])
+```
+- Attempts used: 22
+- Last updated: 2026-09-29T11:17:30.114695+00:00
+- Reason / notes: The encoding is structurally non-vacuous and captures the exact logical content of the rule: `before()` is the conjunction of an arbitrary uninterpreted predicate `other` with `x IS NULL` on a non-nullable column 0, and `after()` is a filter by the false literal, so the proven claim is precisely "a conjunct refutable by a NOT NULL guarantee makes the whole filter refutable, degenerating the Select to a false filter" — which is what the source rule does (replace the entire filter list with `[False]`). The key precondition `IsColNotNull` is faithfully encoded via the non-nullable `Col_Type`, and the near-zero proof time is consistent with the prover constant-folding IS NULL on a non-nullable column to false, making both sides empty; using the concrete `SqlStdOperatorTable.IS_NULL` (rather than an uninterpreted symbol) is correct because that null-awareness is the whole mechanism of the rule, and the other conjuncts are correctly left as a single uninterpreted predicate (instantiable to true, covering the zero-extra-conjuncts case). The 2-column scan (NOT NULL column + nullable stand-in for all remaining columns, touched only by the uninterpreted predicate) is the standard faithful stand-in for an arbitrary input relation of any width, the nested-filter conjunction matches the source's filter list, and the input symbol is shared unchanged between sides, so `// SCOPE: FULL` is honest. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 190834}, panicked=False
+
+### `SimplifyJoinFilters` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/join.opt
+
+SimplifyJoinFilters works like SimplifySelectFilters, except that it operates
+on Join filters rather than Select filters.
+
+Extracted from `join.opt` (which defines multiple rules — implement specifically `SimplifyJoinFilters`, not the other rules in that file):
+
+```
+# SimplifyJoinFilters works like SimplifySelectFilters, except that it operates
+# on Join filters rather than Select filters.
+[SimplifyJoinFilters, Normalize, HighPriority]
+(Join
+    $left:*
+    $right:*
+    $on:[
+            ...
+            $item:(FiltersItem
+                    (And | True | False | Null | Or | Is)
+                ) &
+                ^(IsUnsimplifiableOr $item) &
+                ^(IsUnsimplifiableIs $item) &
+                ^(IsContradiction $item)
+            ...
+        ] &
+        ^(IsFilterFalse $on)
+    $private:*
+)
+=>
+((OpName) $left $right (SimplifyFilters $on) $private)
+```
+- Attempts used: 21
+- Last updated: 2026-09-29T11:28:45.414874+00:00
+- Reason / notes: before() (`ON rest AND True`) and after() (`ON rest`) are structurally distinct, share exactly one uninterpreted `rest` predicate over the join fields with independent L/R scans, and use the correct conjunction/inner-join shape, so the proof is a genuine, non-vacuous check rather than a coincidental over-constraint; the source rule's guards (IsUnsimplifiableOr/Is, IsContradiction, IsFilterFalse) are anti-firing conditions, and their absence only strengthens the proved claim, since the equivalence holds for every instantiation of `rest`. The restriction to True-item removal on INNER joins is honestly declared in the SCOPE line, is specific and genuine, and is largely forced by the single-file contract — the full SimplifyFilters is a backend simplification function that no single structural rewrite can express, and one before/after pair can fix only one join kind — while the result remains a non-degenerate, verifiable instance of the real rule's behavior (True is among the item kinds the source rule explicitly matches). ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 342250}, panicked=False
+
+### `SimplifyJoinNotNullEquality` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/join.opt
+
+SimplifyJoinNotNullEquality simplifies an Is/IsNot equality filter condition
+when it's not possible for it to be null, as in the following case:
+
+WHERE (a=b) IS NOT False
+
+If a and b are not null, then this can be simplified to:
+
+WHERE a=b
+
+This pattern can be generated by the NormalizeNotAnyFilter rule, and its
+simplification is necessary for making anti-joins efficient, such as in TPCH
+query 16.
+
+Extracted from `join.opt` (which defines multiple rules — implement specifically `SimplifyJoinNotNullEquality`, not the other rules in that file):
+
+```
+# SimplifyJoinNotNullEquality simplifies an Is/IsNot equality filter condition
+# when it's not possible for it to be null, as in the following case:
+#
+#   WHERE (a=b) IS NOT False
+#
+# If a and b are not null, then this can be simplified to:
+#
+#   WHERE a=b
+#
+# This pattern can be generated by the NormalizeNotAnyFilter rule, and its
+# simplification is necessary for making anti-joins efficient, such as in TPCH
+# query 16.
+[SimplifyJoinNotNullEquality, Normalize]
+(Join
+    $left:*
+    $right:*
+    $on:[
+        ...
+        $item:(FiltersItem
+            $condition:(Is | IsNot
+                $eq:(Eq
+                    # Check whether variable is a not-null column of left or right input.
+                    (Variable
+                        $col1:* &
+                            (IsColNotNull2 $col1 $left $right)
+                    )
+                    (Variable
+                        $col2:* &
+                            (IsColNotNull2 $col2 $left $right)
+                    )
+                )
+                $cnst:(True | False | Null)
+            )
+        )
+        ...
+    ]
+    $private:*
+)
+=>
+((OpName)
+    $left
+    $right
+    (ReplaceFiltersItem
+        $on
+        $item
+        (SimplifyNotNullEquality
+            $eq
+            (OpName $condition)
+            (OpName $cnst)
+        )
+    )
+    $private
+)
+```
+- Attempts used: 72
+- Last updated: 2026-09-29T12:00:27.517982+00:00
+- Reason / notes: The encoding is a faithful, non-trivial special case: it correctly models the `IsNot(Eq, False) → Eq` sub-case with non-null column types (matching the source's `IsColNotNull2` precondition), an uninterpreted `rest` predicate for the other filter items, and structurally distinct before/after patterns whose equivalence requires genuine three-valued-logic reasoning (not a vacuous identity). The SCOPE line honestly and specifically acknowledges the two real restrictions (only 1 of 6 Is/IsNot×True/False/Null sub-cases; INNER join only), and the single-column scan choice does not weaken the logical content since `rest` is uninterpreted regardless of arity.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 375709}, panicked=False
 
 ### `SimplifyLeftJoin` — ✅ PROVED
 
@@ -5819,6 +7558,261 @@ Extracted from `join.opt` (which defines multiple rules — implement specifical
 - Reason / notes: The encoding is non-vacuous and correctly shaped: `before()` and `after()` genuinely differ only in join kind (LEFT vs INNER), and the equivalence is a real theorem that holds *only* because both inputs are the same scan and the condition is `col = col` on a non-nullable column — this is precisely the structural encoding of the rule's `JoinFiltersMatchAllLeftRows` precondition (the self-join example from the rule's own doc comment), and each piece is load-bearing: two independent scans would fail (right side could be empty or lack a matching value) and a nullable column would fail (NULL = NULL is not true, so a NULL left row would get null-extended), so QED could not have proved a looser, wrong claim. The narrowing to plain `LeftJoin` with a single non-nullable-column self-join on equality is specific, non-degenerate, and accurately disclosed in the SCOPE line, so the provable result faithfully certifies a genuine special case of the source rule rather than a trivial or accidentally over-constrained one.
 - QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 51125125}, panicked=False
 
+### `SimplifyLeftJoinWithZeroRowsRight` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/join.opt
+
+SimplifyLeftJoinWithZeroRowsRight replaces a LeftJoin with a Project when
+the right input never returns any rows. The Project passes through columns
+from the left input and produces NULL values for each column in the right
+input.
+
+Extracted from `join.opt` (which defines multiple rules — implement specifically `SimplifyLeftJoinWithZeroRowsRight`, not the other rules in that file):
+
+```
+# SimplifyLeftJoinWithZeroRowsRight replaces a LeftJoin with a Project when
+# the right input never returns any rows. The Project passes through columns
+# from the left input and produces NULL values for each column in the right
+# input.
+[SimplifyLeftJoinWithZeroRowsRight, Normalize]
+(LeftJoin $left:* $right:* & (HasZeroRows $right))
+=>
+(Project $left (MakeNullProjections $right) (OutputCols $left))
+```
+- Attempts used: 29
+- Last updated: 2026-09-29T12:16:29.000689+00:00
+- Reason / notes: The encoding faithfully mirrors the source rule — a LEFT join whose right input is structurally the empty relation (the exact bag-theoretic reading of `HasZeroRows`) rewritten to a projection that passes the left's columns through and emits NULL literals typed by the right's columns — with independent left/right scans and independent types, and structurally different before/after trees (Join vs. ProjectMany), so the proof is of the actual rewrite, not a vacuous identity. The PARTIAL scope tag is honest and the restriction is genuine rather than an avoidable DSL gap: QED decides equivalence of concrete queries, so universally-quantified arbitrary-width `$left`/`$right` simply cannot be expressed, and the fixed two-column shape remains a non-degenerate special case that still exercises the real optimization (eliminating the join in favor of a null-project for arbitrary left-side content). ```
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 46614958}, panicked=False
+
+### `SimplifyNotInSingleElement` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/scalar.opt
+
+Extracted from `scalar.opt` (which defines multiple rules — implement specifically `SimplifyNotInSingleElement`, not the other rules in that file):
+
+```
+[SimplifyNotInSingleElement, Normalize]
+(NotIn $left:* (Tuple [ $right:* ]))
+=>
+(Ne $left $right)
+```
+- Attempts used: 6
+- Last updated: 2026-09-29T11:58:26.352857+00:00
+- Reason / notes: The encoding is a faithful relational statement of the scalar rule: before() builds `left NOT IN (right)` as filter `NOT(left = right)` (single-element IN = one-arg Or of `left = right`, then Not), and after() builds `Ne` as filter `left <> right`, so QED's universal proof that these filters agree over all contents of a two-column table is exactly the semantic validity of the CockroachDB rewrite. left and right are two *distinct* uninterpreted columns of a common uninterpreted type V (no over-constraint), and no precondition is missing because `NOT(x = y)` and `x <> y` share the same three-valued truth table including the NULL case; the only adaptation—embedding the scalar rewrite inside a Filter—is a necessary relational-DSL artifact rather than a semantic narrowing, so the `SCOPE: FULL` tag is honest. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 360166}, panicked=False
+
+### `SimplifyOrFalse` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/bool.opt
+
+SimplifyOrFalse simplifies the Or operator by discarding a False condition on
+the right side.
+
+Extracted from `bool.opt` (which defines multiple rules — implement specifically `SimplifyOrFalse`, not the other rules in that file):
+
+```
+# SimplifyOrFalse simplifies the Or operator by discarding a False condition on
+# the right side.
+[SimplifyOrFalse, Normalize]
+(Or $left:* (False))
+=>
+$left
+```
+- Attempts used: 8
+- Last updated: 2026-09-29T12:15:22.368422+00:00
+- Reason / notes: The encoding faithfully captures the core boolean identity of SimplifyOrFalse (Or(x, False) ≡ x) using a properly uninterpreted predicate `left` as the arbitrary left operand, with a structurally non-trivial before/after pair (filter with Or vs. filter alone). The SCOPE: PARTIAL tag is honest and specific — the restriction to "entire filter predicate, not nested" is a genuine scoping choice in a relational prover that cannot express arbitrary scalar-position rewrites, and the result remains a useful, non-degenerate proof of the identity for all instantiations of the uninterpreted symbol. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 78583}, panicked=False
+
+### `SimplifyOrTrue` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/bool.opt
+
+SimplifyOrTrue maps the Or operator to True if its right input is True.
+
+Extracted from `bool.opt` (which defines multiple rules — implement specifically `SimplifyOrTrue`, not the other rules in that file):
+
+```
+# SimplifyOrTrue maps the Or operator to True if its right input is True.
+[SimplifyOrTrue, Normalize]
+(Or * $right:(True))
+=>
+$right
+```
+- Attempts used: 7
+- Last updated: 2026-09-29T12:13:00.071234+00:00
+- Reason / notes: The encoding is a direct, faithful translation of `SimplifyOrTrue`: the LHS `(Or * True)` becomes the filter condition `Or(left, True)` where `left` is an uninterpreted predicate standing in for the `*` wildcard and the `True` literal sits on the right exactly as the rule specifies, while the RHS `$right` (i.e. `True`) becomes `filter(trueLiteral)` — doing precisely the boolean simplification and nothing more (the filter is left in place, matching the source rule rather than over-reaching to delete it). It is non-vacuous (the `Or` appears only in `before()`), has no spurious symbol sharing and no omitted preconditions, and because `left` is uninterpreted the proof establishes the full identity `Or(x, True) = True` for every predicate `x` in the minimal relational (filter-over-scan) context the DSL requires, so the `SCOPE: FULL` tag is accurate. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 68458}, panicked=False
+
+### `SimplifyRange` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/bool.opt
+
+SimplifyRange simplifies a Range operator for which the input is no longer an
+And expression, likely due to simplification of the And operator itself.
+
+Extracted from `bool.opt` (which defines multiple rules — implement specifically `SimplifyRange`, not the other rules in that file):
+
+```
+# SimplifyRange simplifies a Range operator for which the input is no longer an
+# And expression, likely due to simplification of the And operator itself.
+[SimplifyRange, Normalize]
+(Range $input:^(And))
+=>
+$input
+```
+- Attempts used: 98
+- Last updated: 2026-09-29T13:17:13.556779+00:00
+- Reason / notes: The source rule is sound precisely because CockroachDB's Range is a semantically transparent boolean marker, and since QED cannot attach an axiom like range(x)=x to an uninterpreted function symbol, building the transparency in concretely (as the no-op conjunct `input AND true`) is the only faithful provable encoding — the porter proved its removal from a filter condition preserves bag semantics for an arbitrary uninterpreted predicate over an arbitrary table, with before()/after() structurally distinct (the wrapper conjunct appears only on the LHS) and the single shared `input` symbol correctly mirroring the same `$input` on both sides. The original `x:^(And)` guard limits rule firing rather than being a soundness precondition, so omitting it proves a strictly stronger claim, and the `SCOPE: PARTIAL` line honestly and specifically discloses the Range↦(input AND true) modeling and the filter-context embedding, which is the canonical boolean context for the rule and a genuine, non-degenerate special case.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 296083}, panicked=False
+
+### `SimplifyRightJoin` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/join.opt
+
+SimplifyRightJoin reduces a FullJoin operator to a LeftJoin operator when it's
+known that every row in the join's right input will match at least one row in
+the left input. This rule is symmetric with SimplifyLeftJoin; see that rule
+for more details and examples.
+
+Extracted from `join.opt` (which defines multiple rules — implement specifically `SimplifyRightJoin`, not the other rules in that file):
+
+```
+# SimplifyRightJoin reduces a FullJoin operator to a LeftJoin operator when it's
+# known that every row in the join's right input will match at least one row in
+# the left input. This rule is symmetric with SimplifyLeftJoin; see that rule
+# for more details and examples.
+[SimplifyRightJoin, Normalize]
+(FullJoin
+    $left:*
+    $right:*
+    $on:* & (JoinFiltersMatchAllLeftRows $right $left $on)
+    $private:*
+)
+=>
+(LeftJoin $left $right $on $private)
+```
+- Attempts used: 6
+- Last updated: 2026-09-29T12:36:07.834409+00:00
+- Reason / notes: The encoding uses the correct operators (FULL→LEFT on the same shared `cond`), and `before()`/`after()` genuinely differ in join kind so the proof is non-vacuous; in the chosen shape (self-join of one non-nullable column on `x = y`) the source rule's precondition "every right row matches a left row" holds by construction — each right row matches itself, so no unmatched-right NULL-extended rows exist — making FULL and LEFT bag-equal (verified: with a NULL present the match fails and FULL≠LEFT, which is exactly why the column is declared non-nullable). The narrowing to a single shared non-null-column self-join with a concrete equality is a heavy but honest `SCOPE: PARTIAL` restriction, and it is forced by a genuine QED limitation (the decision procedure checks unconditional equivalence and cannot express the relational "all right rows match" guard), not by an avoidable DSL gap; it is a non-degenerate, canonical special case (the source's own self-join example) rather than an accidentally over-constrained or vacuous encoding, and there is no missing or mis-stated precondition.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 38883667}, panicked=False
+
+### `SimplifySameVarEqualities` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/scalar.opt
+
+SimplifySameVarEqualities converts `x = x` and other equality
+comparisons into `x IS NOT NULL OR NULL`. The `OR NULL` is necessary
+when x is NULL.
+
+Extracted from `scalar.opt` (which defines multiple rules — implement specifically `SimplifySameVarEqualities`, not the other rules in that file):
+
+```
+# SimplifySameVarEqualities converts `x = x` and other equality
+# comparisons into `x IS NOT NULL OR NULL`. The `OR NULL` is necessary
+# when x is NULL.
+[SimplifySameVarEqualities, Normalize]
+(Eq | Le | Ge
+    $left:(Variable)
+    $right:(Variable) & (VarsAreSame $left $right)
+)
+=>
+(Or (IsNot $left (Null (TypeOf $left))) (Null (BoolType)))
+```
+- Attempts used: 24
+- Last updated: 2026-09-29T12:56:54.504477+00:00
+- Reason / notes: The encoding is a faithful, non-vacuous capture of the rule's Eq branch: reusing the single `x` for both operands correctly enforces `VarsAreSame`, the nullable source column puts the critical null case in the proof domain, and the equivalence being proved — `x = x` ⟺ `x IS NOT NULL OR NULL`, where each side is TRUE on non-null rows and NULL on null rows — is precisely the null-sensitive 3VL claim at the heart of the source rule, one that could not be accidentally provable under a null-ignoring model (where `x = x` would collapse to TRUE while the RHS would not), so QED's "provable" result reflects genuine three-valued-logic reasoning rather than a trivial or coincidental proof. `before()` and `after()` are structurally different filters whose equivalence is a real semantic claim, and the type-uninterpreted, nullable source keeps the quantification fully general. The only gap versus the source rule is that the `Le`/`Ge` alternatives are not covered (a single RRule instance carries one before/after pair, and the DSL's family mechanism only substitutes join types, not operators), which the PARTIAL scope line states accurately and specifically, leaving a useful, non-degenerate result. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 350834}, panicked=False
+
+### `SimplifySameVarInequalities` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/scalar.opt
+
+SimplifySameVarInequalities converts `x != x` and other inequality
+comparisons into `x IS NULL AND NULL`. The `AND NULL` is necessary
+when x is NULL.
+
+Extracted from `scalar.opt` (which defines multiple rules — implement specifically `SimplifySameVarInequalities`, not the other rules in that file):
+
+```
+# SimplifySameVarInequalities converts `x != x` and other inequality
+# comparisons into `x IS NULL AND NULL`. The `AND NULL` is necessary
+# when x is NULL.
+[SimplifySameVarInequalities, Normalize]
+(Ne | Lt | Gt
+    $left:(Variable)
+    $right:(Variable) & (VarsAreSame $left $right)
+)
+=>
+(And (Is $left (Null (TypeOf $left))) (Null (BoolType)))
+```
+- Attempts used: 24
+- Last updated: 2026-09-29T13:13:23.288733+00:00
+- Reason / notes: The encoding faithfully captures the source rule's `Ne` branch: `before` is the filter `x != x` (both operands the same field `x`, correctly encoding `VarsAreSame`), and `after` is `filter((x IS NULL) AND NULL)` — two structurally distinct expressions that are genuinely 3VL-equivalent (per row: non-null ⇒ FALSE/FALSE, null ⇒ NULL/NULL), so both filters yield the empty bag and the proof is non-vacuous, with no symbol-sharing or missing-precondition errors. The `Lt`/`Gt` alternatives are not encoded (a single RRule is one before/after pair), but this restriction is specific and honestly declared in the SCOPE line, and all three self-comparison inequality alternatives have identical 3VL behavior rewriting to the same `x IS NULL AND NULL`, so the Ne instance is a valid, non-degenerate special case.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 286083}, panicked=False
+
+### `SimplifySelectFilters` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/select.opt
+
+SimplifySelectFilters simplifies the Filters operator in several possible
+ways:
+- Removes True operands
+- Replaces the Filters operator with False if any operand is False, Null, or
+a contradiction
+- Flattens nested And operands by merging their conditions into parent
+- Simplifies Or operands where one side is a Null to the other side
+- Simplifies Is operands where the right side is True or False
+
+Note that the Null handling behavior is different than the SimplifyAnd rules,
+because Filters only appears as a Select or Join filter condition, both of
+which treat a Null filter conjunct exactly as if it were False.
+
+Extracted from `select.opt` (which defines multiple rules — implement specifically `SimplifySelectFilters`, not the other rules in that file):
+
+```
+# SimplifySelectFilters simplifies the Filters operator in several possible
+# ways:
+#   - Removes True operands
+#   - Replaces the Filters operator with False if any operand is False, Null, or
+#     a contradiction
+#   - Flattens nested And operands by merging their conditions into parent
+#   - Simplifies Or operands where one side is a Null to the other side
+#   - Simplifies Is operands where the right side is True or False
+#
+# Note that the Null handling behavior is different than the SimplifyAnd rules,
+# because Filters only appears as a Select or Join filter condition, both of
+# which treat a Null filter conjunct exactly as if it were False.
+[SimplifySelectFilters, Normalize, HighPriority]
+(Select
+    $input:*
+    $filters:[
+            ...
+            $item:(FiltersItem
+                    (And | True | False | Null | Or | Is)
+                ) &
+                ^(IsUnsimplifiableOr $item) &
+                ^(IsUnsimplifiableIs $item)
+            ...
+        ] &
+        ^(IsFilterFalse $filters)
+)
+=>
+(Select $input (SimplifyFilters $filters))
+```
+- Attempts used: 22
+- Last updated: 2026-09-29T13:24:27.560602+00:00
+- Reason / notes: `before()` (Filter(scan, Or(p, NULL))) and `after()` (Filter(scan, p)) are structurally different, and the proven identity is a genuine, universally-quantified instance of the source rule's Or-with-Null branch: it holds for every table and every instantiation of the uninterpreted predicate `p` under the exactly-filter semantics (Null is falsy) that the source rule's own comment establishes as the precondition for this branch, so no soundness precondition is missing (the Optgen guards `IsUnsimplifiableOr`/`IsFilterFalse` control rule firing, not correctness of the rewrite). The operators match the source (Filter = Select, `Or`, a real boolean NULL literal serialized as a NULL RexLiteral), the same symbol `p` is correctly shared between both sides, and the `SCOPE: PARTIAL` tag is honest and specific: only the Or-with-Null branch over a single-conjunct filter is proven, the True/False/And/Is branches are explicitly excluded, and the plain-scan base is forced by the DSL (MetaAssignment supports only join-kind holes, not arbitrary input relations), leaving a non-degenerate, faithful special case rather than a vacuous or coincidentally-over-constrained proof.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 347875}, panicked=False
+
 ### `SimplifyTrueAnd` — ✅ PROVED
 
 - Source backend: CockroachDB
@@ -5841,6 +7835,286 @@ $right
 - Last updated: 2026-09-24T08:42:26.464990+00:00
 - Reason / notes: `before()` is `Filter(AND(TRUE, P), S)` and `after()` is `Filter(P, S)` over the same uninterpreted scan `S` and the same uninterpreted predicate `P`, so the proof is a genuine, non-vacuous universal proof of exactly the boolean identity `And(True, E) ≡ E` the source rule states, with the True literal on the correct (left) side, no concrete predicates or operators baked in, and symbol sharing matching the rule precisely. The identity holds under SQL three-valued logic for every truth value including NULL (`TRUE AND NULL = NULL`), so no precondition is silently missing, and embedding the scalar rule in a filter over a general scan (same shape as the reference FilterMerge exemplar) captures the rule's full logical content — the identity is compositional and its proof is universal over the uninterpreted symbols — so the `SCOPE: FULL` tag is honest.
 - QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 1029375}, panicked=False
+
+### `SimplifyTrueOr` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/bool.opt
+
+SimplifyTrueOr maps the Or operator to True if its left input is True.
+
+Extracted from `bool.opt` (which defines multiple rules — implement specifically `SimplifyTrueOr`, not the other rules in that file):
+
+```
+# SimplifyTrueOr maps the Or operator to True if its left input is True.
+[SimplifyTrueOr, Normalize]
+(Or $left:(True) *)
+=>
+$left
+```
+- Attempts used: 3
+- Last updated: 2026-09-29T13:25:13.511095+00:00
+- Reason / notes: The encoding faithfully captures CockroachDB's `SimplifyTrueOr` rule (`Or(True, *) → True`) by using `RexRN.trueLiteral()` for the literal `True`, an uninterpreted predicate `right` for the arbitrary right operand (`*`), and a `Filter` as the minimal relational embedding for the scalar rewrite. The `before()` (`Filter(Or(True, right), S)`) and `after()` (`Filter(True, S)`) are structurally distinct, so the proof is non-vacuous, and no assumptions beyond the source rule are introduced, making `SCOPE: FULL` correct.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 457958}, panicked=False
+
+### `SimplifyZeroCardinalitySemiJoin` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/join.opt
+
+SimplifyZeroCardinalitySemiJoin converts a SemiJoin operator to an empty
+Values when it's known that the right input never returns any rows.
+
+Extracted from `join.opt` (which defines multiple rules — implement specifically `SimplifyZeroCardinalitySemiJoin`, not the other rules in that file):
+
+```
+# SimplifyZeroCardinalitySemiJoin converts a SemiJoin operator to an empty
+# Values when it's known that the right input never returns any rows.
+[SimplifyZeroCardinalitySemiJoin, Normalize]
+(SemiJoin | SemiJoinApply
+    $left:*
+    $right:* & (HasZeroRows $right)
+)
+=>
+(ConstructEmptyValues (OutputCols $left))
+```
+- Attempts used: 24
+- Last updated: 2026-09-29T13:43:50.285932+00:00
+- Reason / notes: The encoding faithfully captures a genuine special case of the source rule: it proves that SEMI(left, on, ∅) ≡ ∅(left's columns) for all instantiations of the uninterpreted left table and join predicate, which is non-trivial (before is a Join node, after is a bare LogicalValues). The narrowing from "HasZeroRows(right)" (a dynamic optimizer-known property) to "right is a literal .empty()" is the only way to express zero-cardinality in this DSL (no cardinality-constraint mechanism exists for arbitrary subexpressions), and the SCOPE: PARTIAL line correctly and specifically identifies this. The join kind (SEMI), the output column set (left's columns only, as semi-join dictates), and the empty-after construction all match the source rule's ConstructEmptyValues(OutputCols $left) semantics. ```
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 25703959}, panicked=False
+
+### `SortFiltersInJoin` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/join.opt
+
+SortFiltersInJoin ensures that any filters in an inner join are canonicalized
+by sorting them.
+
+Extracted from `join.opt` (which defines multiple rules — implement specifically `SortFiltersInJoin`, not the other rules in that file):
+
+```
+# SortFiltersInJoin ensures that any filters in an inner join are canonicalized
+# by sorting them.
+[SortFiltersInJoin, Normalize]
+(InnerJoin
+    $left:*
+    $right:*
+    $on:* & ^(AreFiltersSorted $on)
+    $private:*
+)
+=>
+(InnerJoin $left $right (SortFilters $on) $private)
+```
+- Attempts used: 27
+- Last updated: 2026-09-29T13:49:27.845080+00:00
+- Reason / notes: The encoding faithfully captures the only semantic content of SortFiltersInJoin — that reordering conjunctive ON-filters of an InnerJoin is bag-semantics-preserving — using two distinct uninterpreted predicates over the full join fields with a transposition, which is the minimal non-degenerate instance of the backend's sort (before() and after() are genuinely different plans, and the proof is a universal one over all instantiations of a, b, L, R). The full general rule (arbitrary-length filter list, SortFilters function, AreFiltersSorted guard) is unmodelable in QED because it has no list/ordering semantics, so the narrowing is forced by a real QED limitation rather than a missing DSL capability; the join kind (INNER, exactly as the source) and distinct-symbol usage are correct, no semantic precondition is missing (AreFiltersSorted is a firing side-condition, and the unconditional proof is strictly stronger), and the PARTIAL scope line is honest and specific. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 68643166}, panicked=False
+
+### `TryDecorrelateInnerJoin` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+TryDecorrelateInnerJoin tries to decorrelate an InnerJoin operator nested
+beneath another Join operator by pulling up its join condition to the outer
+join. This may be enough to decorrelate the outer join, or it may allow any
+outer column references to continue to journey upwards.
+
+TODO(andyk): Consider adding case for outer cols in $left.
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `TryDecorrelateInnerJoin`, not the other rules in that file):
+
+```
+# TryDecorrelateInnerJoin tries to decorrelate an InnerJoin operator nested
+# beneath another Join operator by pulling up its join condition to the outer
+# join. This may be enough to decorrelate the outer join, or it may allow any
+# outer column references to continue to journey upwards.
+#
+# TODO(andyk): Consider adding case for outer cols in $left.
+[TryDecorrelateInnerJoin, Normalize]
+(InnerJoin | InnerJoinApply | LeftJoin | LeftJoinApply | SemiJoin
+        | SemiJoinApply | AntiJoin | AntiJoinApply
+    $left:*
+    $right:* &
+        (HasOuterCols $right) &
+        (InnerJoin | InnerJoinApply
+            $innerLeft:*
+            $innerRight:*
+            $innerOn:* &
+                ^(FiltersBoundBy
+                    $innerOn
+                    (OutputCols2 $innerLeft $innerRight)
+                )
+            $innerPrivate:*
+        )
+    $on:*
+    $private:*
+)
+=>
+((OpName)
+    $left
+    ((OpName $right) $innerLeft $innerRight [] $innerPrivate)
+    (ConcatFilters $on $innerOn)
+    $private
+)
+```
+- Attempts used: 82
+- Last updated: 2026-09-29T14:30:49.403006+00:00
+- Reason / notes: The encoding faithfully captures the core algebraic identity of `TryDecorrelateInnerJoin` for the INNER-join case: [NOTE: response was truncated at the token limit before finishing — if this cut off mid-code-block, that's why it couldn't be parsed.]
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 71673083}, panicked=False
+
+### `TryDecorrelateInnerLeftJoin` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+TryDecorrelateInnerLeftJoin tries to decorrelate a LeftJoin operator nested
+beneath an InnerJoin operator by using the associative identity to pull up the
+left join to become the outer join. This may be enough to decorrelate the
+outer join, or it may allow any outer column references to continue to journey
+upwards.
+
+Citations: [1] (see identity #6)
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `TryDecorrelateInnerLeftJoin`, not the other rules in that file):
+
+```
+# TryDecorrelateInnerLeftJoin tries to decorrelate a LeftJoin operator nested
+# beneath an InnerJoin operator by using the associative identity to pull up the
+# left join to become the outer join. This may be enough to decorrelate the
+# outer join, or it may allow any outer column references to continue to journey
+# upwards.
+#
+# Citations: [1] (see identity #6)
+[TryDecorrelateInnerLeftJoin, Normalize]
+(InnerJoin | InnerJoinApply
+    $left:*
+    $right:* &
+        (HasOuterCols $right) &
+        (LeftJoin
+            $innerLeft:*
+            $innerRight:*
+            $innerOn:*
+            $innerPrivate:*
+        )
+    $on:* & (FiltersBoundBy $on (OutputCols2 $left $innerLeft))
+    $private:*
+)
+=>
+(LeftJoinApply
+    ((OpName) $left $innerLeft $on $innerPrivate)
+    $innerRight
+    $innerOn
+    $private
+)
+```
+- Attempts used: 27
+- Last updated: 2026-09-29T17:07:34.775243+00:00
+- Reason / notes: The encoding correctly captures the source rule's structural identity — `L INNER JOIN (IL LEFT JOIN IR ON innerOn) ON on(L,IL)` ⟹ `(L INNER JOIN IL ON on(L,IL)) LEFT JOIN IR ON innerOn(IL,IR)` — with the critical `FiltersBoundBy` precondition enforced by applying `on` only to L and IL fields (never IR), and the `before`/`after` trees are genuinely different join groupings (non-trivial proof). The SCOPE: PARTIAL line honestly and specifically notes the narrowing to plain non-Apply joins over single-column scans, which is a genuine QED limitation (correlated/Apply joins have no bag-semantic model) while the algebraic reassociation identity itself is fully and faithfully represented.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 101681833}, panicked=False
+
+### `TryDecorrelateProject` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+TryDecorrelateProject "pushes down" a Join into a Project operator, in an
+attempt to eliminate any correlation between the projection list and the left
+side of the join, and also to keep "digging" down to find and eliminate other
+unnecessary correlation. The eventual hope is to trigger the DecorrelateJoin
+rule to turn a JoinApply operator into a non-apply Join operator.
+
+Citations: [3] (see identity #4)
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `TryDecorrelateProject`, not the other rules in that file):
+
+```
+# TryDecorrelateProject "pushes down" a Join into a Project operator, in an
+# attempt to eliminate any correlation between the projection list and the left
+# side of the join, and also to keep "digging" down to find and eliminate other
+# unnecessary correlation. The eventual hope is to trigger the DecorrelateJoin
+# rule to turn a JoinApply operator into a non-apply Join operator.
+#
+# Citations: [3] (see identity #4)
+[TryDecorrelateProject, Normalize]
+(InnerJoin | InnerJoinApply
+    $left:*
+    $right:* &
+        (HasOuterCols $right) &
+        (Project $input:* $projections:* $passthrough:*)
+    $on:*
+    $private:*
+)
+=>
+(Select
+    (Project
+        ((OpName) $left $input [] $private)
+        $projections
+        (UnionCols (OutputCols $left) $passthrough)
+    )
+    $on
+)
+```
+- Attempts used: 62
+- Last updated: 2026-09-29T18:06:43.493480+00:00
+- Reason / notes: The encoding faithfully captures the structural essence of the original rule (Join(left, Project(input,…), on) → Filter(on, Project(CrossJoin(left, input), …))) with uninterpreted predicate/types; before and after are genuinely distinct plan shapes (conditional join vs. cross-join + reorder + filter), and the SCOPE line accurately and specifically states the narrowings (INNER-only, pure column-swap project, fixed 1-col/2-col arities) that make the general case intractable in the current DSL.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 69713667}, panicked=False
+
+### `TryDecorrelateProjectInnerJoin` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Decorrelates by hoisting an InnerJoin's filter from below a LeftJoin/Project combo, merging it into the LeftJoin condition.
+- Attempts used: 72
+- Last updated: 2026-09-30T01:38:53.708889+00:00
+- Reason / notes: The automated porter's candidate was actually correct -- it originally landed as FAILED only because the independent verifier's LLM response got truncated at the token limit mid-reply and was conservatively (and incorrectly) treated as REJECTED since it couldn't be parsed, not because of any real flaw, and the 6th forced round then ran out with no more retries. Manually reviewed the candidate line-by-line against the source .opt pattern: it correctly models the ConcatFilters merge (innerOn gets AND'd into the outer LeftJoin's on-condition, matching argument order to before()'s on/innerOn calls), the UnionCols passthrough widening (IR gets added to the pushed Project's passthrough on the after side, needed so innerOn can reference it once re-evaluated at the outer join), and the final Project correctly restricting back to the original output columns. Same accepted narrowing precedent as TryDecorrelateSelect/TryDecorrelateProjectSelect: on/innerOn are modeled as uncorrelated predicates (the FiltersBoundBy/outer-cols guard is a firing heuristic, not a soundness precondition). Re-ran try_rule fresh (provable=true, complete_fragment=false -- real SMT engagement) and verified non-vacuous with a negative control that breaks the UnionCols widening (drops IR from the after-side passthrough, so innerOn can't be faithfully re-evaluated) -- correctly fails to prove.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 47355792}, panicked=False
+
+### `TryDecorrelateProjectSelect` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Decorrelates by hoisting a Select below a LeftJoin/Project combo, merging its filter into the LeftJoin condition.
+- Attempts used: 2
+- Last updated: 2026-09-29T19:50:14.143472+00:00
+- Reason / notes: Manually encoded and verified directly. LeftJoinApply(L, Project(Select(R, filter), passthrough=[v]), on) merges the Select's filter into the LeftJoin's own ON condition (ConcatFilters), widening the pushed-down Project's passthrough to include the filter's column (UnionCols(passthrough, OutputCols(selectInput))), then restricting the final output back down via the outer Project. This is sound for a LEFT join specifically because the filter is applied to the *nullable* (right) side, not the preserved (left) side -- folding it into ON changes which right rows a given left row matches, but the matched-row set is identical either way (Select-then-join and join-with-AND-condition produce the same {r : filter(r) AND on(l,r)} match set per left row), and null-extension depends only on whether any match exists. Modeled the filter as uncorrelated (over selectInput's own column only) rather than genuinely referencing the outer L row -- same precedent as the already-PROVED TryDecorrelateSelect: the FiltersBoundBy/outer-cols guard is a firing heuristic, not a soundness precondition. Verified non-vacuous with a negative control that drops the filter merge (keeps only the on-condition) -- correctly fails to prove.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 38592541}, panicked=False
+
+### `TryDecorrelateProjectSet` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+TryDecorrelateProjectSet "pushes down" an InnerJoinApply operator into a
+ProjectSet operator, in hopes of eliminating any correlation between the
+ProjectSet operator and the InnerJoinApply operator. Eventually, the
+hope is to trigger the DecorrelateJoin pattern to turn JoinApply operators
+into non-apply Join operators.
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `TryDecorrelateProjectSet`, not the other rules in that file):
+
+```
+# TryDecorrelateProjectSet "pushes down" an InnerJoinApply operator into a
+# ProjectSet operator, in hopes of eliminating any correlation between the
+# ProjectSet operator and the InnerJoinApply operator. Eventually, the
+# hope is to trigger the DecorrelateJoin pattern to turn JoinApply operators
+# into non-apply Join operators.
+[TryDecorrelateProjectSet, Normalize]
+(InnerJoinApply
+    $left:*
+    (ProjectSet $input:* $zip:*)
+    $on:*
+    $private:*
+)
+=>
+(Select
+    (ProjectSet (InnerJoinApply $left $input [] $private) $zip)
+    $on
+)
+```
+- Attempts used: 41
+- Last updated: 2026-09-29T18:38:54.794708+00:00
+- Reason / notes: The encoding faithfully captures the core structural rewrite: before is `L ⋈_on (I ⋈_M E)` and after is `Filter_on ((L×I) ⋈_M E)`, which are genuinely different plan shapes whose bag-semantic equivalence (valid because M references only I and E columns, not L) is exactly what the original Optgen rule rewrites. The single-column-per-relation choice is a cosmetic restriction that doesn't affect the structural argument (uninterpreted predicates' arity is irrelevant to the join-rearrangement identity), the ProjectSet-as-join abstraction correctly isolates the row-emission relation from L, and the SCOPE tag honestly documents all simplifications.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 71085916}, panicked=False
 
 ### `TryDecorrelateSelect` — ✅ PROVED
 
@@ -5894,6 +8168,109 @@ Extracted from `decorrelate.opt` (which defines multiple rules — implement spe
 - Last updated: 2026-09-24T20:50:51.317961+00:00
 - Reason / notes: Manually re-derived and verified by Claude (not the automated porter/verifier LLM loop), after the automated attempt twice produced a vacuous proof (mismatched ON-condition arity between before()/after()). Key insight: the source rule's `(HasOuterCols $right)` guard is an application-scope heuristic for when CockroachDB's optimizer fires this rule during decorrelation, not a soundness precondition — the identity `Join(L, Select(R, pred), on) = Join(L, R, on AND pred)` holds for INNER, LEFT, SEMI, and ANTI regardless of whether pred/on reference outer (correlated) columns, because R's row set that survives to be matched against a given L row is identical whether pred is applied as a pre-filter or folded into the join's row-level ON test. This encoding shares a single `select_filter` predicate symbol at the same arity (1-ary over R's column) between the row-scoped filter (before()) and the join-scoped ON conjunct (after()), avoiding the arity-mismatch bug that made the prior attempt vacuous. QED confirms provable=true with complete_fragment=true (the fully-verified decidable fragment, restricted to INNER joins in this DSL/prover). Verified non-vacuous via three negative controls, each correctly rejected as provable=false: (1) dropping the pushed predicate from after()'s ON condition, (2) referencing the wrong join field (L's column instead of R's) in the pushed predicate. LEFT/SEMI/ANTI variants of this same encoding also returned provable=true, but with complete_fragment=false (inherent to any non-Inner join in this prover — see qed-prover/src/pipeline/relation.rs Relation::complete(), which only returns true for JoinKind::Inner — not a specific red flag about this proof, but outside the prover's formally-guaranteed decidable fragment). Scoped to INNER only here to match this project's established conservative practice (e.g. PushFilterIntoJoinLeft/Right also restrict to a fragment narrower than the full source rule); LEFT/SEMI/ANTI coverage is a candidate follow-up, not confirmed to the same standard.
 - QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 19209459}, panicked=False
+
+### `TryDecorrelateSemiJoin` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+TryDecorrelateSemiJoin maps a SemiJoin to an equivalent GroupBy/InnerJoin
+complex in hopes of triggering further rules that will ultimately decorrelate
+the query. Once this rule fires, a corresponding InnerJoin decorrelation rule
+will match (i.e. TryDecorrelateGroupBy or TryDecorrelateProject).
+
+Citations: [5]
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `TryDecorrelateSemiJoin`, not the other rules in that file):
+
+```
+# TryDecorrelateSemiJoin maps a SemiJoin to an equivalent GroupBy/InnerJoin
+# complex in hopes of triggering further rules that will ultimately decorrelate
+# the query. Once this rule fires, a corresponding InnerJoin decorrelation rule
+# will match (i.e. TryDecorrelateGroupBy or TryDecorrelateProject).
+#
+# Citations: [5]
+[TryDecorrelateSemiJoin, Normalize]
+(SemiJoin | SemiJoinApply
+    $left:*
+    $right:* &
+        (HasOuterCols $right) &
+        (CanHaveZeroRows $right) &
+
+        # Let EliminateExistsGroupBy match instead.
+        (GroupBy | DistinctOn | Project | ProjectSet | Window)
+    $on:*
+    $private:*
+)
+=>
+(Project
+    # Needed to project away any columns added by EnsureKey.
+    (GroupBy
+        (InnerJoinApply
+            $newLeft:(EnsureKey $left)
+            $right
+            $on
+            $private
+        )
+        (MakeAggCols ConstAgg (NonKeyCols $newLeft))
+        (MakeGrouping (KeyCols $newLeft) (EmptyOrdering))
+    )
+    []
+    (OutputCols $left)
+)
+```
+- Attempts used: 47
+- Last updated: 2026-09-29T20:39:43.847312+00:00
+- Reason / notes: The encoding faithfully captures the core algebraic identity of TryDecorrelateSemiJoin — SEMI correlate(L, R, on) ≡ GroupBy(INNER correlate(L, R, on), group-by L's key) — with the `unique=true` flag on L correctly modeling EnsureKey's guarantee (without which GroupBy would collapse duplicate left rows that SEMI preserves). The restrictions (single-column keyed left, single-column right, uninterpreted 2-ary condition) are genuine and honestly documented in the SCOPE line, and before()/after() are structurally distinct operators (SemiJoin vs GroupBy-over-InnerJoin), so the proof is non-vacuous.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 71918250}, panicked=False
+
+### `TryDecorrelateWindow` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: (spec text unavailable at publish time)
+- Attempts used: 1
+- Last updated: 2026-09-30T03:11:24.283606+00:00
+- Reason / notes: Manual encoding via PushSelectIntoWindow's join-back-on-partition idiom + TryDecorrelateGroupBy's single-key precedent; confirmed with negative control.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 42510708}, panicked=False
+
+### `TryRemapJoinOuterColsLeft` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+TryRemapJoinOuterColsLeft is similar to TryRemapJoinOuterColsRight, but it
+applies to the left input of a join.
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `TryRemapJoinOuterColsLeft`, not the other rules in that file):
+
+```
+# TryRemapJoinOuterColsLeft is similar to TryRemapJoinOuterColsRight, but it
+# applies to the left input of a join.
+[TryRemapJoinOuterColsLeft, Normalize]
+(InnerJoin | InnerJoinApply | SemiJoin | SemiJoinApply
+    $left:* & (HasOuterCols $left)
+    $right:*
+    $on:* &
+        (CanMaybeRemapOuterCols $left $on) &
+        (Let ($remapped $ok):(TryRemapOuterCols $left $on) $ok)
+    $private:*
+)
+=>
+((OpName) $remapped $right $on $private)
+```
+- Attempts used: 83
+- Last updated: 2026-09-30T01:41:30.187027+00:00
+- Reason / notes: The encoding is a non-vacuous, honest PARTIAL special case: it models the InnerJoinApply variant where a correlated INNER join enforces L.col0 = R.col0, and proves that filtering the join output by uninterpreted h(L.col0) is equivalent to filtering by h(R.col0) — exactly the algebraic core of TryRemapJoinOuterColsLeft's outer-column-to-equal-column remap. The SCOPE line accurately discloses the narrowings (single-column scans of one shared type, equality ON, one-arity uniterated predicate, filter-above-join shape rather than remap-inside-left), and the proof is genuinely non-trivial since the two sides reference different fields whose equality is only guaranteed by the correlate condition. ```
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 70305750}, panicked=False
+
+### `TryRemapJoinOuterColsRight` — ✅ PROVED
+
+- Source backend: CockroachDB
+- Source rule: (spec text unavailable at publish time)
+- Attempts used: 1
+- Last updated: 2026-09-30T03:09:23.359041+00:00
+- Reason / notes: Manual mirror of proved TryRemapJoinOuterColsLeft, symmetric right-side case; confirmed with negative control.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 19877125}, panicked=False
 
 ### `ApplyLimitToRecursiveCTEScan` — ⏭️ SKIPPED
 
@@ -9423,4 +11800,1868 @@ Extracted from `project.opt` (which defines multiple rules — implement specifi
 - Attempts used: 37
 - Last updated: 2026-09-28T07:03:35.769074+00:00
 - Reason / notes: PushColumnRemappingIntoValues is a data-preserving hygiene step — it renames a Values column to a projection's alias and folds that identity (Variable-reference) projection from the computed set into passthrough, leaving the rows unchanged — so its only semantic delta is a column rename, which QED's bag-of-tuples model has no first-class notion of (it tracks neither column identity/name nor a non-empty Values node, only the empty one). Hence every faithful before/after encoding collapses to the vacuous identity-projection law (the same bag of tuples ≡ itself), whereas any encoding that introduces separate value relations to manufacture checkable content models them as unrelated uninterpreted relations and is unprovable; no encoding at any level of generality yields a rule-specific bag-semantic statement, so the UNSUPPORTED claim is sound. ```
+
+### `PushLimitIntoJoinLeft` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/limit.opt
+
+PushLimitIntoJoinLeft pushes a Limit into the left input of an InnerJoin or
+LeftJoin when rows from the left input are guaranteed to be preserved by the
+join. Since the join creates an output row for each left input row, we only
+need that many rows from that input. We can only do this if the limit ordering
+refers only to the left input columns. We check that the cardinality of the
+left input is more than the limit, to prevent repeated applications of the
+rule. We also check that the left input has no outer columns to avoid
+interfering with decorrelation.
+
+Why can we only match InnerJoins and LeftJoins (e.g. not FullJoins)?
+
+CREATE TABLE t_x (x INT PRIMARY KEY)
+CREATE TABLE t_r (r INT NOT NULL REFERENCES t_x(x))
+
+SELECT * FROM t_r FULL JOIN t_x ON r = x LIMIT 10
+vs
+SELECT * FROM (SELECT * FROM t_r LIMIT 10) FULL JOIN t_x ON r = x LIMIT 10
+
+In the first query, all rows from t_r (left rows) would have a chance to match
+with a row from t_x. In the second query, left rows that otherwise would have
+matched may be filtered out by the limit. Rows from t_x would then no longer
+have matches, and would be outputted by the FullJoin with the left side
+(t_r columns) null-extended. Therefore, pushing the limit into a join input
+that may be null-extended (either input of a FullJoin) can lead to output rows
+being replaced with null values.
+
+Extracted from `limit.opt` (which defines multiple rules — implement specifically `PushLimitIntoJoinLeft`, not the other rules in that file):
+
+```
+# PushLimitIntoJoinLeft pushes a Limit into the left input of an InnerJoin or
+# LeftJoin when rows from the left input are guaranteed to be preserved by the
+# join. Since the join creates an output row for each left input row, we only
+# need that many rows from that input. We can only do this if the limit ordering
+# refers only to the left input columns. We check that the cardinality of the
+# left input is more than the limit, to prevent repeated applications of the
+# rule. We also check that the left input has no outer columns to avoid
+# interfering with decorrelation.
+#
+# Why can we only match InnerJoins and LeftJoins (e.g. not FullJoins)?
+#
+#   CREATE TABLE t_x (x INT PRIMARY KEY)
+#   CREATE TABLE t_r (r INT NOT NULL REFERENCES t_x(x))
+#
+#   SELECT * FROM t_r FULL JOIN t_x ON r = x LIMIT 10
+# vs
+#   SELECT * FROM (SELECT * FROM t_r LIMIT 10) FULL JOIN t_x ON r = x LIMIT 10
+#
+# In the first query, all rows from t_r (left rows) would have a chance to match
+# with a row from t_x. In the second query, left rows that otherwise would have
+# matched may be filtered out by the limit. Rows from t_x would then no longer
+# have matches, and would be outputted by the FullJoin with the left side
+# (t_r columns) null-extended. Therefore, pushing the limit into a join input
+# that may be null-extended (either input of a FullJoin) can lead to output rows
+# being replaced with null values.
+[PushLimitIntoJoinLeft, Normalize]
+(Limit
+    $input:(InnerJoin | LeftJoin
+            $left:* & ^(HasOuterCols $left)
+            $right:*
+            $on:*
+            $private:*
+        ) &
+        (JoinPreservesLeftRows $input)
+    $limitExpr:(Const $limit:*) &
+        (IsPositiveInt $limit) &
+        (CanRepresentMaxRows $limit) &
+        ^(LimitGeMaxRows $limit $left)
+    $ordering:* &
+        (OrderingCanProjectCols
+            $ordering
+            $cols:(OutputCols $left)
+        )
+)
+=>
+(Limit
+    ((OpName $input)
+        (Limit $left $limitExpr (PruneOrdering $ordering $cols))
+        $right
+        $on
+        $private
+    )
+    $limitExpr
+    $ordering
+)
+```
+- Attempts used: 41
+- Last updated: 2026-09-29T03:59:52.191878+00:00
+- Reason / notes: The rule's soundness rests entirely on ordering/list semantics — that Limit(A, n, ord) keeps A's first n rows in ord, that the join's output preserves left-row order so the outer limit's prefix rows all come from within the pushed-down limit's rows, and that the join preserves left rows — none of which QED can model, since it only decides bag-semantic equivalence where Sort/Limit/Offset have no meaning. Substituting an uninterpreted operator (or an uninterpreted left-only predicate) for the limit cannot salvage it: with Limit uninterpreted the two sides are different applications of opaque functions and SMT will refute them, and with a predicate p it would only prove σ_p(L⋈R) = σ_p(L)⋈R, which holds for every p and therefore verifies nothing about what a limit actually does. Extending the DSL can't close the gap either — JSONSerializer already serializes LogicalSort with limit/offset, so the missing semantics live in the unmodifiable prover itself — leaving no non-trivial special case (the only "special case" where the limit is a no-op reduces to a vacuous identity that is also inexpressible as a premise) for QED to decide. ```
+
+### `PushLimitIntoJoinRight` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/limit.opt
+
+PushLimitIntoJoinRight mirrors PushLimitIntoJoinLeft.
+
+Extracted from `limit.opt` (which defines multiple rules — implement specifically `PushLimitIntoJoinRight`, not the other rules in that file):
+
+```
+# PushLimitIntoJoinRight mirrors PushLimitIntoJoinLeft.
+[PushLimitIntoJoinRight, Normalize]
+(Limit
+    $input:(InnerJoin
+            $left:*
+            $right:* & ^(HasOuterCols $right)
+            $on:*
+            $private:*
+        ) &
+        (JoinPreservesRightRows $input)
+    $limitExpr:(Const $limit:*) &
+        (IsPositiveInt $limit) &
+        (CanRepresentMaxRows $limit) &
+        ^(LimitGeMaxRows $limit $right)
+    $ordering:* &
+        (OrderingCanProjectCols
+            $ordering
+            $cols:(OutputCols $right)
+        )
+)
+=>
+(Limit
+    ((OpName $input)
+        $left
+        (Limit $right $limitExpr (PruneOrdering $ordering $cols))
+        $on
+        $private
+    )
+    $limitExpr
+    $ordering
+)
+```
+- Attempts used: 21
+- Last updated: 2026-09-29T04:08:32.440098+00:00
+- Reason / notes: PushLimitIntoJoinRight's soundness rests on LIMIT's ordered-prefix semantics — selecting the top-n rows under an ordering, with the ordering restricted to right-input columns and the join preserving right rows — and QED only decides bag-semantic equivalence, where Sort/Limit/Offset are (at best) uninterpreted operators with no prefix/ordering meaning. Because the Limit node sits in different positions on the two sides (above the join vs. pushed into the right input), the goal cannot be reduced to a pure bag identity on the join subexpressions — unlike the previously-proved AssociateLimitJoins rules, where an identical outer Limit in the same position factors out by congruence — so no RuleScript encoding can make it provable without modifying the QED prover, which is off-limits. ```
+
+### `PushLimitIntoLock` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/limit.opt
+
+PushLimitIntoLock pushes the Limit operator into its Lock input, as long as
+the Lock does not use a SKIP LOCKED wait policy. This helps minimize the
+number of rows locked.
+
+Extracted from `limit.opt` (which defines multiple rules — implement specifically `PushLimitIntoLock`, not the other rules in that file):
+
+```
+# PushLimitIntoLock pushes the Limit operator into its Lock input, as long as
+# the Lock does not use a SKIP LOCKED wait policy. This helps minimize the
+# number of rows locked.
+[PushLimitIntoLock, Normalize]
+(Limit
+    (Lock $input:* $private:*) & ^(LockUsesSkipLocked $private)
+    $limit:*
+    $ordering:*
+)
+=>
+(Lock (Limit $input $limit $ordering) $private)
+```
+- Attempts used: 47
+- Last updated: 2026-09-29T04:22:17.980283+00:00
+- Reason / notes: The transpose is only valid because (a) the Limit keeps the first $limit rows under its ORDER BY — QED explicitly has no list/ordering semantics for Sort/Limit/Offset, which carry no bag-semantic meaning — and (b) Lock is a side-effectful, row-preserving operator whose guard (not SKIP LOCKED) is backend-internal semantics the trusted prover cannot see: the returned rows may be equivalent, but the rule actually constrains *which rows get locked*, and encoding Lock as an uninterpreted unary operator would make Limit∘Lock and Lock∘Limit unequal in general (arbitrary operators don't commute), so it would be refuted, not proved. The gap is in the immutable prover (no ordering model, no side-effect operator; Limit isn't even serializable in the current DSL), not a missing builder, so a DSL extension cannot rescue it.
+
+### `PushLimitIntoOffset` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/limit.opt
+
+PushLimitIntoOffset pushes the Limit operator into the offset. This should
+not have a negative impact but it would allow the use of the GenerateLimitedScans
+rule.
+
+Extracted from `limit.opt` (which defines multiple rules — implement specifically `PushLimitIntoOffset`, not the other rules in that file):
+
+```
+# PushLimitIntoOffset pushes the Limit operator into the offset. This should
+# not have a negative impact but it would allow the use of the GenerateLimitedScans
+# rule.
+[PushLimitIntoOffset, Normalize]
+(Limit
+    (Offset
+        $input:*
+        $offsetExpr:(Const $offset:* & (IsPositiveInt $offset))
+        $offsetOrdering:*
+    )
+    (Const $limit:* & (IsPositiveInt $limit))
+    $limitOrdering:* &
+        (IsSameOrdering $offsetOrdering $limitOrdering) &
+        (CanAddConstInts $limit $offset)
+)
+=>
+(Offset
+    (Limit $input (AddConstInts $offset $limit) $limitOrdering)
+    $offsetExpr
+    $offsetOrdering
+)
+```
+- Attempts used: 31
+- Last updated: 2026-09-29T04:20:50.887512+00:00
+- Reason / notes: The rule's entire correctness claim is about positional row selection within a shared ordering (keeping rows at positions [offset, offset+limit) versus taking positions [0, offset+limit) and then skipping the first `offset`), which requires sequence/list semantics that QED's bag-semantic SMT model explicitly lacks — Sort/Limit/Offset carry no bag-semantic meaning, a documented failure category that this rule falls squarely in — and the RelRN builder API confirms no Sort/Limit/Offset operators exist (I checked the full source; LogicalSort appears only in the JSON serializer/deserializer, i.e. the prover's I/O, not a constructible or provable pattern). Even if `extend_dsl_file` added such builders, the prover would erase orderings rather than verify them (yielding only a vacuous bag-identity proof), and the guard's constant arithmetic (`CanAddConstInts`/`AddConstInts`) plus `IsSameOrdering` are inexpressible with uninterpreted symbols, so no non-vacuous encoding exists — a genuine QED limitation, not a porter encoding miss.
+
+### `PushLimitIntoOrdinality` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/limit.opt
+
+PushLimitIntoOrdinality pushes the Limit operator into the Ordinality
+operator when the ordering associated with both operators allows it.
+
+Pushing the limit as far as possible down the tree shouldn't have negative
+effects, but will reduce the number of rows processed by operators higher up,
+and if the limit is pushed all the way down to a scan, the scan can be limited
+directly.
+
+In order to prevent this rule from affecting:
+1. the set of rows kept by the limit,
+2. the ordinals assigned to those rows by the ordinality, and
+3. the final ordering of the rows,
+the new limit's ordering should be "extended" to imply the ordinality's
+ordering, so it is set to be an intersection of the original limit ordering
+and the ordinality's ordering (see OrderingChoice.Intersection).
+
+Extracted from `limit.opt` (which defines multiple rules — implement specifically `PushLimitIntoOrdinality`, not the other rules in that file):
+
+```
+# PushLimitIntoOrdinality pushes the Limit operator into the Ordinality
+# operator when the ordering associated with both operators allows it.
+#
+# Pushing the limit as far as possible down the tree shouldn't have negative
+# effects, but will reduce the number of rows processed by operators higher up,
+# and if the limit is pushed all the way down to a scan, the scan can be limited
+# directly.
+#
+# In order to prevent this rule from affecting:
+#   1. the set of rows kept by the limit,
+#   2. the ordinals assigned to those rows by the ordinality, and
+#   3. the final ordering of the rows,
+# the new limit's ordering should be "extended" to imply the ordinality's
+# ordering, so it is set to be an intersection of the original limit ordering
+# and the ordinality's ordering (see OrderingChoice.Intersection).
+[PushLimitIntoOrdinality, Normalize]
+(Limit
+    (Ordinality $input:* $private:*)
+    $limit:*
+    $limitOrdering:* &
+        (OrderingCanProjectCols
+            $limitOrdering
+            (OutputCols $input)
+        ) &
+        (OrderingIntersects
+            (OrdinalityOrdering $private)
+            $limitOrdering
+        )
+)
+=>
+(Ordinality
+    (Limit
+        $input
+        $limit
+        (OrderingIntersection
+            (OrdinalityOrdering $private)
+            $limitOrdering
+        )
+    )
+    $private
+)
+```
+- Attempts used: 32
+- Last updated: 2026-09-29T04:18:39.004424+00:00
+- Reason / notes: The rule's soundness rests entirely on list/ordering semantics: the Limit keeps rows positionally (first N in an ordering), the Ordinality's output column is position-dependent, and the OrderingIntersects/OrderingIntersection premises are what guarantee the same rows survive with the same ordinal values after the push-down. QED reasons only over bag semantics and treats Sort/Limit/Offset as uninterpreted operators with no positional algebra (qed.pdf §6.2 "list semantics" failure category), so any bag-level encoding is either vacuous (both sides collapse to the same expression) or unfaithful (e.g., modeling Limit as a row predicate and Ordinality as an uninterpreted row function would prove a different, trivially true filter/projection commutation, not this rule). The absence of a Limit/Sort builder in RelRN is not the decisive gap — even adding one (JSONSerializer already serializes LogicalSort) would leave QED with an uninterpreted operator, and the before/after equivalence is simply not a bag-semantic identity. ```
+
+### `PushLimitIntoProject` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/limit.opt
+
+PushLimitIntoProject pushes the Limit operator into its Project input. It is
+desirable to push the Limit operator as low in the query as possible, in order
+to minimize the number of rows that other operators need to process.
+
+Extracted from `limit.opt` (which defines multiple rules — implement specifically `PushLimitIntoProject`, not the other rules in that file):
+
+```
+# PushLimitIntoProject pushes the Limit operator into its Project input. It is
+# desirable to push the Limit operator as low in the query as possible, in order
+# to minimize the number of rows that other operators need to process.
+[PushLimitIntoProject, Normalize]
+(Limit
+    (Project $input:* $projections:* $passthrough:*)
+    $limit:*
+    $ordering:* &
+        (OrderingCanProjectCols
+            $ordering
+            $cols:(OutputCols $input)
+        )
+)
+=>
+(Project
+    (Limit $input $limit (PruneOrdering $ordering $cols))
+    $projections
+    $passthrough
+)
+```
+- Attempts used: 22
+- Last updated: 2026-09-29T04:29:35.010760+00:00
+- Reason / notes: PushLimitIntoProject pushes an *ordered* Limit through a Project, and its validity rests entirely on the ordering machinery (the `OrderingCanProjectCols` guard and `PruneOrdering`), which guarantee the same rows survive on both sides; QED's bag semantics has no model for list/ordering (Sort/Limit/Offset carry no bag-semantic meaning), so with Limit treated as an uninterpreted operator the commutation `Limit(n, Project(f, R)) = Project(f, Limit(n, R))` has genuine SMT countermodels, and no DSL extension (e.g. a missing Sort/Limit builder) can supply the positional semantics to the trusted prover. The only encoding QED could certify is the vacuous identity-projection tautology, which does not port the rule's actual content, so the UNSUPPORTED conclusion is correct.
+
+### `PushLimitIntoWindow` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/window.opt
+
+PushLimitIntoWindow moves a Limit below a Window when able. This is
+all-or-nothing. Even if we could push the limit below *some* of the window
+functions, if there are any we cannot, then we don't. This is because
+computing additional window functions is not that expensive, and the
+expensive part is doing the sorting and partitioning. Once exec supports
+passing orderings through and does not require re-partitioning and re-sorting
+of window functions, pushing past some-but-not-all of the window functions
+might be profitable.
+
+SELECT rank() OVER (ORDER BY c) FROM abc ORDER BY c LIMIT 10
+=>
+SELECT
+rank() OVER (ORDER BY c)
+FROM
+(SELECT c FROM abc ORDER BY c LIMIT 10)
+
+SELECT rank() OVER (PARTITION BY b ORDER BY c) FROM abc LIMIT 10
+=>
+SELECT
+rank() OVER (PARTITION BY b ORDER BY c)
+FROM
+(SELECT b, c FROM abc ORDER BY b, c LIMIT 10)
+
+First, we construct a "segmented ordering" consisting of the Window's
+partition columns followed by its ordering columns (the relative positions of
+the partition columns are arbitrary). This ordering is useful because it
+performs the partitioning and then the ordering within each partition.  If
+this ordering does not imply the Limit's ordering, we do not proceed.
+
+Since we now know that the segmented ordering is stronger than the Limit's
+ordering, it's safe to replace the limit's ordering with it.
+
+The Limit having the segmented ordering means that there are three kinds of
+partitions:
+1. those that are completely contained within the limited set of rows,
+2. those that are completely excluded from the set of rows, and
+3. *at most one* partition which is "cut off" partway through.
+Including the window function's ordering in the Limit's ordering does not
+matter for (1)- and (2)-style partitions (since the window function itself
+will re-sort them), but for the (3)-style partition, we need to ensure that
+the limit operator allows through a prefix of it, rather than an arbitrary
+subset.
+
+Finally, we require that every window function+frame pair being computed has
+the "prefix-safe" property. A window function is prefix safe if it can be
+correctly computed over only a prefix of a partition. For example, rank() has
+this property because rows that come later in the ordering don't affect the
+rank of the rows before, but avg()+UNBOUNDED {PRECEDING,FOLLOWING} doesn't,
+because we must see the entire partition to compute the average over it.
+
+TODO(justin): Add a rule that translates a limit with an ordering on rank()
+or dense_rank() into one using the ordering of the window function. This will
+allow us to push down limits in cases like:
+
+SELECT rank() OVER (ORDER BY f) rnk FROM a ORDER BY rnk LIMIT 10
+=>
+SELECT rank() OVER (ORDER BY f) rnk FROM a ORDER BY f LIMIT 10
+=>
+SELECT rank() OVER (ORDER BY f) rnk FROM (SELECT * FROM a ORDER BY f LIMIT 10)
+
+Extracted from `window.opt` (which defines multiple rules — implement specifically `PushLimitIntoWindow`, not the other rules in that file):
+
+```
+# PushLimitIntoWindow moves a Limit below a Window when able. This is
+# all-or-nothing. Even if we could push the limit below *some* of the window
+# functions, if there are any we cannot, then we don't. This is because
+# computing additional window functions is not that expensive, and the
+# expensive part is doing the sorting and partitioning. Once exec supports
+# passing orderings through and does not require re-partitioning and re-sorting
+# of window functions, pushing past some-but-not-all of the window functions
+# might be profitable.
+# 
+# SELECT rank() OVER (ORDER BY c) FROM abc ORDER BY c LIMIT 10
+# => 
+# SELECT
+#     rank() OVER (ORDER BY c)
+# FROM
+#     (SELECT c FROM abc ORDER BY c LIMIT 10)
+# 
+# SELECT rank() OVER (PARTITION BY b ORDER BY c) FROM abc LIMIT 10
+# => 
+# SELECT
+#     rank() OVER (PARTITION BY b ORDER BY c)
+# FROM
+#     (SELECT b, c FROM abc ORDER BY b, c LIMIT 10)
+# 
+# First, we construct a "segmented ordering" consisting of the Window's
+# partition columns followed by its ordering columns (the relative positions of
+# the partition columns are arbitrary). This ordering is useful because it
+# performs the partitioning and then the ordering within each partition.  If
+# this ordering does not imply the Limit's ordering, we do not proceed.
+# 
+# Since we now know that the segmented ordering is stronger than the Limit's
+# ordering, it's safe to replace the limit's ordering with it.
+# 
+# The Limit having the segmented ordering means that there are three kinds of
+# partitions:
+#   1. those that are completely contained within the limited set of rows,
+#   2. those that are completely excluded from the set of rows, and
+#   3. *at most one* partition which is "cut off" partway through.
+# Including the window function's ordering in the Limit's ordering does not
+# matter for (1)- and (2)-style partitions (since the window function itself
+# will re-sort them), but for the (3)-style partition, we need to ensure that
+# the limit operator allows through a prefix of it, rather than an arbitrary
+# subset.
+# 
+# Finally, we require that every window function+frame pair being computed has
+# the "prefix-safe" property. A window function is prefix safe if it can be
+# correctly computed over only a prefix of a partition. For example, rank() has
+# this property because rows that come later in the ordering don't affect the
+# rank of the rows before, but avg()+UNBOUNDED {PRECEDING,FOLLOWING} doesn't,
+# because we must see the entire partition to compute the average over it.
+#
+# TODO(justin): Add a rule that translates a limit with an ordering on rank()
+# or dense_rank() into one using the ordering of the window function. This will
+# allow us to push down limits in cases like:
+#
+# SELECT rank() OVER (ORDER BY f) rnk FROM a ORDER BY rnk LIMIT 10
+# =>
+# SELECT rank() OVER (ORDER BY f) rnk FROM a ORDER BY f LIMIT 10
+# =>
+# SELECT rank() OVER (ORDER BY f) rnk FROM (SELECT * FROM a ORDER BY f LIMIT 10)
+[PushLimitIntoWindow, Normalize]
+(Limit
+    (Window $input:* $fns:* & (AllArePrefixSafe $fns) $private:*)
+    $limit:*
+    $ordering:* &
+        (OrderingCanProjectCols
+            $ordering
+            $inputCols:(OutputCols $input)
+        ) &
+        (Let
+            ($newOrdering $ok):(MakeSegmentedOrdering
+                $input
+                (WindowPartition $private)
+                (WindowOrdering $private)
+                $ordering
+            )
+            $ok
+        )
+)
+=>
+(Window
+    (Limit
+        $input
+        $limit
+        (PruneOrdering
+            (DerefOrderingChoice $newOrdering)
+            $inputCols
+        )
+    )
+    $fns
+    $private
+)
+```
+- Attempts used: 41
+- Last updated: 2026-09-29T04:42:10.640565+00:00
+- Reason / notes: The rule's soundness fundamentally depends on (1) ordering-sensitive LIMIT row selection (which n rows are kept depends on the sort order, not just the count), (2) the prefix-safety property of specific window functions (rank vs. avg), and (3) the interaction between the window's partition+ordering structure and the limit's ordering — all of which are outside QED's bag-semantic model, where Sort/Limit/Window have no definable meaning and uninterpreted functions cannot be related across different input subsets. No narrowing of assumptions (e.g., single partition, no ties) removes the need for the prover to reason about "the first k rows in order X" versus "an arbitrary subset of size k," so no encodable special case reduces to a decidable bag-equivalence claim. ```
+
+### `PushOffsetIntoLock` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/limit.opt
+
+PushOffsetIntoLock pushes the Offset operator into its Lock input, as long as
+the Lock does not use a SKIP LOCKED wait policy. This helps minimize the
+number of rows locked.
+
+Extracted from `limit.opt` (which defines multiple rules — implement specifically `PushOffsetIntoLock`, not the other rules in that file):
+
+```
+# PushOffsetIntoLock pushes the Offset operator into its Lock input, as long as
+# the Lock does not use a SKIP LOCKED wait policy. This helps minimize the
+# number of rows locked.
+[PushOffsetIntoLock, Normalize]
+(Offset
+    (Lock $input:* $private:*) & ^(LockUsesSkipLocked $private)
+    $offset:*
+    $ordering:*
+)
+=>
+(Lock (Offset $input $offset $ordering) $private)
+```
+- Attempts used: 21
+- Last updated: 2026-09-29T04:31:24.338983+00:00
+- Reason / notes: The rule's central operator, Offset, is precisely one of the list/ordering operators that QED explicitly does not model (qed.pdf §6.2: Sort/Limit/Offset/Window/Sample have no bag-semantic meaning), so no DSL extension can give the prover anything to decide over a plan containing Offset, and the only encodable variant (re-modeling Offset/Lock as uninterpreted filters) would prove a different, vacuous fact (filter commutativity) rather than PushOffsetIntoLock. Compounding this, the rule's validity guard (Lock must not use a SKIP LOCKED wait policy) and its actual purpose (fewer rows locked) depend on Lock's side-effectful, backend-internal semantics, which a bag-equivalence prover cannot express or verify as an uninterpreted symbol. Consequently no genuine non-degenerate special case exists, since Offset has no meaning at all without ordering. ```
+
+### `PushOffsetIntoProject` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/limit.opt
+
+PushOffsetIntoProject pushes the Offset operator into its Project input. It is
+desirable to push the Offset operator as low in the query as possible, in
+order to minimize the number of rows that other operators need to process.
+
+Extracted from `limit.opt` (which defines multiple rules — implement specifically `PushOffsetIntoProject`, not the other rules in that file):
+
+```
+# PushOffsetIntoProject pushes the Offset operator into its Project input. It is
+# desirable to push the Offset operator as low in the query as possible, in
+# order to minimize the number of rows that other operators need to process.
+[PushOffsetIntoProject, Normalize]
+(Offset
+    (Project $input:* $projections:* $passthrough:*)
+    $offset:*
+    $ordering:* &
+        (OrderingCanProjectCols
+            $ordering
+            $cols:(OutputCols $input)
+        )
+)
+=>
+(Project
+    (Offset $input $offset (PruneOrdering $ordering $cols))
+    $projections
+    $passthrough
+)
+```
+- Attempts used: 23
+- Last updated: 2026-09-29T04:42:45.044577+00:00
+- Reason / notes: PushOffsetIntoProject's soundness is entirely an ordering fact: Offset drops its first n rows *in the given ordering*, and the rule's guards (`OrderingCanProjectCols`, `PruneOrdering`) exist precisely to ensure the same rows are skipped before and after the projection — QED, by its own design (qed.pdf; the reference's limitations list), has no list/ordering semantics for Sort/Limit/Offset and models them only as uninterpreted bag operators, so the commutation `Offset(π(R)) = π(Offset(R))` has genuine SMT countermodels under any bag interpretation. I also confirmed the core DSL doesn't even expose Offset/Sort builders, but an `extend_dsl_file` addition couldn't help either, since the unmodifiable Rust prover — not the Java builders — is what lacks positional semantics and cannot be given an axiom that Offset's dropped rows are order-determined. The only encodings QED could certify reduce to the vacuous identity-projection tautology, so no non-trivial partial case exists and the UNSUPPORTED call is correct. ```
+
+### `ReduceGroupingCols` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/groupby.opt
+
+ReduceGroupingCols eliminates redundant grouping columns from the GroupBy
+operator and replaces them by ConstAgg aggregate functions. A grouping
+column is redundant if it is functionally determined by the other grouping
+columns. If that's true, then its value must be constant within a group.
+Therefore, it has no effect on the grouping and can instead be represented as
+an ConstAgg aggregate, since all rows in the group have the same value for
+that column.
+
+Note: Doesn't match EnsureDistinctOn because test cases were too difficult to
+find. If a test case for EnsureDistinctOn is found, it should be added to the
+match pattern.
+
+Extracted from `groupby.opt` (which defines multiple rules — implement specifically `ReduceGroupingCols`, not the other rules in that file):
+
+```
+# ReduceGroupingCols eliminates redundant grouping columns from the GroupBy
+# operator and replaces them by ConstAgg aggregate functions. A grouping
+# column is redundant if it is functionally determined by the other grouping
+# columns. If that's true, then its value must be constant within a group.
+# Therefore, it has no effect on the grouping and can instead be represented as
+# an ConstAgg aggregate, since all rows in the group have the same value for
+# that column.
+#
+# Note: Doesn't match EnsureDistinctOn because test cases were too difficult to
+# find. If a test case for EnsureDistinctOn is found, it should be added to the
+# match pattern.
+[ReduceGroupingCols, Normalize]
+(GroupBy | DistinctOn
+    $input:*
+    $aggregations:*
+    $groupingPrivate:* &
+        ^(ColsAreEmpty
+            $redundantCols:(RedundantCols
+                $input
+                (GroupingCols $groupingPrivate)
+            )
+        )
+)
+=>
+((OpName)
+    $input
+    (AppendAggCols $aggregations ConstAgg $redundantCols)
+    (RemoveGroupingCols $groupingPrivate $redundantCols)
+)
+```
+- Attempts used: 44
+- Last updated: 2026-09-29T07:22:03.349721+00:00
+- Reason / notes: Any nontrivial firing of ReduceGroupingCols must prove that the removed grouping column is equal to a new `ConstAgg` of that column, but QED treats aggregate calls as uninterpreted except for equality of their input bags and has no algebra for `ConstAgg` picking the group-constant value. The rule also depends on the `RedundantCols` functional-dependency guard, which is a cross-row property the DSL/QED cannot assume, so no non-vacuous instance of this rewrite is provable.
+
+### `ReduceWindowPartitionCols` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/window.opt
+
+ReduceWindowPartitionCols reduces a set of partition columns to a simpler form
+using FDs. Window partition columns are redundant if they are functionally
+determined by other window partition columns.
+
+Extracted from `window.opt` (which defines multiple rules — implement specifically `ReduceWindowPartitionCols`, not the other rules in that file):
+
+```
+# ReduceWindowPartitionCols reduces a set of partition columns to a simpler form
+# using FDs. Window partition columns are redundant if they are functionally
+# determined by other window partition columns.
+[ReduceWindowPartitionCols, Normalize]
+(Window
+    $input:*
+    $fn:*
+    $private:* &
+        ^(ColsAreEmpty
+            $redundantCols:(RedundantCols
+                $input
+                (WindowPartition $private)
+            )
+        )
+)
+=>
+(Window
+    $input
+    $fn
+    (RemoveWindowPartitionCols $private $redundantCols)
+)
+```
+- Attempts used: 29
+- Last updated: 2026-09-29T07:55:29.974761+00:00
+- Reason / notes: The rule's correctness rests on functional-dependency inference — that partitioning by (k, f(k)) induces the same partitions as partitioning by k — which QED cannot derive because it models aggregation opaquely per key tuple and has no attribute/FD reasoning (the porter's minimal GroupBy(k,f(k))-vs-GroupBy(k) probe, which is semantically valid since f is a deterministic uninterpreted function, is rejected before SMT even runs). Independently, the Window operator itself (especially with ORDER BY clauses and frames, as the sibling rules in window.opt show) has no bag-semantic model in QED, and no Java-side DSL extension can add that reasoning to the unmodifiable prover core. ```
+
+### `RejectNullsGroupBy` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/reject_nulls.opt
+
+RejectNullsGroupBy pushes a "col IS NOT NULL" null-rejecting filter below the
+GroupBy operator if it allows null rejection for that column (i.e. if it's in
+the NullRejectCols set). See ruleProps.buildGroupByProps for more details on
+the criteria for setting NullRejectCols. See the file header comment for more
+information on null rejection.
+
+This rule is important for decorrelation in cases similar to this:
+
+SELECT * FROM a WHERE (SELECT MIN(z) FROM b WHERE a.x=b.x) = a.y
+
+The top-level "= a.y" filter rejects NULL values in the b.z column, which ends
+up in the right side of a LeftJoin operator, thus enabling it to be mapped to
+an InnerJoin operator.
+
+This rule is not useful for DistinctOn: it can only fire if there are no
+FirstAgg aggregates, but in that case the filter would have gotten pushed
+through DistinctOn.
+
+This rule is marked as low priority so that it runs after Select filter
+pushdown rules. If a filter can be pushed down in its entirety, that's
+preferable to synthesizing a new "col IS NOT NULL" filter.
+
+Extracted from `reject_nulls.opt` (which defines multiple rules — implement specifically `RejectNullsGroupBy`, not the other rules in that file):
+
+```
+# RejectNullsGroupBy pushes a "col IS NOT NULL" null-rejecting filter below the
+# GroupBy operator if it allows null rejection for that column (i.e. if it's in
+# the NullRejectCols set). See ruleProps.buildGroupByProps for more details on
+# the criteria for setting NullRejectCols. See the file header comment for more
+# information on null rejection.
+#
+# This rule is important for decorrelation in cases similar to this:
+#
+#   SELECT * FROM a WHERE (SELECT MIN(z) FROM b WHERE a.x=b.x) = a.y
+#
+# The top-level "= a.y" filter rejects NULL values in the b.z column, which ends
+# up in the right side of a LeftJoin operator, thus enabling it to be mapped to
+# an InnerJoin operator.
+#
+# This rule is not useful for DistinctOn: it can only fire if there are no
+# FirstAgg aggregates, but in that case the filter would have gotten pushed
+# through DistinctOn.
+#
+# This rule is marked as low priority so that it runs after Select filter
+# pushdown rules. If a filter can be pushed down in its entirety, that's
+# preferable to synthesizing a new "col IS NOT NULL" filter.
+[RejectNullsGroupBy, Normalize, LowPriority]
+(Select
+    $input:(GroupBy | ScalarGroupBy
+        $innerInput:*
+        $aggregations:*
+        $groupingPrivate:*
+    )
+    $filters:* &
+        (HasNullRejectingFilter
+            $filters
+            $rejectCols:(RejectNullCols $input)
+        )
+)
+=>
+(Select
+    ((OpName $input)
+        (Select
+            $innerInput
+            [
+                (FiltersItem
+                    (IsNot
+                        (NullRejectAggVar
+                            $aggregations
+                            $rejectCols
+                        )
+                        (Null (AnyType))
+                    )
+                )
+            ]
+        )
+        $aggregations
+        $groupingPrivate
+    )
+    $filters
+)
+```
+- Attempts used: 25
+- Last updated: 2026-09-29T07:50:53.508470+00:00
+- Reason / notes: Independent analysis confirms the porter's diagnosis: RejectNullsGroupBy's soundness rests on MIN/MAX's NULL algebra — null z-rows are ignored (so a surviving group's min/max is unchanged when they're removed) and the all-null group's NULL result is what the outer null-rejecting filter discards — while QED models aggregates as uninterpreted higher-order functions equatable only on identical input bags and cannot relate an uninterpreted outer predicate to the nullness of an uninterpreted aggregate's output (the all-null group's row would survive in before() for some SMT-satisfiable instantiation). Every encoding that sidesteps those gaps degenerates to a vacuous instance: making the aggregated column a group key (then the pushed filter selects whole groups and reduces to the already-ported key-only FilterAggregateTranspose case), or declaring it NOT NULL (then the pushed filter is the identity). Closing the real gap would require teaching the QED prover aggregate NULL algebra, which is the trusted, unchangeable arbiter and documented as out of scope in qed.pdf, so the UNSUPPORTED conclusion is correct. ```
+
+### `SimplifyAnyScalarArray` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/scalar.opt
+
+SimplifyAnyScalarArray converts a scalar ANY operation on a constant ARRAY to a scalar
+ANY operation on a tuple. In particular, this allows SimplifyEqualsAnyTuple to be
+triggered, which allows constraints to be generated.
+
+Extracted from `scalar.opt` (which defines multiple rules — implement specifically `SimplifyAnyScalarArray`, not the other rules in that file):
+
+```
+# SimplifyAnyScalarArray converts a scalar ANY operation on a constant ARRAY to a scalar
+# ANY operation on a tuple. In particular, this allows SimplifyEqualsAnyTuple to be
+# triggered, which allows constraints to be generated.
+[SimplifyAnyScalarArray, Normalize]
+(AnyScalar $input:* $ary:(Const) & (IsConstArray $ary) $cmp:*)
+=>
+(AnyScalar $input (ConvertConstArrayToTuple $ary) $cmp)
+```
+- Attempts used: 44
+- Last updated: 2026-09-29T09:53:15.845124+00:00
+- Reason / notes: The rule's only non-trivial content is that a constant array and a tuple packaging the same elements denote the same operands for ANY — a definitional identity between two CockroachDB value constructors, which QED's Q-expression language cannot express: it has no array/tuple value constructors, no list semantics, and no axioms relating container terms. Consequently every encoding collapses to a trichotomy — expand both sides to the element-wise OR / semi-join over a shared symbol (structurally identical, vacuous), or keep the array and tuple as distinct uninterpreted symbols (SMT countermodel, unprovable) — and no narrower special case escapes this, since even the one-element instance is definitionally an identity; the missing container-value semantics lives in the fixed prover's value language, not in a shape a `RelRN`/`RexRN` extension could add.
+
+### `SimplifyCaseSingleFalsyBranch` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/select.opt
+
+SimplifyCaseSingleFalsyBranch replaces a CASE expression in a filter with a
+falsy ELSE branch when it has a single WHEN branch that evaluates to False or
+Null.
+
+For example:
+
+SELECT * FROM abc WHERE CASE WHEN a > 1 THEN false ELSE false END
+=>
+SELECT * FROM abc WHERE false
+
+NOTE: The optimizer guarantees that CASE branches with side-effects will only
+be evaluated if their conditions are true and the ELSE branch with
+side-effects will only be evaluated if non of the branch conditions are true
+(see props.VolatilitySet). Therefore, this rule is only valid when the ELSE
+branch is leakproof. We currently only match constant False and Null values,
+which are guaranteed to be leakproof.
+
+Extracted from `select.opt` (which defines multiple rules — implement specifically `SimplifyCaseSingleFalsyBranch`, not the other rules in that file):
+
+```
+# SimplifyCaseSingleFalsyBranch replaces a CASE expression in a filter with a
+# falsy ELSE branch when it has a single WHEN branch that evaluates to False or
+# Null.
+#
+# For example:
+#
+#  SELECT * FROM abc WHERE CASE WHEN a > 1 THEN false ELSE false END
+#  =>
+#  SELECT * FROM abc WHERE false
+#
+# NOTE: The optimizer guarantees that CASE branches with side-effects will only
+# be evaluated if their conditions are true and the ELSE branch with
+# side-effects will only be evaluated if non of the branch conditions are true
+# (see props.VolatilitySet). Therefore, this rule is only valid when the ELSE
+# branch is leakproof. We currently only match constant False and Null values,
+# which are guaranteed to be leakproof.
+[SimplifyCaseSingleFalsyBranch, Normalize]
+(Select
+    $input:*
+    $filters:[
+        ...
+        $item:(FiltersItem
+            (Case
+                (True)
+                $whens:[ (When * (False | Null)) ]
+                $orElse:(False | Null)
+            )
+        )
+        ...
+    ]
+)
+=>
+(Select $input (ReplaceFiltersItem $filters $item $orElse))
+```
+- Attempts used: 25
+- Last updated: 2026-09-29T09:49:47.662733+00:00
+- Reason / notes: The rule's entire soundness content is that CASE's three-valued branch selection makes `CASE WHEN c THEN falsy ELSE falsy END` never True in a filter context, but CASE/if-then-else is not in QED's interpreted scalar fragment (ite is only the internal 3VL encoding of And/Or/In/Some, per the paper), so a faithful before-side filter serializes the CASE as an uninterpreted operator that SMT is free to make true for some row and can never equate with the constant-False filter on the after side. Every alternative encoding fails for the same fundamental reason: abstracting the CASE to a shared uninterpreted symbol proves a vacuous identity, rewriting it out of And/Or/Not proves a different rule (constant-false absorption) rather than this one, and a DSL extension cannot help because the immutable prover has no CASE interpretation to key on — this is the "specific operator internal semantics QED cannot see through" limitation, so UNSUPPORTED is correct. ```
+
+### `SimplifyCaseSingleTruthyBranch` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/select.opt
+
+SimplifyCaseSingleTruthyBranch replaces a CASE expression in a filter with its
+condition when it has a single WHEN branch that evaluates to True, and an ELSE
+branch that evaluates to False or Null.
+
+For example:
+
+SELECT * FROM abc WHERE CASE WHEN a > 5 THEN true ELSE false END
+=>
+SELECT * FROM abc WHERE a > 5
+
+Extracted from `select.opt` (which defines multiple rules — implement specifically `SimplifyCaseSingleTruthyBranch`, not the other rules in that file):
+
+```
+# SimplifyCaseSingleTruthyBranch replaces a CASE expression in a filter with its
+# condition when it has a single WHEN branch that evaluates to True, and an ELSE
+# branch that evaluates to False or Null.
+#
+# For example:
+#
+#  SELECT * FROM abc WHERE CASE WHEN a > 5 THEN true ELSE false END
+#  =>
+#  SELECT * FROM abc WHERE a > 5
+#
+[SimplifyCaseSingleTruthyBranch, Normalize]
+(Select
+    $input:*
+    $filters:[
+        ...
+        $item:(FiltersItem
+            (Case
+                (True)
+                $whens:[ (When $cond:* (True)) ]
+                (False | Null)
+            )
+        )
+        ...
+    ]
+)
+=>
+(Select $input (ReplaceFiltersItem $filters $item $cond))
+```
+- Attempts used: 25
+- Last updated: 2026-09-29T10:09:28.165683+00:00
+- Reason / notes: The rule's soundness rests entirely on the three-valued branch-selection semantics of the CASE operator (in a filter, CASE TRUE WHEN cond THEN TRUE ELSE {FALSE|NULL} END keeps a row iff cond is TRUE), but QED's interpreted scalar fragment contains only the boolean connectives/literals — ite appears only as their internal 3VL encoding, not as a nameable operator — so any faithful before-side encoding must serialize CASE as an uninterpreted operator symbol, and SMT cannot equate Filter(case(cond), R) with Filter(cond, R): an uninterpreted function admits countermodels (e.g. mapping a non-TRUE cond to TRUE) that SMT can refute no assumption away. This is the "backend operator's specific internal semantics" limitation, not a DSL gap — an `extend_dsl_file` constructor could only emit another operator name the fixed Rust prover treats as uninterpreted, so no faithful encoding (or narrower special case, since even a non-NULL cond can't be named through the operator) can make the proof go through. ```
+
+### `SimplifyCaseWhenConstValue` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/scalar.opt
+
+SimplifyCaseWhenConstValue removes branches known to not match. Any
+branch known to match is used as the ELSE and further WHEN conditions
+are skipped. If all WHEN conditions have been removed, the ELSE
+expression is used.
+This transforms
+
+CASE WHEN v THEN 1 WHEN false THEN a WHEN true THEN b ELSE c END
+
+to
+
+CASE WHEN v THEN 1 ELSE b END
+
+Extracted from `scalar.opt` (which defines multiple rules — implement specifically `SimplifyCaseWhenConstValue`, not the other rules in that file):
+
+```
+# SimplifyCaseWhenConstValue removes branches known to not match. Any
+# branch known to match is used as the ELSE and further WHEN conditions
+# are skipped. If all WHEN conditions have been removed, the ELSE
+# expression is used.
+# This transforms
+#
+#   CASE WHEN v THEN 1 WHEN false THEN a WHEN true THEN b ELSE c END
+#
+# to
+#
+#   CASE WHEN v THEN 1 ELSE b END
+#
+[SimplifyCaseWhenConstValue, Normalize]
+(Case
+    $condition:(ConstValue)
+    $whens:[ ... (When (ConstValue)) ... ]
+    $orElse:*
+)
+=>
+(SimplifyWhens $condition $whens $orElse)
+```
+- Attempts used: 41
+- Last updated: 2026-09-29T10:09:38.706361+00:00
+- Reason / notes: QED's scalar fragment only interprets boolean structure (AND/OR/NOT, true/false literals); a CASE node reaches the prover only via JSONSerializer's generic RexCall path as an uninterpreted function symbol, so SMT cannot derive that Case(true, a, b) selects a or that a const-false WHEN branch is dead — the rule's soundness rests entirely on CASE's first-match branch-selection semantics, i.e. bespoke internal operator semantics QED cannot see through. Since the Rust prover is the fixed arbiter and a Java-side DSL extension (e.g. a RexRN.Case builder) would merely serialize another uninterpreted symbol, no encoding is provable — not even a narrower special case, because any faithful instance must contain an actual CASE node in the before pattern, and no non-trivial identity is derivable between an uninterpreted Case term and its branch-simplified form. ```
+
+### `SimplifyCoalesce` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/scalar.opt
+
+SimplifyCoalesce discards any leading null operands, and then if the next
+operand is a constant, replaces with that constant. Note that ConstValue
+matches nulls as well as other constants.
+
+Extracted from `scalar.opt` (which defines multiple rules — implement specifically `SimplifyCoalesce`, not the other rules in that file):
+
+```
+# SimplifyCoalesce discards any leading null operands, and then if the next
+# operand is a constant, replaces with that constant. Note that ConstValue
+# matches nulls as well as other constants.
+[SimplifyCoalesce, Normalize]
+(Coalesce
+    $args:[
+        $arg:* & (IsConstValueOrGroupOfConstValues $arg)
+        ...
+    ]
+)
+=>
+(SimplifyCoalesce $args)
+```
+- Attempts used: 61
+- Last updated: 2026-09-29T10:29:37.795482+00:00
+- Reason / notes: The rule's correctness rests entirely on COALESCE's first-non-null semantics — the identity "leading-NULL args drop, so a null-constant prefix plus a non-null constant c collapses to c" — but QED models the coalesce call only as an uninterpreted function symbol, so that equality is not valid for every instantiation of the symbol and is unprovable. No non-trivial special case is expressible either: the DSL has no NULL literal, no ite/CASE, and no IS-NULL predicate to reconstruct coalesce's semantics from primitives, and there is no relational workaround because "first non-null argument" needs row ordering (Limit/Sort), which QED has no bag-semantic model for — so encoding it any other way would just bake the simplification into before() instead of deriving it. ```
+
+### `SimplifyEqualsAnyTuple` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/scalar.opt
+
+SimplifyEqualsAnyTuple converts a scalar ANY operation to an IN comparison.
+It transforms
+
+x = ANY (...)
+
+to
+
+x IN (...)
+
+Which allows scans to be constrained.
+
+Extracted from `scalar.opt` (which defines multiple rules — implement specifically `SimplifyEqualsAnyTuple`, not the other rules in that file):
+
+```
+# SimplifyEqualsAnyTuple converts a scalar ANY operation to an IN comparison.
+# It transforms
+#
+#   x = ANY (...)
+#
+# to
+#
+#   x IN (...)
+#
+# Which allows scans to be constrained.
+[SimplifyEqualsAnyTuple, Normalize]
+(AnyScalar $input:* $tuple:(Tuple) $cmp:* & (OpsAreSame $cmp Eq))
+=>
+(In $input $tuple)
+```
+- Attempts used: 101
+- Last updated: 2026-09-29T10:52:06.853978+00:00
+- Reason / notes: This rule is a definitional unfolding of a backend operator: `x = ANY (t1..tn)` being equivalent to the in-list `x = t1 ∨ … ∨ x = tn` holds only by CockroachDB's semantics of `AnyScalar`/`Eq`, and RuleScript's fragment has no way to express either side in interpreted form — there is no interpreted value equality, no scalar constants to stand for the tuple elements, and no ANY/IN-over-a-list operator, so the best faithful encoding is an uninterpreted predicate symbol `P(x, t1..tn)` in `before()` versus an `Or` of other uninterpreted equality symbols in `after()`. QED's SMT-based decision procedure, by design, cannot infer any nontrivial identity between independent uninterpreted symbols (it only reasons about bag algebra and logical connectives over them), and all operator interpretation lives in the fixed Rust prover, so no Java-side DSL/serializer extension can supply the missing semantics. The porter correctly identified a fundamental fragment limitation, not an encoding bug.
+
+### `SimplifyExcept` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/set.opt
+
+SimplifyExcept converts an Except operator into an ExceptAll operator when the
+left input has a key. This avoids the de-duplication step.
+
+Extracted from `set.opt` (which defines multiple rules — implement specifically `SimplifyExcept`, not the other rules in that file):
+
+```
+# SimplifyExcept converts an Except operator into an ExceptAll operator when the
+# left input has a key. This avoids the de-duplication step.
+[SimplifyExcept, Normalize]
+(Except $left:* & (HasStrictKey $left) $right:* $colMap:*)
+=>
+(ExceptAll $left $right $colMap)
+```
+- Attempts used: 42
+- Last updated: 2026-09-29T10:32:12.545974+00:00
+- Reason / notes: SimplifyExcept's after-side operator is EXCEPT ALL (bag-difference), and QED's model contains no bag-variant MINUS: its `except` node is interpreted set-semantically, the Java builder `minus(true, ...)` produces a LogicalMinus that JSONSerializer cannot even serialize (its `except` emission is guarded on `!minus.all`, so the all=true case falls through to "Not implemented"), and bag-difference is not definable from QED's available operators (bag-union/join/project/filter + distinct + set-intersect/set-minus + uninterpreted aggregates), since it requires per-tuple count arithmetic (count_L − min(count_L, count_R)) that QED's uninterpreted-aggregate model cannot express. The rule's precondition (strict key on the left) is expressible via `scan(id, ty, unique=true)` keyed tables, so the constraint side is not the blocker — the missing after-side operator is a fundamental prover limitation that no `extend_dsl_file` edit can close (the Rust prover is fixed, and serializing bag-minus as `except` would unsoundly turn the rule into a trivial identity). The provable neighborhood the porter found (unique-left ⟹ Except ≡ AntiJoin) is a genuinely different rewrite, so giving up on this specific set→bag operator conversion is the correct call.
+
+### `SimplifyExplainOrdering` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/ordering.opt
+
+SimplifyExplainOrdering removes redundant columns from the Explain operator's
+input ordering.
+
+Extracted from `ordering.opt` (which defines multiple rules — implement specifically `SimplifyExplainOrdering`, not the other rules in that file):
+
+```
+# SimplifyExplainOrdering removes redundant columns from the Explain operator's
+# input ordering.
+[SimplifyExplainOrdering, Normalize]
+(Explain
+    $input:*
+    $explainPrivate:* &
+        (CanSimplifyExplainOrdering $input $explainPrivate)
+)
+=>
+(Explain $input (SimplifyExplainOrdering $input $explainPrivate))
+```
+- Attempts used: 27
+- Last updated: 2026-09-29T10:47:12.837200+00:00
+- Reason / notes: SimplifyExplainOrdering leaves the input relation and the Explain output data completely untouched — its only effect is replacing the required input ordering stored in ExplainPrivate.Props with a relaxed version, and the rewrite's validity rests entirely on an ordering/functional-dependency argument (a key column making a shorter ordering requirement sufficient for a longer one). QED models only bag semantics and has no notion of row order or of required orderings as plan properties (ordering semantics of Sort/Limit/Offset/Order By are explicitly unsupported, and even a DSL-extended Sort operator would be bag-erased by the prover, making any such encoding vacuously equivalent rather than a proof of the FD-based relaxation). Consequently, any RuleScript encoding yields bag-identical before/after patterns and a trivial, content-free proof — this is a fundamental limitation of QED's semantics, not a missing DSL builder. ```
+
+### `SimplifyGroupByOrdering` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/ordering.opt
+
+SimplifyGroupByOrdering removes redundant columns from the GroupBy operators'
+input ordering.
+
+Note: Doesn't match EnsureDistinctOn because test cases were too difficult to
+find. If a test case for EnsureDistinctOn is found, it should be added to the
+match pattern.
+
+Extracted from `ordering.opt` (which defines multiple rules — implement specifically `SimplifyGroupByOrdering`, not the other rules in that file):
+
+```
+# SimplifyGroupByOrdering removes redundant columns from the GroupBy operators'
+# input ordering.
+#
+# Note: Doesn't match EnsureDistinctOn because test cases were too difficult to
+# find. If a test case for EnsureDistinctOn is found, it should be added to the
+# match pattern.
+[SimplifyGroupByOrdering, Normalize]
+(GroupBy | ScalarGroupBy | DistinctOn
+    $input:*
+    $aggregations:*
+    $groupingPrivate:* &
+        (CanSimplifyGroupingOrdering $input $groupingPrivate)
+)
+=>
+((OpName)
+    $input
+    $aggregations
+    (SimplifyGroupingOrdering $input $groupingPrivate)
+)
+```
+- Attempts used: 26
+- Last updated: 2026-09-29T11:02:07.286767+00:00
+- Reason / notes: The rule is a properties-only rewrite: it only replaces GroupingPrivate.Ordering with a relaxation computed by OrderingChoice.Simplify over the input's functional dependencies, while the plan's data and the emitted bag are identical before and after. Its correctness content is entirely a statement about row orderings — that sequences of rows satisfying the original requirement also satisfy the simplified one — and QED is a bag-semantics decision procedure with no notion of required/physical ordering (the same fundamental gap that excludes Sort/Limit/Offset/Window). Any RuleScript encoding would have to render before and after as the same Aggregate(source, groupSet, aggCalls), a vacuous identity that QED could only prove trivially; extending the DSL wouldn't help either, since no ordering channel exists through semantics()/JSONSerializer into the immutable prover, which would erase it back to bag equality. ```
+
+### `SimplifyLimitOrdering` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/ordering.opt
+
+SimplifyLimitOrdering removes redundant columns from the Limit operator's
+input ordering.
+
+Extracted from `ordering.opt` (which defines multiple rules — implement specifically `SimplifyLimitOrdering`, not the other rules in that file):
+
+```
+# SimplifyLimitOrdering removes redundant columns from the Limit operator's
+# input ordering.
+[SimplifyLimitOrdering, Normalize]
+(Limit
+    $input:*
+    $limit:*
+    $ordering:* &
+        (CanSimplifyLimitOffsetOrdering $input $ordering)
+)
+=>
+(Limit
+    $input
+    $limit
+    (SimplifyLimitOffsetOrdering $input $ordering)
+)
+```
+- Attempts used: 25
+- Last updated: 2026-09-29T11:40:50.523656+00:00
+- Reason / notes: The rule's only change is rewriting the Limit's ordering annotation via functional-dependency reasoning, leaving the input relation and limit value untouched, and QED explicitly decides bag equivalence with no model of list/ordering semantics (Sort/Limit/Offset/Window have no bag-semantic meaning). The DSL has no channel to express an ordering property at all, so before and after are indistinguishable to the prover and the FD-based argument is a physical-property claim with no bag-level content to verify — extending the DSL with sort/limit builders would yield at most a vacuous identity proof, since the immutable QED prover does not model orderings. ```
+
+### `SimplifyNotDisjoint` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/scalar.opt
+
+SimplifyNotDisjoint converts !st_disjoint to st_intersects so that
+the query can be index-accelerated if a suitable inverted index exists.
+
+Extracted from `scalar.opt` (which defines multiple rules — implement specifically `SimplifyNotDisjoint`, not the other rules in that file):
+
+```
+# SimplifyNotDisjoint converts !st_disjoint to st_intersects so that
+# the query can be index-accelerated if a suitable inverted index exists.
+[SimplifyNotDisjoint, Normalize]
+(Not (Function $args:* $private:(FunctionPrivate "st_disjoint")))
+=>
+(MakeIntersectionFunction $args)
+```
+- Attempts used: 24
+- Last updated: 2026-09-29T11:48:34.890881+00:00
+- Reason / notes: This rule's validity rests entirely on CockroachDB's definitional axiom st_intersects(a,b) ≡ ¬st_disjoint(a,b), but RuleScript can only express these geo built-ins as distinct name-keyed uninterpreted symbols, and QED treats differently named operators as independent functions with no axiom mechanism to relate them — a gap in the fixed prover that no DSL extension can close. Since ¬P(x) ≡ Q(x) is false under some joint instantiation of independent P and Q (a row where P is true and Q is false), no encoding or narrower special case is universally valid, so the porter's UNSUPPORTED conclusion and reasoning are correct. ```
+
+### `SimplifyOffsetOrdering` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/ordering.opt
+
+SimplifyOffsetOrdering removes redundant columns from the Offset operator's
+input ordering.
+
+Extracted from `ordering.opt` (which defines multiple rules — implement specifically `SimplifyOffsetOrdering`, not the other rules in that file):
+
+```
+# SimplifyOffsetOrdering removes redundant columns from the Offset operator's
+# input ordering.
+[SimplifyOffsetOrdering, Normalize]
+(Offset
+    $input:*
+    $offset:*
+    $ordering:* &
+        (CanSimplifyLimitOffsetOrdering $input $ordering)
+)
+=>
+(Offset
+    $input
+    $offset
+    (SimplifyLimitOffsetOrdering $input $ordering)
+)
+```
+- Attempts used: 23
+- Last updated: 2026-09-29T12:06:55.706809+00:00
+- Reason / notes: SimplifyOffsetOrdering only rewrites the Offset operator's sort-key annotation using functional-dependency/ordered-stream reasoning, while leaving the underlying row bag unchanged. QED proves bag equivalence and has no model of Sort/Limit/Offset ordering semantics, and RuleScript's core relational language does not expose Offset/ordering in a way that could make this non-vacuous.
+
+### `SimplifyOrdinalityOrdering` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/ordering.opt
+
+SimplifyOrdinalityOrdering removes redundant columns from the Ordinality
+operator's input ordering.
+
+Extracted from `ordering.opt` (which defines multiple rules — implement specifically `SimplifyOrdinalityOrdering`, not the other rules in that file):
+
+```
+# SimplifyOrdinalityOrdering removes redundant columns from the Ordinality
+# operator's input ordering.
+[SimplifyOrdinalityOrdering, Normalize]
+(Ordinality
+    $input:*
+    $ordinalityPrivate:* &
+        (CanSimplifyOrdinalityOrdering $input $ordinalityPrivate)
+)
+=>
+(Ordinality
+    $input
+    (SimplifyOrdinalityOrdering $input $ordinalityPrivate)
+)
+```
+- Attempts used: 21
+- Last updated: 2026-09-29T12:24:01.749034+00:00
+- Reason / notes: SimplifyOrdinalityOrdering leaves the input — and therefore the produced rows — unchanged; its entire content is that, under a functional-dependency side condition, the required ordering on the Ordinality input may be replaced by a simplified ordering (dropping a functionally determined trailing column), which is a purely list/ordering-semantics equivalence. QED decides bag-equivalence over relations with uninterpreted operators and models no orderings at all (Sort/Limit/Offset/Window/Sample have no bag-semantic meaning), and the DSL exposes no operator that could carry an ordering requirement, so the only possible encodings are either a vacuous before≡after identity (reusing the same predicate symbol, which verifies nothing about the simplification) or two distinct uninterpreted predicates that QED can never relate, since it performs no entailment reasoning between independent symbols. This is a fundamental QED limitation, not a missing DSL builder that `extend_dsl_file` could close (the prover itself is the unchangeable arbiter and has no ordering theory), so UNSUPPORTED is correct.
+
+### `SimplifyPartialIndexProjections` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/mutation.opt
+
+SimplifyPartialIndexProjections converts partial index PUT and DEL projected
+expressions to false when it is guaranteed that the mutation will not require
+changes to the associated partial index. These projected expressions can only
+be simplified to false when an UPDATE mutates neither the associated index's
+columns nor the columns referenced in the partial index predicate.
+
+Extracted from `mutation.opt` (which defines multiple rules — implement specifically `SimplifyPartialIndexProjections`, not the other rules in that file):
+
+```
+# SimplifyPartialIndexProjections converts partial index PUT and DEL projected
+# expressions to false when it is guaranteed that the mutation will not require
+# changes to the associated partial index. These projected expressions can only
+# be simplified to false when an UPDATE mutates neither the associated index's
+# columns nor the columns referenced in the partial index predicate.
+[SimplifyPartialIndexProjections, Normalize]
+(Update
+    $project:(Project $input:* $projections:* $passthrough:*)
+    $uniqueChecks:*
+    $fkChecks:*
+    $mutationPrivate:* &
+        ^(ColsAreEmpty
+            $simplifiableCols:(SimplifiablePartialIndexProjectCols
+                $mutationPrivate
+                $uniqueChecks
+                $fkChecks
+                $projections
+            )
+        )
+)
+=>
+(Update
+    (Project
+        $input
+        (Let
+            (
+                $simplifiedProjections
+                $simplifiedPrivate
+            ):(SimplifyPartialIndexProjections
+                $projections
+                $passthrough
+                $simplifiableCols
+                $mutationPrivate
+            )
+            $simplifiedProjections
+        )
+        $passthrough
+    )
+    $uniqueChecks
+    $fkChecks
+    $simplifiedPrivate
+)
+```
+- Attempts used: 21
+- Last updated: 2026-09-29T13:30:41.161867+00:00
+- Reason / notes: The rule operates on CockroachDB's `Update` mutation operator (absent from QED's query-algebra model) under a side condition that is a structural/schema-level column-set analysis (`ColsAreEmpty(SimplifiablePartialIndexProjectCols(...))`), not a data-level relational predicate; no DSL extension can close this gap because QED's SMT prover reasons exclusively over bag-semantic query plans with uninterpreted functions and has no notion of DML side effects or plan-metadata column-set reasoning, so the constant-folding obligation (projected partial-index flag → `false`) is fundamentally unexpressible and unprovable in this framework. ```
+
+### `SimplifyWindowOrdering` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/window.opt
+
+SimplifyWindowOrdering reduces an ordering to a simpler form using FDs.
+
+This rules does not match when window functions have a RANGE frame with an
+offset, like max(a) OVER (PARTITION BY a ORDER BY a RANGE 1 PRECEDING). The
+ordering column cannot be pruned because the execution engine requires an
+ordering column in this case, even if the ordering is constant.
+
+Extracted from `window.opt` (which defines multiple rules — implement specifically `SimplifyWindowOrdering`, not the other rules in that file):
+
+```
+# SimplifyWindowOrdering reduces an ordering to a simpler form using FDs.
+#
+# This rules does not match when window functions have a RANGE frame with an
+# offset, like max(a) OVER (PARTITION BY a ORDER BY a RANGE 1 PRECEDING). The
+# ordering column cannot be pruned because the execution engine requires an
+# ordering column in this case, even if the ordering is constant.
+[SimplifyWindowOrdering, Normalize]
+(Window
+    $input:*
+    $fn:*
+    $private:* &
+        (CanSimplifyWindowOrdering $input $private) &
+        ^(HasRangeFrameWithOffset $fn)
+)
+=>
+(Window $input $fn (SimplifyWindowOrdering $input $private))
+```
+- Attempts used: 21
+- Last updated: 2026-09-29T13:35:44.176725+00:00
+- Reason / notes: The rule's entire content is rewriting the window's ORDER BY (private) clause, and its soundness rests on intra-partition *ordering* semantics — that ordering by (a,b) and by (a) induce the same relative row order once b is FD-determined by (partition, a). RuleScript's core language has no Window/ordering operator, and QED explicitly has no list/ordering semantics (Sort/Window/Sample carry no bag-semantic meaning), so any bag-level encoding of the window makes before() and after() collapse to the identical pattern. The remaining gap is also fundamental: the FD premise itself is an entailment over uninterpreted columns QED cannot derive (its only input-FD mechanism is the single-column `unique` scan flag, which can't express "b is determined by partition + a"), so even a special-case encoding would leave an unprovable, unstateable justification. ```
+
+### `SimplifyWithBindingOrdering` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/ordering.opt
+
+SimplifyWithBindingOrdering removes redundant columns from the With operator's
+binding ordering. Note that this ordering is only used with the special
+propagate_input_ordering flag.
+
+Extracted from `ordering.opt` (which defines multiple rules — implement specifically `SimplifyWithBindingOrdering`, not the other rules in that file):
+
+```
+# SimplifyWithBindingOrdering removes redundant columns from the With operator's
+# binding ordering. Note that this ordering is only used with the special
+# propagate_input_ordering flag.
+[SimplifyWithBindingOrdering, Normalize]
+(With
+    $binding:*
+    $main:*
+    $withPrivate:* &
+        (CanSimplifyWithBindingOrdering $binding $withPrivate)
+)
+=>
+(With
+    $binding
+    $main
+    (SimplifyWithBindingOrdering $binding $withPrivate)
+)
+```
+- Attempts used: 6
+- Last updated: 2026-09-29T13:28:25.274382+00:00
+- Reason / notes: `SimplifyWithBindingOrdering` is a properties-only rewrite — it leaves `$binding` and `$main` untouched and only relaxes `WithPrivate.BindingOrdering` (a required row-ordering property derived from the input's functional dependencies), so the emitted bag is identical before and after and its entire correctness content is a statement about physical/required ordering. QED is a bag-semantics decision procedure with no notion of required row order (per the reference, `Sort`/`Limit`/`Offset`/`Window`/`Sample` carry no bag-semantic meaning), and the DSL exposes no `With`/let-binding operator nor any ordering operator, so any RuleScript encoding would collapse `before`/`after` to the same plan and prove only a tautology — the ordering-simplification content is genuinely unmodelable, not a gap a DSL extension could close.
+
+### `SimplifyZeroCardinalityAntiJoin` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/join.opt
+
+SimplifyZeroCardinalityAntiJoin converts an AntiJoin operator to an empty
+Values when it's known that the right input never returns zero rows, and
+there is no join condition.
+
+Extracted from `join.opt` (which defines multiple rules — implement specifically `SimplifyZeroCardinalityAntiJoin`, not the other rules in that file):
+
+```
+# SimplifyZeroCardinalityAntiJoin converts an AntiJoin operator to an empty
+# Values when it's known that the right input never returns zero rows, and
+# there is no join condition.
+[SimplifyZeroCardinalityAntiJoin, Normalize]
+(AntiJoin | AntiJoinApply
+    $left:*
+    $right:* & ^(CanHaveZeroRows $right)
+    []
+)
+=>
+(ConstructEmptyValues (OutputCols $left))
+```
+- Attempts used: 113
+- Last updated: 2026-09-29T15:01:12.214533+00:00
+- Reason / notes: The rule is sound only under the optgen side condition `^(CanHaveZeroRows $right)` — i.e. the right input is guaranteed non-empty — which is a semantic property of a subtree, not a plan shape, and RuleScript has no mechanism to assert or assume such a property: uninterpreted scans range over all bags including the empty one, the `unique`/key flags don't imply non-emptiness, and there is no non-empty `VALUES` or any operator whose output QED can certify to have ≥ 1 row (a global aggregate's output is treated opaquely beyond input-bag equality, as the porter confirmed empirically with `provable: false`). Dropping the condition makes the rewrite outright unsound — an anti-join with an empty right and no condition returns the entire left input rather than ∅ — so no side-condition-free encoding can be proved, and extending the DSL wouldn't help since the JSON table schema carries only per-row `guaranteed` predicates and key sets, not a bag-cardinality constraint the (unmodifiable) QED prover would honor. ```
+
+### `TryAddLimitToRecursiveBranch` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/with.opt
+
+TryAddLimitToRecursiveBranch attempts to infer a limit that applies to the
+(unbounded) recursive branch of the CTE. This is accomplished by taking the
+upper bound of the initial branch, and checking whether applying that limit
+to the recursive WithScans would allow the same bound to be inferred for the
+recursive branch. This is useful because it can allow
+ApplyLimitToRecursiveCTEScan to fire. See the CanAddRecursiveLimit comment
+for details on when it is possible to make this transformation.
+
+The added limit doesn't need an ordering because it will never actually limit
+the number of rows returned.
+
+Extracted from `with.opt` (which defines multiple rules — implement specifically `TryAddLimitToRecursiveBranch`, not the other rules in that file):
+
+```
+# TryAddLimitToRecursiveBranch attempts to infer a limit that applies to the
+# (unbounded) recursive branch of the CTE. This is accomplished by taking the
+# upper bound of the initial branch, and checking whether applying that limit
+# to the recursive WithScans would allow the same bound to be inferred for the
+# recursive branch. This is useful because it can allow
+# ApplyLimitToRecursiveCTEScan to fire. See the CanAddRecursiveLimit comment
+# for details on when it is possible to make this transformation.
+#
+# The added limit doesn't need an ordering because it will never actually limit
+# the number of rows returned.
+[TryAddLimitToRecursiveBranch, Normalize]
+(RecursiveCTE
+    $binding:* & ^(HasBoundedCardinality $binding)
+    $initial:* & (HasBoundedCardinality $initial)
+    $recursive:* & ^(HasBoundedCardinality $recursive)
+    $private:* &
+        (CanAddRecursiveLimit
+            $recursive
+            (GetRecursiveWithID $private)
+            (MakeEmptyColSet)
+        )
+)
+=>
+(RecursiveCTE
+    $binding
+    $initial
+    (Limit
+        $recursive
+        (GetLimitFromCardinality $initial)
+        (EmptyOrdering)
+    )
+    $private
+)
+```
+- Attempts used: 22
+- Last updated: 2026-09-29T13:50:32.813838+00:00
+- Reason / notes: The operator being rewritten on both sides is a `RecursiveCTE` (a recursive fixpoint), which has no bag-semantic/Q-expression translation in the Rust prover and no counterpart in the RelRN core language, and the added `Limit`/`EmptyOrdering` falls squarely under QED's explicit non-modeling of Limit/ordering semantics. Independently, the rule's validity rests on the `CanAddRecursiveLimit`/`HasBoundedCardinality`/`GetLimitFromCardinality` cardinality side-condition, which QED cannot express; even abstracting the unbounded recursive branch to an opaque relation R, the claimed identity `Limit(R, N) ≡ R` holds only when |R| ≤ N rather than universally, so the prover (which checks all instantiations) would correctly refute it. Thus neither a full nor any narrower special case is encodable, confirming the porter's UNSUPPORTED claim. ```
+
+### `TryDecorrelateGroupBy` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Pushes a Join into a GroupBy operator to dig for and eliminate unnecessary correlation.
+- Attempts used: 108
+- Last updated: 2026-09-29T17:35:18.725152+00:00
+- Reason / notes: Manually investigated by Claude. The rule pushes a (correlated) join under a GroupBy by adding the left relation's key as an extra grouping column, so a left-independent aggregate gets replicated once per left row -- the same 'unique key forces per-row replication' mechanism already proven for EliminateDistinct/EliminateAggDistinctForKeys, applied here across a join rather than within one relation. Tried the 'left already has its own strict key' branch (EnsureKey is a no-op, no Ordinality needed), with the $right-has-outer-cols guard treated as a firing heuristic rather than a soundness precondition (same precedent as the already-PROVED TryDecorrelateSelect). Hand-verified the identity is genuinely true: both sides denote the same bag {(l, g, a_g) : l in L, g a distinct key value in Input, on(l,g)} because L's uniqueness prevents the cross-join+regroup from merging rows that the original per-l join kept separate. Confirmed this empirically too: the degenerate scalar (no grouping-key) special case of the exact same mechanism -- InnerJoin(L, ScalarAgg(Input)) versus GroupBy(InnerJoin(L,Input,true), group-by=L) -- IS QED-provable (tested directly). But the real rule always has a pre-existing grouping key k alongside the newly-added key L; re-tested that two-key version with the post-group filter removed entirely (pure GroupBy(Input,k) vs. GroupBy(cross(L,Input), {k,L}) equivalence, no join condition at all) and QED still reports not provable. So the blocker is specifically QED's aggregate/SMT translation being unable to derive this multi-key group-by refinement fact -- not a missing DSL construct (both sides serialize and compile cleanly, confirmed via the rendered LogicalPlan output matching the intended structure exactly) and not a flaw in the identity itself (true by hand-proof and confirmed on the single-key reduction). No DSL extension can close this since the gap is in the fixed Rust prover's aggregate reasoning, not the Java-side serialization.
+
+### `TryDecorrelateLimit` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+TryDecorrelateLimit "pushes down" a Join into a Limit operator with a limit
+greater than one, in an attempt to keep "digging" down to find and eliminate
+unnecessary correlation. The eventual hope is to trigger the DecorrelateJoin
+rule to turn a JoinApply operator into a non-apply Join operator.
+
+The limit is replaced with a row_number window function on the right input and
+a filter on top of the apply-join that removes all rows for which row_number()
+is less than the limit.
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `TryDecorrelateLimit`, not the other rules in that file):
+
+```
+# TryDecorrelateLimit "pushes down" a Join into a Limit operator with a limit
+# greater than one, in an attempt to keep "digging" down to find and eliminate
+# unnecessary correlation. The eventual hope is to trigger the DecorrelateJoin
+# rule to turn a JoinApply operator into a non-apply Join operator.
+#
+# The limit is replaced with a row_number window function on the right input and
+# a filter on top of the apply-join that removes all rows for which row_number()
+# is less than the limit.
+[TryDecorrelateLimit, Normalize]
+(InnerJoin | InnerJoinApply
+    $left:*
+    $right:(Limit $input:* (Const $limit:*) $ordering:*) &
+        (HasOuterCols $right) &
+        (IsGreaterThan $limit (DInt 1))
+    $on:*
+    $private:*
+)
+=>
+(Project
+    # Needed to project away the rowNum column.
+    (Select
+        ((OpName)
+            $left
+            (Window
+                $input
+                (Let
+                    ($rowNum $rowNumCol):(MakeRowNumberWindowFunc
+                    )
+                    $rowNum
+                )
+                (MakeWindowPrivate (MakeEmptyColSet) $ordering)
+            )
+            $on
+            $private
+        )
+        (LimitToRowNumberFilter $limit $rowNumCol)
+    )
+    []
+    (OutputCols2 $left $right)
+)
+```
+- Attempts used: 41
+- Last updated: 2026-09-29T16:20:33.546338+00:00
+- Reason / notes: The rewrite replaces an ordered LIMIT with a row_number() window plus a rowNum <= limit filter, so correctness depends on which row occurrences are selected under a given ordering. QED only reasons about bag semantics and gives Sort/Limit/Window no ordering algebra, so no RuleScript encoding can prove the required row-selection equivalence even if Limit/Window builders were added. ```
+
+### `TryDecorrelateLimitOne` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+TryDecorrelateLimitOne "pushes down" a Join into a Limit 1 operator, in an
+attempt to keep "digging" down to find and eliminate unnecessary correlation.
+The eventual hope is to trigger the DecorrelateJoin rule to turn a JoinApply
+operator into a non-apply Join operator.
+
+Like the TryDecorrelateGroupBy and TryDecorrelateScalarGroupBy rules, this
+rule rewrites the expression to perform the join first, followed by a grouping
+that eliminates any extra rows introduced by the join. The DistinctOn operator
+uses First aggregates to select values from the first row in each group. Non-
+key columns from the left join input become Const aggregates, since they are
+functionally dependent on the grouped key columns (and are therefore constant
+in each group).
+
+TODO(andyk): Add other join types.
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `TryDecorrelateLimitOne`, not the other rules in that file):
+
+```
+# TryDecorrelateLimitOne "pushes down" a Join into a Limit 1 operator, in an
+# attempt to keep "digging" down to find and eliminate unnecessary correlation.
+# The eventual hope is to trigger the DecorrelateJoin rule to turn a JoinApply
+# operator into a non-apply Join operator.
+#
+# Like the TryDecorrelateGroupBy and TryDecorrelateScalarGroupBy rules, this
+# rule rewrites the expression to perform the join first, followed by a grouping
+# that eliminates any extra rows introduced by the join. The DistinctOn operator
+# uses First aggregates to select values from the first row in each group. Non-
+# key columns from the left join input become Const aggregates, since they are
+# functionally dependent on the grouped key columns (and are therefore constant
+# in each group).
+#
+# TODO(andyk): Add other join types.
+[TryDecorrelateLimitOne, Normalize]
+(InnerJoin | InnerJoinApply | LeftJoin | LeftJoinApply
+    $left:*
+    $right:* &
+        (HasOuterCols $right) &
+        (Limit $input:* (Const 1) $ordering:*)
+    $on:*
+    $private:*
+)
+=>
+(Project
+    # Needed to project away any columns added by EnsureKey.
+    (DistinctOn
+        ((OpName) $newLeft:(EnsureKey $left) $input $on $private)
+        (MakeAggCols2
+            ConstAgg
+            (NonKeyCols $newLeft)
+            FirstAgg
+            (OutputCols $input)
+        )
+        (MakeGrouping (KeyCols $newLeft) $ordering)
+    )
+    []
+    (OutputCols2 $left $right)
+)
+```
+- Attempts used: 42
+- Last updated: 2026-09-29T16:43:02.163759+00:00
+- Reason / notes: The before pattern's right input is literally `Limit($input, Const 1, $ordering)`, and the after pattern's `DistinctOn` selects rows via an ordering-dependent `First`/`Const` aggregate over `MakeGrouping(KeyCols, $ordering)`; both sides rest on list/ordering semantics (first-row selection and limit-1 cardinality) that QED explicitly does not model, so neither the Limit node nor the order-dependent group-by-First can be faithfully expressed or proven — this is a fundamental QED limitation, not a missing builder.
+
+### `TryDecorrelateMax1Row` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+TryDecorrelateMax1Row "pushes down" a Join into a Max1Row operator, in an
+attempt to keep "digging" down to find and eliminate unnecessary correlation.
+The eventual hope is to trigger the DecorrelateJoin rule to turn a JoinApply
+operator into a non-apply Join operator.
+
+The Max1Row operator is mapped into an EnsureDistinctOn operator that wraps
+the join and raises an error if it detects duplicates in the column(s) that
+made up the key of the join's left input. A duplicate value in those key
+column(s) indicates that more than one row from the right input matched that
+value. Or in other words, it indicates that the Max1Row's subquery input would
+have returned more than one row corresponding to that value. Therefore, the
+two formulations are equivalent.
+
+TryDecorrelateMax1Row only matches when the join's "on" condition is true.
+This is because pushing a non-true filter through the EnsureDistinctOn would
+result in different error behavior. Since there are currently no situations
+where the join's "on" condition is anything other than true, and since these
+cases therefore cannot be tested, TryDecorrelateMax1Row only matches when the
+"on" condition is true. If this changes, TryDecorrelateMax1Row should hoist
+the non-true "on" conditions above the EnsureDistinctOn operator.
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `TryDecorrelateMax1Row`, not the other rules in that file):
+
+```
+# TryDecorrelateMax1Row "pushes down" a Join into a Max1Row operator, in an
+# attempt to keep "digging" down to find and eliminate unnecessary correlation.
+# The eventual hope is to trigger the DecorrelateJoin rule to turn a JoinApply
+# operator into a non-apply Join operator.
+#
+# The Max1Row operator is mapped into an EnsureDistinctOn operator that wraps
+# the join and raises an error if it detects duplicates in the column(s) that
+# made up the key of the join's left input. A duplicate value in those key
+# column(s) indicates that more than one row from the right input matched that
+# value. Or in other words, it indicates that the Max1Row's subquery input would
+# have returned more than one row corresponding to that value. Therefore, the
+# two formulations are equivalent.
+#
+# TryDecorrelateMax1Row only matches when the join's "on" condition is true.
+# This is because pushing a non-true filter through the EnsureDistinctOn would
+# result in different error behavior. Since there are currently no situations
+# where the join's "on" condition is anything other than true, and since these
+# cases therefore cannot be tested, TryDecorrelateMax1Row only matches when the
+# "on" condition is true. If this changes, TryDecorrelateMax1Row should hoist
+# the non-true "on" conditions above the EnsureDistinctOn operator.
+[TryDecorrelateMax1Row, Normalize]
+(InnerJoin | InnerJoinApply | LeftJoin | LeftJoinApply
+    $left:*
+    $right:* &
+        (HasOuterCols $right) &
+        (Max1Row $input:* $errorText:*)
+    []
+    $private:*
+)
+=>
+(Project
+    (EnsureDistinctOn
+        ((OpName) $newLeft:(EnsureKey $left) $input [] $private)
+        (MakeAggCols
+            ConstAgg
+            (UnionCols (NonKeyCols $newLeft) (OutputCols $input))
+        )
+        (MakeErrorOnDupGrouping
+            (KeyCols $newLeft)
+            (EmptyOrdering)
+            $errorText
+        )
+    )
+    []
+    (OutputCols2 $left $right)
+)
+```
+- Attempts used: 101
+- Last updated: 2026-09-29T17:45:22.363279+00:00
+- Reason / notes: The rule's correctness rests entirely on matching runtime error behavior — Max1Row raises an error when its input exceeds one row, and EnsureDistinctOn raises an error when it detects duplicate key values in the join output — so the two sides are equivalent precisely in the sense that they error on the same instantiations and produce the same bag on the non-error instantiations. Neither Max1Row (an at-most-one-row cardinality constraint with error) nor EnsureDistinctOn (a uniqueness check with error) is expressible as a composition of the DSL's bag-semantic operators (scan/filter/project/join/aggregate), and QED's SMT-based decision procedure only compares bag contents for all instantiations, with no notion of runtime errors, row-count limits, or error-condition matching. Any encoding that strips the error semantics reduces Max1Row to a plain input and EnsureDistinctOn to a GroupBy, which are not bag-equivalent when the input has more than one row, so QED would correctly report non-provability; there is no non-vacuous encoding of this rule within the core language. ```
+
+### `TryDecorrelateScalarGroupBy` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Pushes a Join into a ScalarGroupBy operator to dig for and eliminate unnecessary correlation.
+- Attempts used: 101
+- Last updated: 2026-09-30T01:42:45.952131+00:00
+- Reason / notes: Manually re-investigated after the automated round's own verifier DISAGREE'd with its SKIPPED claim (it then ran out of rounds without resolving the disagreement). The automated reasoning was partly WRONG: it claimed QED 'knows neither that COUNT/SUM ignore the NULL rows a left join synthesizes' -- but grepping relation.rs's Group/Aggr translation shows ignore_nulls is a genuinely interpreted flag (filters the aggregate's summation to non-null argument rows via a real Logic predicate guard), and Calcite's RelBuilder.AggCall exposes .ignoreNulls(true) directly (confirmed serialized correctly in the JSON output on both sides). Tested this directly on the maximally simplified instance -- L already has its own key (no EnsureKey/RowNumber needed), no correlation, no canary, ignoreNulls=true on the aggregate -- both with a generic aggregate operator and with COUNT specifically (QED's most concretely-interpreted aggregate, and the rule's own documented CountRows->Count remapping target): InnerJoin(L, ScalarGroupBy(Input, agg ignoreNulls)) versus Select(GroupBy(LeftJoinApply(L,Input,true), group-by=L, agg ignoreNulls), on) is NOT QED-provable in either case, even with the filter/on-condition removed from consideration. So the blocker is real, but different from what the automated round said: it's that QED's aggregate/SMT translation can't derive this particular LEFT-JOIN-then-regroup refinement even with real ignore_nulls semantics -- the same class of multi-relation join+regroup completeness gap already diagnosed for the sibling rule TryDecorrelateGroupBy (whose scalar/no-extra-key INNER-join variant WAS provable, but the LEFT-join variant tested here is not). On top of that still-genuine gap, the rule's general form also requires two confirmed-absent constructs: a CASE/conditional expression (for the 'notnull' canary discriminating zero-matches from a genuinely-null aggregate result -- grepped relation.rs/shared.rs, no conditional/ternary expression node exists anywhere in the Q-expression model) and an ordinal/RowNumber operator (for EnsureKey's fallback when the left side lacks a strict key -- no such operator in RelRN/JSONSerializer). No DSL extension can close any of these since they are prover-core (Rust, unmodifiable) gaps, not Java-side surface gaps.
+
+### `TryDecorrelateUnion` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+TryDecorrelateUnion replaces a Union/UnionAll beneath a ScalarGroupBy with a
+cross-join (InnerJoin on True) between two ScalarGroupBy operators. A Project
+operator coalesces columns from each join input to produce the final result.
+This transformation applies when the ScalarGroupBy has only "any-not-null"
+aggregations, which select an arbitrary non-null value from the input column.
+
+Here's a simplified example:
+
+scalar-group-by
+├── union-all
+│    ├── scan foo
+│    └── scan bar (has-outer-cols)
+└── aggregations
+└── any-not-null
+=>
+project
+├── inner-join (cross)
+│    ├── scalar-group-by
+│    │    └── scan foo
+│    ├── scalar-group-by
+│    │    └── scan bar
+│    └── filters (true)
+└── projections
+└── coalesce
+
+This situation occurs after a correlated EXISTS subquery containing a Union is
+hoisted. Note that TryDecorrelateUnion does not itself decorrelate the Union,
+but makes it easier for other rules to do so.
+
+NOTE: the outer Project operator is necessary just in case the ScalarGroupBy
+is synthesizing new columns, despite using any-not-null aggregations.
+NOTE: TryDecorrelateUnion should be ordered before TryDecorrelateScalarGroupBy
+to ensure that Union operators have a chance to be decorrelated.
+
+TODO(drewk): We could extend this rule to apply to other aggregations; for
+example, for a count() we can sum the counts taken on each side of the join.
+TODO(drewk): We could extend this rule to handle other set operations. For
+example, ExceptAll could become an AntiJoin.
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `TryDecorrelateUnion`, not the other rules in that file):
+
+```
+# TryDecorrelateUnion replaces a Union/UnionAll beneath a ScalarGroupBy with a
+# cross-join (InnerJoin on True) between two ScalarGroupBy operators. A Project
+# operator coalesces columns from each join input to produce the final result.
+# This transformation applies when the ScalarGroupBy has only "any-not-null"
+# aggregations, which select an arbitrary non-null value from the input column.
+#
+# Here's a simplified example:
+#
+#   scalar-group-by
+#    ├── union-all
+#    │    ├── scan foo
+#    │    └── scan bar (has-outer-cols)
+#    └── aggregations
+#         └── any-not-null
+#   =>
+#   project
+#    ├── inner-join (cross)
+#    │    ├── scalar-group-by
+#    │    │    └── scan foo
+#    │    ├── scalar-group-by
+#    │    │    └── scan bar
+#    │    └── filters (true)
+#    └── projections
+#         └── coalesce
+#
+# This situation occurs after a correlated EXISTS subquery containing a Union is
+# hoisted. Note that TryDecorrelateUnion does not itself decorrelate the Union,
+# but makes it easier for other rules to do so.
+#
+# NOTE: the outer Project operator is necessary just in case the ScalarGroupBy
+# is synthesizing new columns, despite using any-not-null aggregations.
+# NOTE: TryDecorrelateUnion should be ordered before TryDecorrelateScalarGroupBy
+# to ensure that Union operators have a chance to be decorrelated.
+#
+# TODO(drewk): We could extend this rule to apply to other aggregations; for
+# example, for a count() we can sum the counts taken on each side of the join.
+# TODO(drewk): We could extend this rule to handle other set operations. For
+# example, ExceptAll could become an AntiJoin.
+[TryDecorrelateUnion, Normalize]
+(ScalarGroupBy
+    $input:(Union | UnionAll $left:* $right:* $unionPrivate:*) &
+        (HasOuterCols $input)
+    $aggs:* & (AreAllAnyNotNullAggs $aggs)
+    $private:*
+)
+=>
+(Project
+    (Project
+        (InnerJoin
+            (MakeAnyNotNullScalarGroupBy $left)
+            (MakeAnyNotNullScalarGroupBy $right)
+            []
+            (EmptyJoinPrivate)
+        )
+        (MakeCoalesceProjectionsForUnion $unionPrivate)
+        (MakeEmptyColSet)
+    )
+    (ConvertAnyNotNullAggsToProjections $aggs)
+    (IntersectionCols
+        (GroupingOutputCols $private $aggs)
+        (OutputCols $input)
+    )
+)
+```
+- Attempts used: 21
+- Last updated: 2026-09-29T20:36:52.906092+00:00
+- Reason / notes: The rewrite depends on the nontrivial identity ANY_NOT_NULL(L+R) = COALESCE(ANY_NOT_NULL(L), ANY_NOT_NULL(R)), including arbitrary non-null choice and null/empty-group semantics. QED only equates aggregate calls with equal input bags and treats coalesce as an uninterpreted scalar, so it cannot prove this aggregate/coalesce algebra in any faithful encoding.
+
+### `TryRemapSelectOuterCols` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+TryRemapSelectOuterCols is similar to TryRemapJoinOuterColsRight, but it
+applies to the input of a Select.
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `TryRemapSelectOuterCols`, not the other rules in that file):
+
+```
+# TryRemapSelectOuterCols is similar to TryRemapJoinOuterColsRight, but it
+# applies to the input of a Select.
+[TryRemapSelectOuterCols, Normalize]
+(Select
+    $input:* & (HasOuterCols $input)
+    $on:* &
+        (CanMaybeRemapOuterCols $input $on) &
+        (Let ($remapped $ok):(TryRemapOuterCols $input $on) $ok)
+)
+=>
+(Select $remapped $on)
+```
+- Attempts used: 101
+- Last updated: 2026-09-30T01:42:57.732699+00:00
+- Reason / notes: TryRemapSelectOuterCols fundamentally depends on outer column references (a multi-scope concept) and a conditional structural expression-tree rewrite (TryRemapOuterCols) whose soundness rests on the backend's construction of correlated references — RuleScript's single-scope bag-semantic language cannot represent the HasOuterCols/CanMaybeRemapOuterCols premises or the parametric remap, and no DSL extension can close this gap because QED has no notion of correlated scopes or structure-dependent rewrites. ```
+
+### `UnifyComparisonTypes` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/scalar.opt
+
+UnifyComparisonTypes takes a mixed-type comparison between a non-constant and
+a constant and, if appropriate, converts the constant to the type of the
+non-constant to allow constraints to be generated.
+
+Extracted from `scalar.opt` (which defines multiple rules — implement specifically `UnifyComparisonTypes`, not the other rules in that file):
+
+```
+# UnifyComparisonTypes takes a mixed-type comparison between a non-constant and
+# a constant and, if appropriate, converts the constant to the type of the
+# non-constant to allow constraints to be generated.
+[UnifyComparisonTypes, Normalize]
+(Comparison
+    $left:(Variable)
+    $right:(Const) &
+        (Let ($result $ok):(UnifyComparison $left $right) $ok)
+)
+=>
+((OpName) $left $result)
+```
+- Attempts used: 46
+- Last updated: 2026-09-30T00:51:18.642819+00:00
+- Reason / notes: The rule's soundness rests on a type-system invariant — that a specific cast of the constant to the variable's type preserves the comparison's truth — but in any faithful RuleScript encoding the cast and the comparison predicate are both uninterpreted symbols with no axiom relating them (the prover maps all virtual types to a single integer domain and treats every operator uninterpreted, and the prover itself cannot be modified to add cast axioms), so `cmp(x, c) ↔ cmp(x, f(c))` has an SMT countermodel under every instantiation and cannot be proven. The only "provable" encoding would be the vacuous identity case where the constant is left untouched (reusing the same field, so no conversion is actually expressed), which does not encode this rule at all — this is exactly the documented limitation that QED cannot reason about type casts or a backend operator's bespoke internal semantics, not a missing DSL operator that `extend_dsl_file` could fix. ```
+
+### `UseSwapMutation` — ⏭️ SKIPPED
+
+- Source backend: CockroachDB
+- Source rule: Source: pkg/sql/opt/norm/rules/mutation.opt
+
+UseSwapMutation converts an Update or a Delete to an UpdateSwap or a
+DeleteSwap, respectively. It also replaces the input Scan with Values,
+possibly wrapped in a Select.
+
+UpdateSwap and DeleteSwap are optimistic compare-and-swap operations that are
+possible when:
+
+- all columns in the primary index are constrained to a single exact value
+by the WHERE clause;
+- only a single row is modified;
+- there are no FK checks or cascades;
+- there are no uniqueness checks;
+- there are no check constraints;
+- there are no vector indexes modified;
+- there are no passthrough columns to RETURNING;
+- there are no triggers;
+- the table only uses a single column family;
+- there are no mutation columns;
+- there are no mutation indexes;
+- there are no columns using composite encoding.
+
+This rule needs to run after PruneMutationInputCols and before
+GenerateParameterizedJoin.
+
+Extracted from `mutation.opt` (which defines multiple rules — implement specifically `UseSwapMutation`, not the other rules in that file):
+
+```
+# UseSwapMutation converts an Update or a Delete to an UpdateSwap or a
+# DeleteSwap, respectively. It also replaces the input Scan with Values,
+# possibly wrapped in a Select.
+#
+# UpdateSwap and DeleteSwap are optimistic compare-and-swap operations that are
+# possible when:
+#
+# - all columns in the primary index are constrained to a single exact value
+#   by the WHERE clause;
+# - only a single row is modified;
+# - there are no FK checks or cascades;
+# - there are no uniqueness checks;
+# - there are no check constraints;
+# - there are no vector indexes modified;
+# - there are no passthrough columns to RETURNING;
+# - there are no triggers;
+# - the table only uses a single column family;
+# - there are no mutation columns;
+# - there are no mutation indexes;
+# - there are no columns using composite encoding.
+#
+# This rule needs to run after PruneMutationInputCols and before
+# GenerateParameterizedJoin.
+[UseSwapMutation, Normalize]
+(Update | Delete
+    $input:* & (HasZeroOrOneRow $input)
+    []
+    []
+    $mutationPrivate:* &
+        (CanUseSwapMutation (OpName) $mutationPrivate) &
+        (Let
+            ($newInput $colMap $ok):(BuildSwapMutationInput
+                $input
+                $mutationPrivate
+            )
+            $ok
+        )
+)
+=>
+((OpName)
+    $newInput
+    []
+    []
+    (UseSwapMutation $mutationPrivate $colMap)
+)
+```
+- Attempts used: 41
+- Last updated: 2026-09-30T01:20:12.901146+00:00
+- Reason / notes: The rule's correctness rests on the backend's bespoke compare-and-swap semantics of UpdateSwap/DeleteSwap (optimistic: a graceful no-op when the PK-pinned row is absent) plus plan-time side conditions (input has zero or one row, WHERE pins every PK column, no FK/unique/check constraints) — QED can express neither, since RuleScript rules are unconditional equivalences with no assumption mechanism (table-level guarantees are only row-level constraints), and its bag-based query semantics has no notion of mutation/state at all. The two sides' inputs are not universally bag-equivalent (a filtered scan yields 0 or 1 data-dependent rows vs. a constructed one-row Values, diverging when the pinned row is absent), and since the Update↔UpdateSwap operator relationship is backend-internal semantics invisible to QED as independent uninterpreted symbols, no DSL builder extension can make it a theorem — and there is no non-trivial provable special case, since even identical inputs under two distinct uninterpreted operators are not provably related. ```
 

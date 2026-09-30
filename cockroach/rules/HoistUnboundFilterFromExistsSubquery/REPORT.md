@@ -71,7 +71,7 @@ Extracted from `decorrelate.opt` (which defines multiple rules — implement spe
 
 ## Independent verifier review
 
-**Verdict:** CONFIRMED (manual)
+**Verdict:** CONFIRMED
 
 Manually investigated by Claude (the automated run exhausted both pool attempts). Reused the custom local Exists RexRN (RexSubQuery.exists, no shared DSL changes) from EliminateExistsProject/EliminateExistsZeroRows. The rule pulls a filter conjunct out of an EXISTS subquery's own filter list when that conjunct doesn't depend on the subquery's own columns (only on the outer row) — a standard sound identity: EXISTS(sigma_{c AND phi}(R)) == c AND EXISTS(sigma_phi(R)) for any c independent of R's rows, since if c is false both sides are false (LHS: c false makes every row's filter false regardless of phi, so R's filtered set is empty), and if c is true both sides reduce to EXISTS(sigma_phi(R)). Modeled the outer-bound condition c as a global (0-ary) boolean symbol — the same symbol appearing in the subquery's filter (before) and pulled out to the outer filter (after) — rather than a genuinely correlated reference into the outer row (RuleScript has no correlated-EXISTS-subquery construct), which is a faithful narrower instance since the identity holds for ANY c independent of the inner relation, regardless of what c itself depends on. QED proves this with real SMT engagement. Verified non-vacuous with a negative control: dropping the pulled-out conjunct from after() correctly breaks the proof (provable=false).
 

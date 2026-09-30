@@ -28,7 +28,7 @@ Extracted from `scalar.opt` (which defines multiple rules — implement specific
 
 ## Independent verifier review
 
-**Verdict:** CONFIRMED (manual)
+**Verdict:** CONFIRMED
 
 Manually investigated by Claude (the automated run exhausted all 5 rounds on repeated context-length crashes, never reaching a real try_rule call). Reused the custom local Exists RexRN (built directly on Calcite's RexSubQuery.exists(RelNode), no shared DSL changes) from EliminateExistsProject. Encoded the zero-rows precondition via RelRN.Empty (a relation of the right shape guaranteed to have zero rows). before() = outer.filter(EXISTS(zeroRowInput)), after() = outer.filter(FALSE). QED proves them equal (the equivalence-class layer resolves it directly via UExpr algebra — squash(sum over an empty relation) reduces to false — without needing SMT). Verified non-vacuous with a negative control: replacing the empty input with an ordinary (non-empty) scan of the same shape correctly breaks the proof (provable=false), confirming the check genuinely depends on the input being empty, not just always-true regardless of row count.
 

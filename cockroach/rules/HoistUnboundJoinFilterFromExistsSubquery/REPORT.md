@@ -72,7 +72,7 @@ Extracted from `decorrelate.opt` (which defines multiple rules — implement spe
 
 ## Independent verifier review
 
-**Verdict:** CONFIRMED (manual)
+**Verdict:** CONFIRMED
 
 Manually investigated by Claude (the automated run exhausted both pool attempts). Same identity and technique as HoistUnboundFilterFromExistsSubquery, applied to a join's own filter list (inside the EXISTS subquery) instead of a plain Select's: EXISTS(Join(L, R, c AND phi)) == EXISTS(Join(L, R, phi)) AND c, for c independent of L/R's rows (modeled as a global 0-ary boolean symbol, same faithful-narrower-instance rationale as the sibling rule — the identity holds for any c independent of the inner join, regardless of what c itself depends on). Reused the custom local Exists RexRN (no shared DSL changes). QED proves this with real SMT engagement; verified non-vacuous with a negative control (dropping the pulled-out conjunct from after() correctly breaks the proof).
 

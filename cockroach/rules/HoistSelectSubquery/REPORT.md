@@ -49,6 +49,6 @@ Extracted from `decorrelate.opt` (which defines multiple rules — implement spe
 
 ## Independent verifier review
 
-**Verdict:** AGREE (manual)
+**Verdict:** AGREE
 
 Manually investigated by Claude. Same root cause as HoistProjectSubquery: read decorrelate_funcs.go's HoistSelectSubquery (and its doc example, 'WHERE (SELECT u FROM uv WHERE u=x LIMIT 1) IS NULL') — the hoisted subquery here is a general scalar subquery embedded in a filter comparison (not a boolean EXISTS), which gets hoisted into a LeftJoinApply/InnerJoinApply and its column referenced directly in place of the original subquery expression. QED's prover core has no handling for scalar subqueries ($SCALAR_QUERY) at all — confirmed by grep, zero hits anywhere in qed-prover's Rust source — so any such subquery used as a value falls through to a fully opaque HOp(op, args, rel, ty) with no defined relationship to 'the same relation's column, referenced directly once joined in.' There is no representational bridge for QED to reason across between those two forms — same fundamental gap as CorrelateUncollectOuter and HoistProjectSubquery, not a narrow-encoding opportunity like the EXISTS-boolean case (EliminateExistsProject/EliminateExistsZeroRows).

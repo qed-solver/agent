@@ -14,7 +14,7 @@
 
 ## Independent verifier review
 
-**Verdict:** CONFIRMED (manual)
+**Verdict:** CONFIRMED
 
 Manual mirror of the already-PROVED TryRemapJoinOuterColsLeft (same PARTIAL scope: InnerJoinApply, single-column scans of one shared uninterpreted type, ON is the genuine correlate equality l.c0 = r.c0). This is the symmetric right-side case: the filter predicate h references the right relation's column pre-remap and the left relation's equal column post-remap (fields swapped relative to the Left variant, which goes left-to-right instead of right-to-left). QED proves it (provable=true) and a negative control that breaks the correlate equality (replaces EQUALS with an uninterpreted g, so nothing forces the two columns equal) correctly fails to prove, confirming the encoding is non-vacuous.
 

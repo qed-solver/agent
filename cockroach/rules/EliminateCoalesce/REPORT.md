@@ -24,6 +24,6 @@ $item
 
 ## Independent verifier review
 
-**Verdict:** AGREE (manual)
+**Verdict:** AGREE
 
 Manually finalized by Claude after reviewing the automated run's own verifier rejection (the porter's last candidate called a nonexistent RexRN.Coalesce(...) — hallucinated, RexRN.java has no such construct — so its self-reported 'PROVABLE' was spurious). Independently confirmed by grepping the entire DSL and qed-prover core: 'coalesce' does not appear anywhere (unlike e.g. COUNT, which turned out to be a real hidden built-in). EliminateCoalesce's soundness rests on COALESCE's own single-argument identity semantics (COALESCE(e) == e), which is operator-internal algebra QED has no mechanism to reason about via uninterpreted symbols. The only way to make it 'provable' would be to define single-arg COALESCE as the identity function inside the DSL itself, which would make before() and after() structurally identical — a vacuous triviality, not a genuine proof. Genuinely outside QED's supported fragment.

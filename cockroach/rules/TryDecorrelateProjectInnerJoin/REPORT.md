@@ -14,7 +14,7 @@ Decorrelates by hoisting an InnerJoin's filter from below a LeftJoin/Project com
 
 ## Independent verifier review
 
-**Verdict:** CONFIRMED (manual)
+**Verdict:** CONFIRMED
 
 The automated porter's candidate was actually correct -- it originally landed as FAILED only because the independent verifier's LLM response got truncated at the token limit mid-reply and was conservatively (and incorrectly) treated as REJECTED since it couldn't be parsed, not because of any real flaw, and the 6th forced round then ran out with no more retries. Manually reviewed the candidate line-by-line against the source .opt pattern: it correctly models the ConcatFilters merge (innerOn gets AND'd into the outer LeftJoin's on-condition, matching argument order to before()'s on/innerOn calls), the UnionCols passthrough widening (IR gets added to the pushed Project's passthrough on the after side, needed so innerOn can reference it once re-evaluated at the outer join), and the final Project correctly restricting back to the original output columns. Same accepted narrowing precedent as TryDecorrelateSelect/TryDecorrelateProjectSelect: on/innerOn are modeled as uncorrelated predicates (the FiltersBoundBy/outer-cols guard is a firing heuristic, not a soundness precondition). Re-ran try_rule fresh (provable=true, complete_fragment=false -- real SMT engagement) and verified non-vacuous with a negative control that breaks the UnionCols widening (drops IR from the after-side passthrough, so innerOn can't be faithfully re-evaluated) -- correctly fails to prove.
 

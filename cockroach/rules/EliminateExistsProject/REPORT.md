@@ -30,7 +30,7 @@ Extracted from `scalar.opt` (which defines multiple rules — implement specific
 
 ## Independent verifier review
 
-**Verdict:** CONFIRMED (manual)
+**Verdict:** CONFIRMED
 
 Manually investigated by Claude (the automated attempt found a real proof via a DSL extension, but it broke 25 already-proved rules on merge — correctly blocked). Instead of reusing that risky edit, encoded this fully within the porter's own candidate file: RexRN is just an interface (RexNode semantics()), so a custom local record can build a real Calcite RexSubQuery.exists(RelNode) directly via raw Calcite APIs, with zero shared DSL file changes (no extend_dsl_file, no regression risk). QED's prover core (qed-prover/src/pipeline/relation.rs, eval_logic's EXISTS arm) already has genuine interpreted EXISTS semantics: Logic::squash(UExpr::sum(scope, UExpr::app(rel, vars))) — true iff the subquery relation has at least one row — confirmed via JSONSerializer, which already serializes RexSubQuery objects with an 'EXISTS' operator name and embedded query relation. Encoded before() = outer.filter(EXISTS(Project(input))), after() = outer.filter(EXISTS(input)); QED proves them equal with real SMT engagement (not a structural triviality). Verified non-vacuous with a negative control: adding a filter to the projected side (which CAN remove rows) correctly breaks the proof (provable=false) — confirming the check is genuinely sensitive to row presence/absence, not just always-true. SCOPE: FULL, since EXISTS is unconditionally insensitive to any Project on its input (Project never changes row cardinality, which is the entire premise of the source rule).
 

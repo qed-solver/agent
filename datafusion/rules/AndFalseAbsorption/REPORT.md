@@ -2,8 +2,8 @@
 
 **Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** Apache DataFusion
-**Porter attempts used:** 6  **Verification rounds used:** 3
-**Scope detail:** the absorption is only applied when the false-AND conjunction is the filter condition
+**Porter attempts used:** 10  **Verification rounds used:** 2
+**Scope detail:** the rewrite is applied only when the false-AND conjunction is the filter condition
 
 
 ## Source rule (as given to the porter)
@@ -16,7 +16,7 @@ Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 
 
 **Verdict:** CONFIRMED
 
-The encoding faithfully mirrors the source rewrite: `before()` is `Filter(AND(false, P))` and `after()` is `Filter(false)` — structurally distinct (no vacuity), with the right operand a fully uninterpreted nullable predicate symbol (matching `right: _` and the "even if A is null" comment), the false literal in the correct left position per `is_false(&left)`, and no silent NOT NULL or other precondition. The only narrowing — instantiating the expression-level rule at the filter condition rather than any boolean position — is genuine and specific, honestly declared in the SCOPE line, and yields a non-degenerate, useful rule (both filters keep exactly zero rows, and QED's proof of bag equality for all instantiations of `P` is exactly the claim that `false AND A` behaves as `false` in selection).
+The encoding correctly captures the core algebraic identity of the DataFusion rule (`false AND P → false`) by using an uninterpreted predicate for the right operand and a literal `false` for the left, within a `Filter` context. The `before()` and `after()` are structurally distinct (conjunction vs. bare false), the proof is non-vacuous, and the PARTIAL scope marker is honest: the original rule is a general scalar-expression rewrite applicable in any expression context, but RuleScript's relational pattern language naturally restricts it to the filter-condition position on a base scan, which is the most common and practically useful instance. No symbol-sharing, operator, or precondition issues are present. ```
 
 ## QED prover result
 
@@ -54,7 +54,7 @@ The encoding faithfully mirrors the source rewrite: `before()` is `Filter(AND(fa
   },
   "total_duration": {
     "secs": 0,
-    "nanos": 292875
+    "nanos": 177250
   }
 }
 ```

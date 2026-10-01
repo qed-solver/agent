@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache DataFusion
-**Porter attempts used:** 8  **Verification rounds used:** 1
+**Porter attempts used:** 7  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: datafusion/optimizer/src/eliminate_limit.rs, lines 1-89
 
 **Verdict:** AGREE
 
-The rule's core claim is a cardinality axiom about LIMIT — a literal fetch of 0 (or the skip-0/no-fetch identity branch) constrains the number of output rows — and QED's bag-semantic model has no Limit/Offset operator and no row-count or ordering axioms (Limit is listed alongside Sort/Window/Sample as having no bag-semantic meaning), so a `LIMIT 0` node would be indistinguishable from an arbitrary uninterpreted relation and cannot be proved equal to Empty for any input. The DSL exposes no Limit builder and `JSONSerializer` does not even have a `LogicalLimit` case, so extending the DSL could at best get the pattern to serialize — it cannot supply the missing axioms to the immutable Rust prover, unlike Sort, whose bag-identity effect the prover can absorb. Even the narrowest special case (e.g., limiting an already-empty input) requires the same unmodeled limit semantics, so no non-trivial provable special case exists.
+The rule's soundness (LIMIT with literal fetch 0 ⇒ empty relation, and skip-0/no-fetch ⇒ identity) rests entirely on the row-count/ordering semantics of LIMIT/OFFSET, but QED models Sort/Limit/Offset only as uninterpreted query operators (QOp) with no cardinality or ordering axioms, so `Limit(0, X)` is an unconstrained bag that SMT can instantiate as non-empty, making the equivalence with ∅ refutable for every input X. No non-trivial special case rescues it — even with an empty input (e.g. `Limit(0, Filter(false, X))`) there is no axiom linking the uninterpreted QOp's output to its input, so it remains unprovable. And closing it via `extend_dsl_file` is not an option: the DSL simply has no Limit/Sort builders, but adding one would serialize a LogicalSort that QED still treats as uninterpreted, since the limitation is in the trusted prover's bag-semantic model, not in the DSL's surface language. ```

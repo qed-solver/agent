@@ -16,7 +16,7 @@ Source: datafusion/optimizer/src/push_down_filter.rs, lines 1068-1139
 
 **Verdict:** CONFIRMED
 
-The encoding faithfully captures DataFusion's core semantics — a conjunct P referencing only the partition column k (constant per partition, so pushable) is moved below a window modeled as an uninterpreted partition-aggregate join-back (the right stand-in since QED can't model frames/ordering), while a kept conjunct Q over the full window row (k, v, w) stays above; P, Q, and the window value w are correctly shared uninterpreted symbols on both sides (not baked-in constants), and before()/after() are structurally distinct plans, so the ~90ms proof is a genuine, non-vacuous universal argument rather than an artifact of over-constraint. The `SCOPE: PARTIAL` line is honest and specific — single partition column, single window function, no frame/ordering, two-column input, one pushed + one kept conjunct — and each restriction is a real QED/DSL limitation (window functions have no bag semantics; the per-conjunct split and multi-key/multi-window details are control-flow the uninterpreted P/Q already abstract) rather than an encoding error, leaving a faithful, non-degenerate special case.
+The encoding faithfully captures the rule's essence: the window is a join-back of the input to a partition-keyed uninterpreted aggregate (w), the pushed conjunct P is an uninterpreted predicate over *only* the partition column k (exactly DataFusion's "all referenced cols ∈ intersection of partition keys" precondition, making it constant per partition), and the kept conjunct Q is an uninterpreted predicate over the full window row; before() = σ_{P∧Q}(R ⋈ Agg(R)) and after() = σ_Q(σ_P R ⋈ Agg(σ_P R)) are genuinely different plans whose equivalence hinges precisely on P eliminating whole partitions (so the aggregate's input bag, and thus w, is unchanged for surviving rows), so the QED proof is non-trivial and meaningful rather than vacuous. The narrowing to a single window function, single partition column, two-column input, and non-null key is a legitimate special case, is honestly declared in the SCOPE line, and leaves a non-degenerate rewrite; symbol sharing (same P, Q, and w on both sides, equi-join on k) is correct.
 
 ## QED prover result
 
@@ -27,34 +27,34 @@ The encoding faithfully captures DataFusion's core semantics — a conjunct P re
   "complete_fragment": false,
   "equiv_class_duration": {
     "secs": 0,
-    "nanos": 12201875
+    "nanos": 12502666
   },
   "equiv_class_timed_out": false,
   "smt_duration": {
     "secs": 0,
-    "nanos": 48197083
+    "nanos": 48734499
   },
   "smt_timed_out": false,
   "nontrivial_perms": false,
   "translate_duration": {
     "secs": 0,
-    "nanos": 869833
+    "nanos": 986375
   },
   "normal_duration": {
     "secs": 0,
-    "nanos": 1039542
+    "nanos": 1134708
   },
   "stable_duration": {
     "secs": 0,
-    "nanos": 28083875
+    "nanos": 28953125
   },
   "unify_duration": {
     "secs": 0,
-    "nanos": 48570542
+    "nanos": 49122333
   },
   "total_duration": {
     "secs": 0,
-    "nanos": 92846625
+    "nanos": 94608208
   }
 }
 ```

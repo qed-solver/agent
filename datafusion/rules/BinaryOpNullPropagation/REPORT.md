@@ -2,7 +2,7 @@
 
 **Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** Apache DataFusion
-**Porter attempts used:** 30  **Verification rounds used:** 2
+**Porter attempts used:** 8  **Verification rounds used:** 1
 **Scope detail:** only the Eq branch with a null right operand (eq(value, Null) ⇒ Null) is encoded; DataFusion's rule covers ~30 returns_null_on_null operators in either operand position, and each concrete operator needs its own before()/after() pair since QED cannot derive null propagation for an uninterpreted operator symbol
 
 
@@ -16,7 +16,7 @@ Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 
 
 **Verdict:** CONFIRMED
 
-The encoding is faithful to the special case it claims: `before()` (filter on `EQUALS(x, NULL-lit)`) and `after()` (filter on a bare NULL-Bool literal) are structurally distinct, and the proof is non-vacuous — it depends on real three-valued null semantics (x = NULL is never true, so both filters keep no rows), not a structural coincidence. The narrowing from DataFusion's ~30 `returns_null_on_null` operators in either operand position down to just Eq with a null right operand is genuine rather than a DSL gap: null propagation is the internal semantics of each concrete interpreted operator, which QED's SMT model knows only for built-ins (like Calcite's EQUALS) and cannot assume of an uninterpreted operator symbol, so the fully general form is unprovable; this restriction is disclosed accurately and specifically in the SCOPE line. Preconditions are honored (the null operand is a literal, matching DataFusion's `is_null` guard, and the folded literal carries the expression's Boolean type), with no symbol-sharing or hard-coded-shape errors. ```
+The encoding is a faithful, non-vacuous instance of the simplifier: `Filter(x = NULL)` ⟹ `Filter(NULL::Boolean)` is exactly DataFusion's rewrite (binary expr with a literal-null operand → NULL literal of the expression's type) applied in predicate position for `Eq`, a `returns_null_on_null` operator, and proving it requires the prover to actually know that `x = NULL` is never true — so the proof certifies the null-propagation property itself, not a structural identity. The narrowing to a concrete operator and one operand position is a genuine QED limitation, not a missing DSL capability (uninterpreted operator symbols can be expressed via `RexRN.Pred`, but the prover has no null-propagation axiom for them and must hold for all instantiations, so per-concrete-operator instances are the widest provable form), and the `SCOPE: PARTIAL` line states precisely this restriction. No failure modes triggered: the shared type `V` between the column and the null literal mirrors the source rule's type-coerced null operand rather than an accidental over-constraint, the `returns_null_on_null` guard is instantiated (not silently dropped), and `nullBool` correctly has the comparison's result type, not the operand's.
 
 ## QED prover result
 
@@ -54,7 +54,7 @@ The encoding is faithful to the special case it claims: `before()` (filter on `E
   },
   "total_duration": {
     "secs": 0,
-    "nanos": 88917
+    "nanos": 403125
   }
 }
 ```

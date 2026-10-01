@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache DataFusion
-**Porter attempts used:** 21  **Verification rounds used:** 2
+**Porter attempts used:** 25  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 
 
 **Verdict:** AGREE
 
-CASE/then-else is not among QED's interpreted scalar operators (its `ite` is only the internal 3VL encoding of And/Or/In/Some, and the JSON format can at best carry a CASE call as a named uninterpreted operator), so in every branch of this rule the before-side pattern contains a literal CASE that QED sees only as an uninterpreted function and can never equate with a then/else branch (e.g. `case(false, A, B) ≡ B` or dead-branch elimination). A relational Filter/Union re-encoding of the CASE value column is not faithful under 3-valued logic (a `c`/`¬c` filter pair silently drops rows where `c` is NULL, and "is not true" would be an independent symbol QED can't relate to `c`), and `extend_dsl_file` only touches the Java builder side — the interpretation lives in the fixed Rust prover — so this is a genuine prover limitation in the "operator whose specific internal semantics QED cannot see through" class, and no narrower special case of the rule escapes it because the before side always contains the unnameable CASE. ```
+This rule's correctness rests entirely on the CASE operator's 3-valued branch-selection semantics (e.g. `case(TRUE, a, b) ≡ a`, dropping `WHEN false` branches), and QED's interpreted fragment contains no CASE/ite — any CASE encoding serializes to an uninterpreted scalar call, for which the equality is not valid under universal instantiation, so no SMT proof exists. Every instance of the rule, including the narrowest special cases (`CASE WHEN true THEN a END → a`, `CASE WHEN false THEN a ELSE b END → b`), necessarily contains CASE on the before side, so no special case escapes the uninterpreted-operator gap. This is a fixed-prover semantics limitation (the interpretation is keyed by operator name inside the Rust prover), which `extend_dsl_file` cannot address since it only touches the Java builders/serializer. ```

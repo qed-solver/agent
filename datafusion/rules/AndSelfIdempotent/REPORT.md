@@ -2,7 +2,7 @@
 
 **Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** Apache DataFusion
-**Porter attempts used:** 7  **Verification rounds used:** 2
+**Porter attempts used:** 3  **Verification rounds used:** 1
 **Scope detail:** the duplicated right operand is a single uninterpreted predicate occurring as a nested conjunct inside the left operand, not an arbitrary subexpression of any shape or depth.
 
 
@@ -16,7 +16,7 @@ Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 
 
 **Verdict:** CONFIRMED
 
-The encoding is a faithful, non-vacuous instance of the DataFusion rule: the shared symbol B is exactly the duplicated conjunct the original's `expr_contains(&left, &right, And)` side condition requires (it appears both nested inside `left` via AND-only paths and as the right operand), A and C are genuinely independent uninterpreted predicates (no wrong sharing), and before/after are structurally different, so the zero-SMT-time result just reflects that normalization proves the real idempotency equivalence `((A∧B)∧C)∧B ≡ (A∧B)∧C`, which holds even under null semantics with no missing preconditions. The narrowing — left fixed to a specific 3-conjunct AND shape and right restricted to a single uninterpreted predicate — is genuine, since the original's parametric "right is an arbitrary subexpression of any shape AND-embedded at any depth in left" cannot be expressed in the DSL (substructure-containment patterns go beyond QED's flat uninterpreted-symbol semantics), and the PARTIAL scope line states this honestly and specifically. The result is still a useful, non-degenerate rule (a filter whose condition redundantly re-ANDs a conjunct already nested inside it can drop the duplicate), so the provable verdict is meaningful. ```
+The encoding correctly captures the core idempotency property (left AND right ≡ left when right is a conjunct of left) with B shared between the left tree and the outer AND, making before() and after() structurally distinct yet semantically equivalent; the narrowing to a single atomic predicate as the duplicated subexpression is a genuine DSL limitation (no subexpression meta-variable exists) and is honestly declared in the SCOPE line, while all other aspects (AND operator, filter shape, symbol reuse) faithfully mirror the DataFusion rule.
 
 ## QED prover result
 
@@ -54,7 +54,7 @@ The encoding is a faithful, non-vacuous instance of the DataFusion rule: the sha
   },
   "total_duration": {
     "secs": 0,
-    "nanos": 491209
+    "nanos": 123333
   }
 }
 ```

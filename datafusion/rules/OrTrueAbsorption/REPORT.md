@@ -2,7 +2,7 @@
 
 **Status:** PROVED  **Scope:** FULL
 **Source backend:** Apache DataFusion
-**Porter attempts used:** 3  **Verification rounds used:** 1
+**Porter attempts used:** 4  **Verification rounds used:** 1
 **Scope detail:** public record OrTrueAbsorption() implements RRule {
 
 
@@ -16,7 +16,7 @@ Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 
 
 **Verdict:** CONFIRMED
 
-The encoding faithfully captures the source rule: an uninterpreted predicate `left` stands in for the arbitrary left expression `_`, `RexRN.trueLiteral()` on the right matches the `is_true(&right)` guard (and correctly fires only for the right-operand-true case the rule specifies), and `before()`/`after()` are structurally distinct (filter on `Or(A,true)` vs filter on `true`), so the proof is non-vacuous. The null-safety comment ("even if A is null") is precisely the justification that no extra precondition (e.g. NOT NULL) is needed — in 3VL, `A OR true = true` unconditionally — so the absence of constraints is faithful, and the filter-context embedding with a fully general uninterpreted A is the most general relational form of this scalar rewrite, warranting `SCOPE: FULL`.
+`before()` (`Filter(Or(<uninterpreted pred>, trueLiteral), S)`) and `after()` (`Filter(trueLiteral), S`) are structurally distinct, so the proof is non-vacuous; the arbitrary expression `A` of the source rule is modeled by a single fully-general uninterpreted predicate over a nullable column (no NOT-NULL or PK assumption baked in, matching the "even if A is null" case), and the right side is correctly fixed to the `true` literal per `is_true(&right)`, with the filter carrier being the standard faithful embedding of this scalar law in a relational prover. SCOPE: FULL is honest — nothing in the source rule's generality (any `A`, null included) is narrowed by the encoding.
 
 ## QED prover result
 
@@ -54,7 +54,7 @@ The encoding faithfully captures the source rule: an uninterpreted predicate `le
   },
   "total_duration": {
     "secs": 0,
-    "nanos": 61083
+    "nanos": 278250
   }
 }
 ```

@@ -2,7 +2,7 @@
 
 **Status:** PROVED  **Scope:** FULL
 **Source backend:** Apache DataFusion
-**Porter attempts used:** 7  **Verification rounds used:** 1
+**Porter attempts used:** 4  **Verification rounds used:** 1
 **Scope detail:** public record AndNotSelfContradiction() implements RRule {
 
 
@@ -16,7 +16,7 @@ Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 
 
 **Verdict:** CONFIRMED
 
-`before()` and `after()` are genuinely different plans (filter condition `A AND NOT(A)` vs. the `false` literal), the predicate `A` and the source table are properly uninterpreted, and the single shared symbol `a` is exactly right — the DataFusion guard `is_not_of(&right, &left)` requires the same subexpression on both sides, so the proof is non-vacuous and covers an arbitrary uninterpreted predicate over an arbitrary bag. The encoding does pin the pattern to the position of a Filter's *complete* condition rather than an arbitrary expression position (so `SCOPE: FULL` is a mild over-claim relative to the expression-level original), but that restriction is real, specific, and non-degenerate, and the source rule's non-nullable precondition is genuinely subsumed in this context: `A AND NOT(A)` is never TRUE even when `A` is NULL (a filter keeps only TRUE rows), so both filters are extensionally empty and the proved equivalence is the true, substantive content of the DataFusion rule in its canonical relational embedding.
+The proof is non-trivial and faithful — `before()` filters on the uninterpreted predicate `A AND NOT(A)` while `after()` filters on the literal `false`, and QED shows both yield the empty bag for every instantiation of the uninterpreted `A`, with the *same* symbol `a` correctly shared between the conjunct and its negation (matching the source's `is_not_of(right, left)` self-contradiction constraint; two independent predicates would not be provable). The source's `!info.nullable(&left)` precondition is not silently dropped in a way that proves an easier or false claim: in a filter position `A AND NOT(A)` excludes every row exactly like `false` regardless of nullability (in both 2-valued and SQL 3-valued semantics), so nothing the proven claim needs is missing. The filter embedding with a fully uninterpreted predicate is therefore the complete relational form of this boolean-condition simplification, `before()`/`after()` are structurally distinct and non-degenerate, and `SCOPE: FULL` is honest.
 
 ## QED prover result
 
@@ -54,7 +54,7 @@ Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 
   },
   "total_duration": {
     "secs": 0,
-    "nanos": 310500
+    "nanos": 509917
   }
 }
 ```

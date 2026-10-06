@@ -9215,7 +9215,7 @@ index 27af3ba..0000000
 # fresh checkout for the next backend starts with these already available,
 # instead of every backend rediscovering them independently.
 diff --git a/src/main/java/org/qed/RelRN.java b/src/main/java/org/qed/RelRN.java
-index 1debebb..40a478f 100644
+index 1debebb..3b37342 100644
 --- a/src/main/java/org/qed/RelRN.java
 +++ b/src/main/java/org/qed/RelRN.java
 @@ -5,6 +5,8 @@ import kala.collection.Set;
@@ -9227,13 +9227,10 @@ index 1debebb..40a478f 100644
  import org.apache.calcite.rex.RexNode;
  import org.apache.calcite.sql.SqlAggFunction;
  import org.apache.calcite.sql.SqlOperator;
-@@ -26,6 +28,13 @@ public interface RelRN {
+@@ -26,6 +28,10 @@ public interface RelRN {
          return scan(id, RexRN.varType(typeName, true), false);
      }
  
-+    /** Multi-column scan — additive alongside the single-column {@link #scan}
-+     * above, for rules whose base relation needs more than one column (e.g.
-+     * one column used as a join key, another as a separate group-by key). */
 +    static ScanMany scanMany(String id, Seq<RelType.VarType> tys) {
 +        return new ScanMany(id, tys);
 +    }
@@ -9241,14 +9238,10 @@ index 1debebb..40a478f 100644
      RelNode semantics();
  
      default RexRN field(int ordinal) {
-@@ -93,6 +102,14 @@ public interface RelRN {
+@@ -93,6 +99,10 @@ public interface RelRN {
          return project(proj(name, type_name));
      }
  
-+    /** Multi-column projection (e.g. reordering/selecting several columns at
-+     * once) — additive alongside the single-expression {@link #project(RexRN)}
-+     * above, for rules that need to rebuild a row from more than one
-+     * expression (e.g. reordering join output columns). */
 +    default ProjectMany project(Seq<RexRN> exprs) {
 +        return new ProjectMany(exprs, this);
 +    }
@@ -9256,16 +9249,10 @@ index 1debebb..40a478f 100644
      default Join join(Join.JoinType ty, RexRN cond, RelRN right) {
          return new Join(ty, cond, this, right);
      }
-@@ -111,6 +128,16 @@ public interface RelRN {
+@@ -111,6 +121,10 @@ public interface RelRN {
  
      default Join join(JoinRelType ty, String name, RelRN right) {return join(ty, joinPred(name, right), right);}
  
-+    /** Correlate (dependent join): unlike {@link #join}, the condition is a
-+     * raw uninterpreted {@link SqlOperator} rather than a prebuilt RexRN,
-+     * because the correlated reference to the left row can only be built
-+     * once a correlation id exists for this specific correlate node —
-+     * {@link Correlate#semantics()} creates that id and the whole condition
-+     * together, rather than delegating to an independently-built cond. */
 +    default Correlate correlate(JoinRelType ty, SqlOperator cond, RelRN right) {
 +        return new Correlate(ty, cond, this, right);
 +    }
@@ -9273,7 +9260,7 @@ index 1debebb..40a478f 100644
      default Union union(boolean all, RelRN... sources) {
          return new Union(all, Seq.of(this).appendedAll(sources));
      }
-@@ -138,6 +165,16 @@ public interface RelRN {
+@@ -138,6 +152,16 @@ public interface RelRN {
          }
      }
  
@@ -9290,7 +9277,7 @@ index 1debebb..40a478f 100644
      record Filter(RexRN cond, RelRN source) implements RelRN {
          @Override
          public RelNode semantics() {
-@@ -152,6 +189,14 @@ public interface RelRN {
+@@ -152,6 +176,14 @@ public interface RelRN {
          }
      }
  
@@ -9305,7 +9292,7 @@ index 1debebb..40a478f 100644
      record Join(Join.JoinType ty, RexRN cond, RelRN left, RelRN right) implements RelRN {
          @Override
          public RelNode semantics() {
-@@ -245,6 +290,29 @@ public interface RelRN {
+@@ -245,6 +277,29 @@ public interface RelRN {
          }
      }
  

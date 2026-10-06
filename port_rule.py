@@ -115,12 +115,6 @@ def porter_agent_loop(
 ) -> PorterResult:
     tool_specs = tools_obj.specs()
     if final_round:
-        # Forced-conclusion round: don't even offer the exploratory (read-only)
-        # tools, so the model can't keep burning turns re-reading files it already
-        # has notes on. try_rule and extend_dsl_file (a legitimate proof may
-        # genuinely need a DSL extension) remain callable; the only other legal
-        # move is a plain-text UNSUPPORTED reply (handled below with no tool call
-        # at all).
         tool_specs = [s for s in tool_specs if s.get("name") in ("try_rule", "extend_dsl_file")]
     last_reason = ""
     last_tried_code: str | None = None
@@ -675,7 +669,21 @@ def run_one(
     dsl_snapshot = snapshot_dsl_files(workspace_root)
     debug_dir = ROOT_DIR / ".cache" / "transcripts"
 
+    dsl_dirty = True
+
+    def restore_unmerged_dsl() -> None:
+        nonlocal dsl_dirty
+        if isolated or not dsl_dirty or not tools_obj.dsl_edits:
+            return
+        worker_pipeline.remove_rule(spec.name)
+        base = workspace_root / "src" / "main" / "java" / "org" / "qed"
+        for f, content in dsl_snapshot.items():
+            (base / f).write_text(content)
+        pipeline.compile()
+        dsl_dirty = False
+
     def cleanup() -> None:
+        restore_unmerged_dsl()
         if isolated:
             workspace.cleanup_workspace(workspace_root)
 
@@ -685,10 +693,6 @@ def run_one(
     last_verifier_verdict = ""
     last_verifier_reasoning = ""
 
-    # One extra round beyond the normal budget: if the porter still hasn't
-    # reached a proof or a genuine UNSUPPORTED claim after max_rounds, it gets
-    # a final round with a sharpened prompt that forces a real conclusion
-    # instead of burning straight to FAILED.
     total_rounds = max_rounds + 1
 
     for round_num in range(1, total_rounds + 1):
@@ -704,19 +708,16 @@ def run_one(
 
         if result.outcome == "PROVED":
             verdict, reasoning = run_verifier(
-                verifier_llm, rulescript_root, spec, "proved", debug_dir,
+                verifier_llm, workspace_root, spec, "proved", debug_dir,
                 source_text=source_text, code=result.code, prover_json=result.prover_json,
             )
             last_verifier_verdict, last_verifier_reasoning = verdict, reasoning
             if verdict in (NO_VERIFIER, "CONFIRMED"):
-                if isolated:
-                    merge_status, merge_detail = merge_rule_to_main(
-                        pipeline, rulescript_root, spec.name, result.code, tools_obj.dsl_edits,
-                        auditor_llm, merge_lock_path,
-                    )
-                else:
-                    pipeline.write_rule(spec.name, result.code)
-                    merge_status, merge_detail = "merged", "ok"
+                restore_unmerged_dsl()
+                merge_status, merge_detail = merge_rule_to_main(
+                    pipeline, rulescript_root, spec.name, result.code, tools_obj.dsl_edits,
+                    auditor_llm, merge_lock_path,
+                )
                 if merge_status != "merged":
                     print(f"   [merge] failed ({merge_status}): {merge_detail}")
                     cleanup()
@@ -771,7 +772,7 @@ def run_one(
         if result.outcome == "UNSUPPORTED":
             claimed_reason = result.reason or "porter concluded the rule is unsupported"
             verdict, reasoning = run_verifier(
-                verifier_llm, rulescript_root, spec, "unsupported", debug_dir,
+                verifier_llm, workspace_root, spec, "unsupported", debug_dir,
                 source_text=source_text, claimed_reason=claimed_reason, transcript_tail=result.transcript_tail,
             )
             last_verifier_verdict, last_verifier_reasoning = verdict, reasoning
@@ -813,12 +814,6 @@ def run_one(
             }]
             continue
 
-        # EXHAUSTED: the porter never reached a proof or an UNSUPPORTED claim this
-        # round (ran out of turns, or the LLM call itself kept failing — e.g. a
-        # context-length crash). There's no actual conclusion here for the
-        # verifier to review, so don't let it rubber-stamp a SKIPPED verdict off
-        # nothing. Just retry with a fresh round if any remain; otherwise fall
-        # through to FAILED below.
         print(f"   round ended without a proof or an UNSUPPORTED claim ({result.reason}); "
               f"skipping the verifier — there's nothing for it to review")
         if round_num < total_rounds:
@@ -1068,7 +1063,8 @@ def main():
     if args.pool:
         if not args.spec_dir:
             parser.error("--pool requires --spec-dir")
-        state_path = (ROOT_DIR / ".cache" / "pool" / f"{args.spec_dir.name}.json").resolve()
+        spec_dir = args.spec_dir.resolve()
+        state_path = (ROOT_DIR / ".cache" / "pool" / f"{spec_dir.parent.name}-{spec_dir.name}.json").resolve()
         state_path.parent.mkdir(parents=True, exist_ok=True)
         pool = Pool(state_path)
         pool.init([s.name for s in specs])

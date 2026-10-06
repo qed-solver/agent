@@ -37,9 +37,12 @@ class Pool:
 
     def init(self, spec_names: list[str]) -> None:
         with _locked(self.lock_path):
-            if self.state_path.exists():
-                return
-            state = {name: {"status": "pending", "attempts": 0} for name in spec_names}
+            old = json.loads(self.state_path.read_text()) if self.state_path.exists() else {}
+            state = {name: old.get(name, {"status": "pending", "attempts": 0}) for name in spec_names}
+            for entry in state.values():
+                if entry["status"] == "in_progress":
+                    entry["status"] = "pending"
+                    entry.pop("worker", None)
             self.state_path.write_text(json.dumps(state, indent=2))
 
     def claim_next(self, worker_id: str) -> str | None:

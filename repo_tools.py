@@ -205,13 +205,28 @@ class RepoTools:
                     if matches else "",
         }
 
+    def _awaiting_retry(self) -> set[str]:
+        names: set[str] = set()
+        if self.local_root is None:
+            return names
+        for state_file in (self.local_root / ".cache" / "pool").glob("*.json"):
+            try:
+                state = json.loads(state_file.read_text())
+            except (OSError, json.JSONDecodeError):
+                continue
+            names.update(n for n, e in state.items() if e.get("status") in ("pending", "in_progress"))
+        return names
+
     def list_ported_rules(self, query: str | None = None, backend: str | None = None) -> dict:
         if self.local_root is None:
             return {"error": "project root not configured"}
         results = []
+        hidden = self._awaiting_retry()
         for report in sorted(self.local_root.glob("*/rules/*/REPORT.md")):
             b = report.parent.parent.parent.name
             rule = report.parent.name
+            if rule in hidden:
+                continue
             if backend and b != backend:
                 continue
             if query and query.lower() not in rule.lower():
@@ -234,7 +249,8 @@ class RepoTools:
     def read_ported_rule(self, rule: str, backend: str | None = None) -> dict:
         if self.local_root is None:
             return {"error": "project root not configured"}
-        matches = sorted(self.local_root.glob(f"{backend or '*'}/rules/{rule}/REPORT.md"))
+        matches = [] if rule in self._awaiting_retry() else sorted(
+            self.local_root.glob(f"{backend or '*'}/rules/{rule}/REPORT.md"))
         if not matches:
             scoped = f" under backend {backend!r}" if backend else ""
             return {"error": f"no ported rule named {rule!r} found{scoped} — call list_ported_rules to see what's available"}

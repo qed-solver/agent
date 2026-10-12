@@ -228,8 +228,9 @@ def clear_reply_transcripts(debug_dir: Path, rule_name: str) -> None:
     d = debug_dir / rule_name
     if not d.exists():
         return
-    for f in d.glob("turn_*_reply.txt"):
-        f.unlink()
+    for pattern in ("turn_*_reply.txt", "turn_*_verifier_*.txt"):
+        for f in d.glob(pattern):
+            f.unlink()
 
 
 def clear_all_transcripts(debug_dir: Path, rule_name: str) -> None:
@@ -263,13 +264,9 @@ def transcript_tail(conversation: list[dict], n: int = 6) -> str:
 
 
 NO_VERIFIER = "NO_VERIFIER"
-
-
-def _looks_like_reasoning_dump(reply: str) -> bool:
-    lowered = reply.lower()
-    if "<what you think" in lowered or "<1-3 sentence" in lowered or "<one-sentence" in lowered:
-        return True
-    return len(reply) > 4000
+MAX_DECISION_REQUESTS = 3
+UNDECIDED = "UNDECIDED"
+LLM_TRUNCATION_MARK = "\n\n[truncated at output-token limit]"
 
 
 def run_verifier(
@@ -288,45 +285,40 @@ def run_verifier(
             spec.name, spec.backend, kwargs["source_text"], kwargs["claimed_reason"], kwargs["transcript_tail"]
         )
     messages = [{"role": "user", "content": prompt}]
-    reply = verifier_llm.complete(system, messages)
-    verdict, reasoning = verifier_prompts.parse_verdict(reply)
-    if debug_dir is not None:
-        dump_transcript_entry(debug_dir, spec.name, 0, f"verifier_{kind}_1", reply)
-
-    if verdict is None or _looks_like_reasoning_dump(reply):
-        if verdict is None:
-            nudge = (
-                "Your reply didn't start with a parseable `VERDICT: <TOKEN>` line. "
-                "Reply again with **only** the exact two-line format requested "
-                "(`VERDICT: ...` then `REASONING: ...`), nothing else."
-            )
-        else:
-            print(f"   [verifier] reply parsed to {verdict} but looks like an unfinished "
-                  f"scratchpad ({len(reply)} chars) rather than a considered answer; retrying")
-            nudge = (
-                "That read like unfinished scratch thinking rather than your actual final "
-                "answer — it's much longer than the 1-3 sentences requested, and/or echoes "
-                "the format instructions themselves instead of filling them in. Work through "
-                "your reasoning fully first, THEN reply again with **only** the exact "
-                "two-line format (`VERDICT: ...` then `REASONING: ...` in 1-3 sentences), "
-                "reflecting your actual final conclusion, not a first guess."
-            )
-        messages.append({"role": "assistant", "content": reply})
-        messages.append({"role": "user", "content": nudge})
-        reply2 = verifier_llm.complete(system, messages)
-        verdict2, reasoning2 = verifier_prompts.parse_verdict(reply2)
+    for attempt in range(1, MAX_DECISION_REQUESTS + 1):
+        completion = verifier_llm.complete_full(system, messages)
+        reply = completion.content
         if debug_dir is not None:
-            dump_transcript_entry(debug_dir, spec.name, 0, f"verifier_{kind}_2", reply2)
-        if verdict2 is None or _looks_like_reasoning_dump(reply2):
-            conservative = "REJECTED" if kind == "proved" else "DISAGREE"
-            print(f"   [verifier] reply unusable twice, defaulting conservatively to {conservative}")
-            return conservative, (
-                f"(verifier's response could not be parsed into a considered answer after a "
-                f"retry, so this was conservatively treated as {conservative} rather than "
-                f"silently accepted; raw reply started with: {reply2.strip()[:300]!r})"
+            dump_transcript_entry(
+                debug_dir, spec.name, 0, f"verifier_{kind}_decision{attempt}",
+                reply or completion.reasoning + (LLM_TRUNCATION_MARK if completion.truncated else ""),
             )
-        verdict, reasoning = verdict2, reasoning2
-    return verdict, reasoning
+        verdict, reasoning = verifier_prompts.parse_verdict(reply)
+        if verdict is not None:
+            return verdict, reasoning
+        print(f"   [verifier] decision round {attempt}/{MAX_DECISION_REQUESTS} gave no verdict "
+              f"(truncated={completion.truncated}, {len(completion.reasoning)} reasoning chars)")
+        if attempt == MAX_DECISION_REQUESTS:
+            break
+        partial = (reply or completion.reasoning).strip()
+        if partial:
+            messages.append({"role": "assistant", "content": partial})
+        if attempt == MAX_DECISION_REQUESTS - 1:
+            request = verifier_prompts.DECISION_COMPLETION_REQUEST_FORCED
+        elif partial:
+            request = verifier_prompts.DECISION_COMPLETION_REQUEST
+        else:
+            request = verifier_prompts.DECISION_COMPLETION_REQUEST_NO_NOTES
+        if messages[-1]["role"] == "user":
+            messages[-1] = {"role": "user", "content": messages[-1]["content"] + "\n\n" + request}
+        else:
+            messages.append({"role": "user", "content": request})
+
+    print(f"   [verifier] no verdict after {MAX_DECISION_REQUESTS} decision rounds; moving to next porter round")
+    return UNDECIDED, (
+        f"(the independent reviewer gave no verdict after {MAX_DECISION_REQUESTS} decision rounds, "
+        f"so this result is unreviewed — re-examine your encoding for faithfulness and resubmit)"
+    )
 
 
 def snapshot_dsl_files(rulescript_root: Path) -> dict[str, str]:
@@ -507,6 +499,13 @@ goes for anything the log shows an *earlier* round's reviewer already said
 — summarize what it means for what to try next, don't reproduce the text."""
 
 
+SUMMARY_FALLBACK_HEADER = (
+    "_(Auto-recovered: the summarizer ran out of output budget while reasoning and "
+    "never wrote a final summary, so these are its raw working notes for this round — "
+    "possibly cut off mid-thought.)_\n\n"
+)
+
+
 def latest_existing_summary(debug_dir: Path, rule_name: str) -> str:
     d = debug_dir / rule_name
     if not d.exists():
@@ -536,11 +535,15 @@ def summarize_round(
             )
         parts.append(SUMMARY_REQUEST)
         prompt = "\n\n".join(parts)
-        summary = llm.complete(summarizer_system, [{"role": "user", "content": prompt}])
+        completion = llm.complete_full(summarizer_system, [{"role": "user", "content": prompt}])
     except LLMError as e:
         print(f"   [summary] couldn't summarize round {round_num}: {e}")
         return ""
-    summary = summary.strip()
+    summary = completion.content.strip()
+    if not summary and completion.reasoning.strip():
+        print(f"   [summary] no final summary for round {round_num} (truncated={completion.truncated}); "
+              f"using {len(completion.reasoning)} chars of reasoning as fallback")
+        summary = SUMMARY_FALLBACK_HEADER + completion.reasoning.strip()
     if summary:
         path = debug_dir / rule_name / f"round_{round_num:02d}_summary.md"
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -755,15 +758,17 @@ def run_one(
             worker_pipeline.remove_rule(spec.name)
             self_summary = summarize_round(
                 llm, system, result.round_log,
-                f"REJECTED — the proof was not accepted as faithful: {reasoning}",
+                (f"UNDECIDED — the reviewer gave no verdict: {reasoning}" if verdict == UNDECIDED
+                 else f"REJECTED — the proof was not accepted as faithful: {reasoning}"),
                 debug_dir, spec.name, round_num,
             )
             conversation = [{
                 "role": "user",
                 "content": round_continuation_prompt(
                     spec, source_hint, result.code,
-                    "An independent reviewer examined your proof and found it unfaithful "
-                    "to the source rule:", reasoning, self_summary, backend_name,
+                    ("An independent reviewer could not reach a verdict on your proof:" if verdict == UNDECIDED
+                     else "An independent reviewer examined your proof and found it unfaithful "
+                          "to the source rule:"), reasoning, self_summary, backend_name,
                     force_conclusion=(round_num == max_rounds),
                 ),
             }]
@@ -799,16 +804,19 @@ def run_one(
             print(f"   verifier {verdict}: {reasoning}")
             self_summary = summarize_round(
                 llm, system, result.round_log,
-                f"DISAGREE — the reviewer believes this rule IS expressible and the round's own "
-                f"conclusion was wrong: {reasoning}",
+                (f"UNDECIDED — the reviewer gave no verdict: {reasoning}" if verdict == UNDECIDED
+                 else f"DISAGREE — the reviewer believes this rule IS expressible and the round's own "
+                      f"conclusion was wrong: {reasoning}"),
                 debug_dir, spec.name, round_num,
             )
             conversation = [{
                 "role": "user",
                 "content": round_continuation_prompt(
                     spec, source_hint, result.code,
-                    "An independent reviewer looked at your attempt and believes this rule "
-                    "IS expressible in RuleScript:", reasoning, self_summary, backend_name,
+                    ("An independent reviewer could not reach a verdict on your UNSUPPORTED conclusion:"
+                     if verdict == UNDECIDED
+                     else "An independent reviewer looked at your attempt and believes this rule "
+                          "IS expressible in RuleScript:"), reasoning, self_summary, backend_name,
                     force_conclusion=(round_num == max_rounds),
                 ),
             }]

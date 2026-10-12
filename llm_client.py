@@ -11,6 +11,9 @@ from typing import Literal
 _THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 
 
+_UNCLOSED_THINK_RE = re.compile(r"<think>(?:(?!</think>).)*$", re.DOTALL | re.IGNORECASE)
+
+
 def _strip_thinking(text: str) -> str:
     return _THINK_BLOCK_RE.sub("", text).strip()
 
@@ -20,6 +23,23 @@ class ToolCall:
     id: str
     name: str
     arguments: dict
+
+
+@dataclass
+class Completion:
+    content: str = ""
+    reasoning: str = ""
+    truncated: bool = False
+
+    @property
+    def text(self) -> str:
+        return self.content or self.reasoning
+
+
+TRUNCATION_NOTE = (
+    "\n\n[NOTE: response was truncated at the token limit before finishing — "
+    "if this cut off mid-code-block, that's why it couldn't be parsed.]"
+)
 
 
 @dataclass
@@ -114,7 +134,7 @@ class LLMClient:
                     f"or set one of {ENV_KEYS[self.provider]}."
                 )
 
-    def complete(self, system: str, messages: list[dict]) -> str:
+    def complete_full(self, system: str, messages: list[dict]) -> Completion:
         original_max_tokens = self.max_tokens
         try:
             while True:
@@ -133,6 +153,12 @@ class LLMClient:
         finally:
             self.max_tokens = original_max_tokens
 
+    def complete(self, system: str, messages: list[dict]) -> str:
+        c = self.complete_full(system, messages)
+        text = c.text
+        if c.truncated:
+            text += TRUNCATION_NOTE
+        return text
 
     def step(self, system: str, messages: list[dict], tools: list[dict]) -> AgentTurn:
         original_max_tokens = self.max_tokens
@@ -233,7 +259,7 @@ class LLMClient:
         except TimeoutError as e:
             raise LLMError(f"Request to {self.endpoint} timed out after {self.timeout}s: {e}") from e
 
-    def _complete_anthropic(self, system: str, messages: list[dict]) -> str:
+    def _complete_anthropic(self, system: str, messages: list[dict]) -> Completion:
         headers = {
             "content-type": "application/json",
             "x-api-key": self.api_key,
@@ -249,11 +275,14 @@ class LLMClient:
         resp = self._post(headers, body)
         if "content" not in resp:
             raise LLMError(f"Unexpected Anthropic response: {resp}")
-        return "".join(
-            block.get("text", "") for block in resp["content"] if block.get("type") == "text"
+        blocks = resp["content"]
+        return Completion(
+            content=_strip_thinking("".join(b.get("text", "") for b in blocks if b.get("type") == "text")),
+            reasoning=_strip_thinking("".join(b.get("thinking", "") for b in blocks if b.get("type") == "thinking")),
+            truncated=resp.get("stop_reason") == "max_tokens",
         )
 
-    def _complete_openai(self, system: str, messages: list[dict]) -> str:
+    def _complete_openai(self, system: str, messages: list[dict]) -> Completion:
         headers = {
             "content-type": "application/json",
             "Authorization": f"Bearer {self.api_key}",
@@ -270,13 +299,14 @@ class LLMClient:
             message = choice["message"]
         except (KeyError, IndexError) as e:
             raise LLMError(f"Unexpected OpenAI-style response: {resp}") from e
-        truncated = choice.get("finish_reason") == "length"
-        content = _strip_thinking(message.get("content") or "")
-        if not content and not truncated:
-            content = _strip_thinking(message.get("reasoning_content") or message.get("reasoning") or "")
-        if truncated:
-            content += (
-                "\n\n[NOTE: response was truncated at the token limit before finishing — "
-                "if this cut off mid-code-block, that's why it couldn't be parsed.]"
-            )
-        return content
+        raw_content = message.get("content") or ""
+        reasoning = message.get("reasoning_content") or message.get("reasoning") or ""
+        if not reasoning:
+            m = re.match(r"\s*<think>(.*?)(?:</think>|$)", raw_content, re.DOTALL | re.IGNORECASE)
+            if m:
+                reasoning = m.group(1)
+        return Completion(
+            content=_strip_thinking(_UNCLOSED_THINK_RE.sub("", raw_content)),
+            reasoning=_strip_thinking(reasoning),
+            truncated=choice.get("finish_reason") == "length",
+        )

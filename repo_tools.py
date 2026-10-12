@@ -13,7 +13,7 @@ MAX_SEARCH_RESULTS = 60
 MAX_LIST_RESULTS = 60
 
 EXTENDABLE_DSL_FILES = ("RelRN.java", "RexRN.java", "JSONSerializer.java")
-SOURCE_INCLUDE_FLAGS = ["--include=*.java", "--include=*.go", "--include=*.rs", "--include=*.cpp", "--include=*.cc", "--include=*.py"]
+SOURCE_INCLUDE_FLAGS = ["--include=*.java", "--include=*.scala", "--include=*.go", "--include=*.rs", "--include=*.cpp", "--include=*.cc", "--include=*.py"]
 
 
 class ToolError(Exception):
@@ -80,7 +80,7 @@ class RepoTools:
         return self._root(root)
 
     def search_code(self, root: str, query: str, path: str = ".") -> dict:
-        base = self._java_root(root)
+        base = self._java_root(root).resolve()
         target = _resolve(base, path)
         result = subprocess.run(
             ["grep", "-rn", *SOURCE_INCLUDE_FLAGS, "-E", query, str(target)],
@@ -97,9 +97,9 @@ class RepoTools:
         }
 
     def find_symbol(self, root: str, symbol: str) -> dict:
-        base = self._java_root(root)
+        base = self._java_root(root).resolve()
         pattern = (
-            rf"\b(class|interface|record|enum)\s+{symbol}\b|"
+            rf"\b(class|interface|record|enum|object|trait)\s+{symbol}\b|"
             rf"\b{symbol}\s*\("
         )
         result = subprocess.run(

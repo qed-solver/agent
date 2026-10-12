@@ -1,7 +1,7 @@
 # RuleScript rule-porting agent
 
 Ports query-optimizer rewrite rules from an external SQL backend (Apache
-Calcite, CockroachDB, Apache DataFusion, ...) into
+Calcite, CockroachDB, Apache DataFusion, Apache Spark Catalyst, ...) into
 [RuleScript](https://github.com/qed-solver/rulescript) — a Java-embedded DSL for
 logical query-plan rewrites — and uses the
 [QED prover](https://github.com/qed-solver/prover) to formally check each
@@ -21,11 +21,11 @@ spec.py                     rule-spec (input) file parser
 rulescript_reference.md     DSL reference given to both agents
 
 <backend>/               <- one folder per source SQL engine (calcite/, cockroach/,
-                             datafusion/ exist already; adding one more backend
+                             datafusion/, spark/ exist already; adding one more backend
                              means creating a folder laid out the same way)
   rule_specs/             <- input: the rules you want ported, one file each
   rules/                  <- output: <Name>/<Name>.java, .json, .result.json, REPORT.md
-  README.md, progress.json   <- output: status of every rule, human + machine readable
+  README.md, progress.json   <- output: status of every attempted rule
 
 docs/      reference papers (RuleScript + QED)
 vendor/    the RuleScript/QED toolchain, plus a read-only checkout of each
@@ -166,6 +166,15 @@ python3 port_rule.py --spec-dir cockroach/rule_specs \
     --progress-md cockroach/README.md --progress-json cockroach/progress.json \
     --rules-out-dir cockroach/rules \
     --backend-root vendor/cockroach-src --backend-name cockroach
+```
+
+**Spark Catalyst** — run the Spark rule specs through the shared work pool:
+
+```sh
+python3 port_rule.py --spec-dir spark/rule_specs --pool --workers 3 \
+    --progress-md spark/README.md --progress-json spark/progress.json \
+    --rules-out-dir spark/rules \
+    --backend-root vendor/spark-src --backend-name spark
 ```
 
 ## Porting rules for a new backend

@@ -3870,21 +3870,6 @@
     "timestamp": "2026-10-13T07:38:39.576000+00:00"
   },
   {
-    "rule_name": "OptimizeRand",
-    "source_backend": "Apache Spark Catalyst",
-    "source_description": "Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/OptimizeRand.scala, lines 33-63",
-    "status": "FAILED",
-    "attempts_used": 102,
-    "reason": "LLM error: HTTP 400 from http://169.229.48.114:8000/v1/chat/completions: {\"error\":{\"message\":\"This model's maximum context length is 32768 tokens. However, you requested 1024 output tokens and your prompt contains at least 31745 input tokens, for a total of at least 32769 tokens. Please reduce the length of the input prompt or the number of requested output tokens. (parameter=input_tokens, value=31745)\",\"type\":\"BadRequestError\",\"param\":\"input_tokens\",\"code\":400}}",
-    "prover_stats": {},
-    "verification_rounds_used": 6,
-    "verifier_verdict": "REJECTED",
-    "verifier_reasoning": "The provable claim is only that `Filter(T, T.col < 1)` is redundant for a one-column table `T` whose check constraint already guarantees `col < 1`; that is a constraint-redundancy rule, not Spark's expression-level rewrite of `Rand()` comparisons. It does not model an arbitrary input plan with a `Rand` expression having range [0,1), and it hard-codes the random value as the scanned column, so the proof is of a different pattern. A faithful encoding would either introduce an arbitrary source plus an uninterpreted `Rand` predicate/function with its range as an explicit axiom, or declare the full rule unsupported if QED cannot model that function semantics.",
-    "scope": "",
-    "scope_detail": "",
-    "timestamp": "2026-10-13T07:48:16.732497+00:00"
-  },
-  {
     "rule_name": "RemoveRedundantAliases",
     "source_backend": "Apache Spark Catalyst",
     "source_description": "Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/Optimizer.scala, lines 657-838",
@@ -4255,21 +4240,6 @@
     "timestamp": "2026-10-13T10:47:42.973768+00:00"
   },
   {
-    "rule_name": "RewritePredicateSubquery",
-    "source_backend": "Apache Spark Catalyst",
-    "source_description": "Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/subquery.scala, lines 56-457",
-    "status": "FAILED",
-    "attempts_used": 120,
-    "reason": "LLM error: HTTP 400 from http://169.229.48.114:8000/v1/chat/completions: {\"error\":{\"message\":\"This model's maximum context length is 32768 tokens. However, you requested 1024 output tokens and your prompt contains at least 31745 input tokens, for a total of at least 32769 tokens. Please reduce the length of the input prompt or the number of requested output tokens. (parameter=input_tokens, value=31745)\",\"type\":\"BadRequestError\",\"param\":\"input_tokens\",\"code\":400}}",
-    "prover_stats": {},
-    "verification_rounds_used": 6,
-    "verifier_verdict": "",
-    "verifier_reasoning": "",
-    "scope": "",
-    "scope_detail": "",
-    "timestamp": "2026-10-13T11:38:19.869188+00:00"
-  },
-  {
     "rule_name": "RowLevelOperationRuntimeGroupFiltering",
     "source_backend": "Apache Spark Catalyst",
     "source_description": "Source: sql/core/src/main/scala/org/apache/spark/sql/execution/dynamicpruning/RowLevelOperationRuntimeGroupFiltering.scala, lines 49-169",
@@ -4628,5 +4598,42 @@
     "scope": "",
     "scope_detail": "",
     "timestamp": "2026-10-13T14:08:30.706587+00:00"
+  },
+  {
+    "rule_name": "RewritePredicateSubquery",
+    "source_backend": "Apache Spark Catalyst",
+    "source_description": "Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/subquery.scala, lines 56-457",
+    "status": "PROVED",
+    "attempts_used": 0,
+    "reason": "",
+    "prover_stats": {
+      "complete_fragment": false,
+      "total_duration": {
+        "secs": 0,
+        "nanos": 73593792
+      },
+      "panicked": false
+    },
+    "verification_rounds_used": 0,
+    "verifier_verdict": "",
+    "verifier_reasoning": "",
+    "scope": "PARTIAL",
+    "scope_detail": "the correlated `Filter(EXISTS(sub))` -> LEFT SEMI join branch on a single equality correlation key over single-column relations; the NOT EXISTS / IN / NOT IN (null-aware) branches, multi-key conditions and domain-join handling are not encoded",
+    "timestamp": "2026-10-13T18:58:37.353843+00:00"
+  },
+  {
+    "rule_name": "OptimizeRand",
+    "source_backend": "Apache Spark Catalyst",
+    "source_description": "Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/OptimizeRand.scala, lines 33-63",
+    "status": "SKIPPED",
+    "attempts_used": 0,
+    "reason": "The rewrite `rand() < 1.0 -> true` / `rand() > 1.0 -> false` etc. is sound only because Rand() is known to produce values in [0, 1). QED treats a nondeterministic scalar function as an opaque uninterpreted function with no range axiom, and the only place the prover accepts value-range facts is a table-level check constraint on a scanned column, which describes a stored column rather than an expression. Encoding Rand as a constrained column proves a different pattern (redundant filter over a constrained table), and without the range fact the rewrite is not an equivalence for an uninterpreted function. No faithful narrowing exists.",
+    "prover_stats": {},
+    "verification_rounds_used": 0,
+    "verifier_verdict": "",
+    "verifier_reasoning": "",
+    "scope": "",
+    "scope_detail": "",
+    "timestamp": "2026-10-13T18:58:37.356556+00:00"
   }
 ]

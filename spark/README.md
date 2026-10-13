@@ -1,8 +1,8 @@
 # RuleScript porting progress
 
-_Last updated: 2026-10-13T14:08:30.714995+00:00_
+_Last updated: 2026-10-13T18:58:37.358081+00:00_
 
-**77/129 rules proved** (2 failed, 50 skipped as out of QED's supported fragment).
+**78/129 rules proved** (0 failed, 51 skipped as out of QED's supported fragment).
 
 | Rule | Backend | Status | Scope | Attempts | Notes |
 |---|---|---|---|---|---|
@@ -80,11 +80,10 @@ _Last updated: 2026-10-13T14:08:30.714995+00:00_
 | `RewriteCorrelatedScalarSubquery` | Apache Spark Catalyst | ✅ PROVED | PARTIAL | 62 | The encoding is a narrow but honest partial instance: for an outer aggregate whose scalar subquery is a single equality-correlated, non-a... |
 | `RewriteDistinctAggregates` | Apache Spark Catalyst | ✅ PROVED | PARTIAL | 25 | The encoding faithfully captures the source rule's no-grouping / foldable-argument special case (COUNT(DISTINCT literal)): before() is a ... |
 | `RewriteLateralSubquery` | Apache Spark Catalyst | ✅ PROVED | PARTIAL | 52 | The encoding is non-vacuous and symbol-correct: `before()` is a `Correlate(LEFT, Filter(lateral_cond, S))` while `after()` is a plain `Jo... |
+| `RewritePredicateSubquery` | Apache Spark Catalyst | ✅ PROVED | PARTIAL | 0 |  |
 | `RowLevelOperationRuntimeGroupFiltering` | Apache Spark Catalyst | ✅ PROVED | PARTIAL | 86 | The encoding faithfully captures the rule's core invariant — injecting a runtime group filter (semi-join of the scan against the key set ... |
 | `SimplifyBinaryComparison` | Apache Spark Catalyst | ✅ PROVED | PARTIAL | 43 | The proof is non-vacuous (Filter(a=a) vs Filter(true) are structurally different), and the `a, a` symbol sharing is exactly the rule's tr... |
 | `TransposeWindow` | Apache Spark Catalyst | ✅ PROVED | PARTIAL | 64 | The encoding faithfully models each window as a partition-keyed aggregate joined back to the shared source, correctly bakes in the key pr... |
-| `OptimizeRand` | Apache Spark Catalyst | ❌ FAILED | — | 102 | LLM error: HTTP 400 from http://169.229.48.114:8000/v1/chat/completions: {"error":{"message":"This model's maximum context length is 3276... |
-| `RewritePredicateSubquery` | Apache Spark Catalyst | ❌ FAILED | — | 120 | LLM error: HTTP 400 from http://169.229.48.114:8000/v1/chat/completions: {"error":{"message":"This model's maximum context length is 3276... |
 | `CheckCartesianProducts` | Apache Spark Catalyst | ⏭️ SKIPPED | — | 11 | CheckCartesianProducts is a pure validator — its only effects are identity (plan passes through) or throwing joinConditionMissingOrTrivia... |
 | `CleanUpTempCTEInfo` | Apache Spark Catalyst | ⏭️ SKIPPED | — | 17 | CleanUpTempCTEInfo only clears the plan-metadata field CTERelationDef.originalPlanWithPredicates (Some→None) and changes none of the rows... |
 | `CollapseGroupedSumOfCount` | Apache Spark Catalyst | ⏭️ SKIPPED | — | 27 | RelRN can express the two aggregate shapes, but QED serializes every aggregate call as an uninterpreted operator and only reasons about e... |
@@ -109,6 +108,7 @@ _Last updated: 2026-10-13T14:08:30.714995+00:00_
 | `OptimizeCsvJsonExprs` | Apache Spark Catalyst | ⏭️ SKIPPED | — | 30 | Each sub-rewrite asserts a parser-specific identity, e.g. `JsonToStructs(StructsToJson(x)) = x`, `π_i(JsonToStructs(x, fullSchema)) = Jso... |
 | `OptimizeMetadataOnlyDeleteFromTable` | Apache Spark Catalyst | ⏭️ SKIPPED | — | 8 | All four plan nodes involved (ReplaceData/WriteDelta with a DELETE command before, DeleteFromTableWithFilters/DeleteFromTable after) are ... |
 | `OptimizeMetadataOnlyQuery` | Apache Spark Catalyst | ⏭️ SKIPPED | — | 21 | The rewrite swaps a data-table scan for a *different* partition-metadata-table scan, and its soundness rests on the storage/catalog invar... |
+| `OptimizeRand` | Apache Spark Catalyst | ⏭️ SKIPPED | — | 0 | The rewrite `rand() < 1.0 -> true` / `rand() > 1.0 -> false` etc. is sound only because Rand() is known to produce values in [0, 1). QED ... |
 | `OptimizeRepartition` | Apache Spark Catalyst | ⏭️ SKIPPED | — | 26 | QED decides equivalence of row bags over Q-expressions, and that model has no notion of physical partitioning/distribution or of per-oper... |
 | `OptimizeWindowFunctions` | Apache Spark Catalyst | ⏭️ SKIPPED | — | 10 | This is a Window rewrite whose soundness rests on ordering/frame semantics (the "first row" of a non-empty-ORDER BY ROWS frame), but QED ... |
 | `PushProjectionThroughLimitAndOffset` | Apache Spark Catalyst | ⏭️ SKIPPED | — | 7 | The validity of all three cases (Project pushed under LocalLimit, under GlobalLimit∘LocalLimit, and under Offset) rests on Limit/Offset h... |
@@ -806,6 +806,14 @@ _Last updated: 2026-10-13T14:08:30.714995+00:00_
 - Reason / notes: The encoding is non-vacuous and symbol-correct: `before()` is a `Correlate(LEFT, Filter(lateral_cond, S))` while `after()` is a plain `Join(LEFT, lateral_cond)`, and the shared predicate is applied to the identical (L,S) argument list in both (verified against `joinFields`/`JoinField` semantics), so the proof captures the rule's genuine core claim — per-row correlated evaluation against a correlation predicate is bag-equivalent to a plain join using that predicate as the join condition. The restrictions versus the full Spark rule (LEFT join only, no separate non-correlation condition, subquery side is an unchanged scan so `rewriteDomainJoins` is a no-op) are real, specific, and accurately stated in the `SCOPE: PARTIAL` line, and none of them degenerates the rule into a structural identity; the fixed join kind in particular reflects a DSL gap (no meta-join-type for `Correlate`) rather than a modeling error.
 - QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 89330959}, panicked=False
 
+### `RewritePredicateSubquery` — ✅ PROVED
+
+- Source backend: Apache Spark Catalyst
+- Source rule: Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/subquery.scala, lines 56-457
+- Attempts used: 0
+- Last updated: 2026-10-13T18:58:37.353843+00:00
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 73593792}, panicked=False
+
 ### `RowLevelOperationRuntimeGroupFiltering` — ✅ PROVED
 
 - Source backend: Apache Spark Catalyst
@@ -832,22 +840,6 @@ _Last updated: 2026-10-13T14:08:30.714995+00:00_
 - Last updated: 2026-10-13T13:52:27.543114+00:00
 - Reason / notes: The encoding faithfully models each window as a partition-keyed aggregate joined back to the shared source, correctly bakes in the key precondition (w1's aggregate is computed over the base relation, not over w2's output, matching `w1.references ∩ w2.windowOutputSet = ∅`), satisfies the partition-subset compatibility via (a) ⊂ (a,b), and uses distinct uninterpreted functions for the two windows; `before()` and `after()` genuinely differ in join order, so the proof captures the real transpose (commutation of the two window operations) rather than a vacuous identity. The narrowings (concrete (a)/(a,b) partition shape, whole-partition aggregates with no frame/ordering, and only case 1 of the two-case rule) are real but are honestly flagged in the `// SCOPE: PARTIAL` line and leave a non-degenerate, meaningful result.
 - QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 93054000}, panicked=False
-
-### `OptimizeRand` — ❌ FAILED
-
-- Source backend: Apache Spark Catalyst
-- Source rule: Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/OptimizeRand.scala, lines 33-63
-- Attempts used: 102
-- Last updated: 2026-10-13T07:48:16.732497+00:00
-- Reason / notes: LLM error: HTTP 400 from http://169.229.48.114:8000/v1/chat/completions: {"error":{"message":"This model's maximum context length is 32768 tokens. However, you requested 1024 output tokens and your prompt contains at least 31745 input tokens, for a total of at least 32769 tokens. Please reduce the length of the input prompt or the number of requested output tokens. (parameter=input_tokens, value=31745)","type":"BadRequestError","param":"input_tokens","code":400}}
-
-### `RewritePredicateSubquery` — ❌ FAILED
-
-- Source backend: Apache Spark Catalyst
-- Source rule: Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/subquery.scala, lines 56-457
-- Attempts used: 120
-- Last updated: 2026-10-13T11:38:19.869188+00:00
-- Reason / notes: LLM error: HTTP 400 from http://169.229.48.114:8000/v1/chat/completions: {"error":{"message":"This model's maximum context length is 32768 tokens. However, you requested 1024 output tokens and your prompt contains at least 31745 input tokens, for a total of at least 32769 tokens. Please reduce the length of the input prompt or the number of requested output tokens. (parameter=input_tokens, value=31745)","type":"BadRequestError","param":"input_tokens","code":400}}
 
 ### `CheckCartesianProducts` — ⏭️ SKIPPED
 
@@ -1040,6 +1032,14 @@ _Last updated: 2026-10-13T14:08:30.714995+00:00_
 - Attempts used: 21
 - Last updated: 2026-10-13T05:42:23.677674+00:00
 - Reason / notes: The rewrite swaps a data-table scan for a *different* partition-metadata-table scan, and its soundness rests on the storage/catalog invariant that the metadata table holds exactly one row per distinct partition of the data table — but QED models two differently-named scans as independent uninterpreted relations that are universally quantified over, and its per-table `guaranteed` constraints are Rex expressions over a single table's columns only, so no cross-table "metadata = distinct(data)" relation can be asserted, meaning the equivalence must (falsely) hold for arbitrary independent instantiations. Even if the after-side were recast as a DISTINCT over the *same* scan, the rule would still require Max/Min/Count-Distinct to be multiplicity-insensitive (its result over the full bag equals its result over the bag's distinct elements) — an aggregate-algebra identity the prover explicitly does not model, since it only equates aggregate results when the input bags are provably equal, and here the bags differ. Both gaps are in the unmodifiable prover's semantics (independent-scan quantification + uninterpreted aggregates), not a missing DSL operator, so extending the DSL (a Distinct operator or a cross-table constraint) could not close them and a faithful encoding is genuinely unprovable.
+
+### `OptimizeRand` — ⏭️ SKIPPED
+
+- Source backend: Apache Spark Catalyst
+- Source rule: Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/OptimizeRand.scala, lines 33-63
+- Attempts used: 0
+- Last updated: 2026-10-13T18:58:37.356556+00:00
+- Reason / notes: The rewrite `rand() < 1.0 -> true` / `rand() > 1.0 -> false` etc. is sound only because Rand() is known to produce values in [0, 1). QED treats a nondeterministic scalar function as an opaque uninterpreted function with no range axiom, and the only place the prover accepts value-range facts is a table-level check constraint on a scanned column, which describes a stored column rather than an expression. Encoding Rand as a constrained column proves a different pattern (redundant filter over a constrained table), and without the range fact the rewrite is not an equivalence for an uninterpreted function. No faithful narrowing exists.
 
 ### `OptimizeRepartition` — ⏭️ SKIPPED
 

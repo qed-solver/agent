@@ -1,0 +1,78 @@
+{
+  "help" : [ "LogicalUnion(all=[false])\n  LogicalFilter(condition=[P1($0)])\n    LogicalTableScan(table=[[Source]])\n  LogicalFilter(condition=[P2($0)])\n    LogicalTableScan(table=[[Source]])\n", "LogicalAggregate(group=[{0}])\n  LogicalFilter(condition=[OR(P1($0), P2($0))])\n    LogicalTableScan(table=[[Source]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Source",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Source" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "distinct" : {
+      "union" : [ {
+        "filter" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "P1"
+          },
+          "source" : {
+            "scan" : 0
+          }
+        }
+      }, {
+        "filter" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "P2"
+          },
+          "source" : {
+            "scan" : 0
+          }
+        }
+      } ]
+    }
+  }, {
+    "group" : {
+      "keys" : [ {
+        "column" : 0,
+        "type" : "INTEGER"
+      } ],
+      "function" : [ ],
+      "source" : {
+        "filter" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "type" : "BOOLEAN",
+              "operand" : [ {
+                "column" : 0,
+                "type" : "INTEGER"
+              } ],
+              "operator" : "P1"
+            }, {
+              "type" : "BOOLEAN",
+              "operand" : [ {
+                "column" : 0,
+                "type" : "INTEGER"
+              } ],
+              "operator" : "P2"
+            } ],
+            "operator" : "OR"
+          },
+          "source" : {
+            "scan" : 0
+          }
+        }
+      }
+    }
+  } ]
+}

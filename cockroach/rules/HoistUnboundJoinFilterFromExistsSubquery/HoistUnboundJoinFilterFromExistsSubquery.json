@@ -1,0 +1,108 @@
+{
+  "help" : [ "LogicalFilter(condition=[EXISTS({\nLogicalJoin(condition=[AND(unbound_cond(), other_join_cond($0, $1))], joinType=[inner])\n  LogicalTableScan(table=[[Left]])\n  LogicalTableScan(table=[[Right]])\n})])\n  LogicalTableScan(table=[[Outer]])\n", "LogicalFilter(condition=[AND(EXISTS({\nLogicalJoin(condition=[other_join_cond($0, $1)], joinType=[inner])\n  LogicalTableScan(table=[[Left]])\n  LogicalTableScan(table=[[Right]])\n}), unbound_cond())])\n  LogicalTableScan(table=[[Outer]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Left",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Left" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Right",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Right" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Outer",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Outer" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "filter" : {
+      "condition" : {
+        "query" : {
+          "join" : {
+            "condition" : {
+              "type" : "BOOLEAN",
+              "operand" : [ {
+                "type" : "BOOLEAN",
+                "operand" : [ ],
+                "operator" : "unbound_cond"
+              }, {
+                "type" : "BOOLEAN",
+                "operand" : [ {
+                  "column" : 1,
+                  "type" : "INTEGER"
+                }, {
+                  "column" : 2,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "other_join_cond"
+              } ],
+              "operator" : "AND"
+            },
+            "left" : {
+              "scan" : 0
+            },
+            "kind" : "INNER",
+            "right" : {
+              "scan" : 1
+            }
+          }
+        },
+        "type" : "BOOLEAN",
+        "operand" : [ ],
+        "operator" : "EXISTS"
+      },
+      "source" : {
+        "scan" : 2
+      }
+    }
+  }, {
+    "filter" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "query" : {
+            "join" : {
+              "condition" : {
+                "type" : "BOOLEAN",
+                "operand" : [ {
+                  "column" : 1,
+                  "type" : "INTEGER"
+                }, {
+                  "column" : 2,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "other_join_cond"
+              },
+              "left" : {
+                "scan" : 0
+              },
+              "kind" : "INNER",
+              "right" : {
+                "scan" : 1
+              }
+            }
+          },
+          "type" : "BOOLEAN",
+          "operand" : [ ],
+          "operator" : "EXISTS"
+        }, {
+          "type" : "BOOLEAN",
+          "operand" : [ ],
+          "operator" : "unbound_cond"
+        } ],
+        "operator" : "AND"
+      },
+      "source" : {
+        "scan" : 2
+      }
+    }
+  } ]
+}

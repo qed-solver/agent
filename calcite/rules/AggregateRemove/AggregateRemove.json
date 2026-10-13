@@ -1,0 +1,16 @@
+{
+  "help" : [ "LogicalTableScan(table=[[S]])\n", "LogicalTableScan(table=[[S]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "S",
+    "guaranteed" : [ ],
+    "fields" : [ "col-S" ],
+    "key" : [ [ 0 ] ]
+  } ],
+  "queries" : [ {
+    "scan" : 0
+  }, {
+    "scan" : 0
+  } ]
+}

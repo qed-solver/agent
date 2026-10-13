@@ -1,0 +1,139 @@
+{
+  "help" : [ "LogicalJoin(condition=[F($0, $1, $2, $3)], joinType=[inner])\n  LogicalJoin(condition=[true], joinType=[inner])\n    LogicalJoin(condition=[true], joinType=[inner])\n      LogicalTableScan(table=[[A]])\n      LogicalTableScan(table=[[B]])\n    LogicalTableScan(table=[[C]])\n  LogicalTableScan(table=[[D]])\n", "LogicalJoin(condition=[F($0, $1, $2, $3)], joinType=[inner])\n  LogicalJoin(condition=[true], joinType=[inner])\n    LogicalTableScan(table=[[A]])\n    LogicalTableScan(table=[[B]])\n  LogicalJoin(condition=[true], joinType=[inner])\n    LogicalTableScan(table=[[C]])\n    LogicalTableScan(table=[[D]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "A",
+    "guaranteed" : [ ],
+    "fields" : [ "col-A" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "B",
+    "guaranteed" : [ ],
+    "fields" : [ "col-B" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "C",
+    "guaranteed" : [ ],
+    "fields" : [ "col-C" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "D",
+    "guaranteed" : [ ],
+    "fields" : [ "col-D" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        }, {
+          "column" : 2,
+          "type" : "INTEGER"
+        }, {
+          "column" : 3,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "F"
+      },
+      "left" : {
+        "join" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ ],
+            "operator" : "true"
+          },
+          "left" : {
+            "join" : {
+              "condition" : {
+                "type" : "BOOLEAN",
+                "operand" : [ ],
+                "operator" : "true"
+              },
+              "left" : {
+                "scan" : 0
+              },
+              "kind" : "INNER",
+              "right" : {
+                "scan" : 1
+              }
+            }
+          },
+          "kind" : "INNER",
+          "right" : {
+            "scan" : 2
+          }
+        }
+      },
+      "kind" : "INNER",
+      "right" : {
+        "scan" : 3
+      }
+    }
+  }, {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        }, {
+          "column" : 2,
+          "type" : "INTEGER"
+        }, {
+          "column" : 3,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "F"
+      },
+      "left" : {
+        "join" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ ],
+            "operator" : "true"
+          },
+          "left" : {
+            "scan" : 0
+          },
+          "kind" : "INNER",
+          "right" : {
+            "scan" : 1
+          }
+        }
+      },
+      "kind" : "INNER",
+      "right" : {
+        "join" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ ],
+            "operator" : "true"
+          },
+          "left" : {
+            "scan" : 2
+          },
+          "kind" : "INNER",
+          "right" : {
+            "scan" : 3
+          }
+        }
+      }
+    }
+  } ]
+}

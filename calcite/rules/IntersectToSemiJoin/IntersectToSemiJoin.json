@@ -1,0 +1,55 @@
+{
+  "help" : [ "LogicalIntersect(all=[false])\n  LogicalTableScan(table=[[A]])\n  LogicalTableScan(table=[[B]])\n", "LogicalAggregate(group=[{0}])\n  LogicalJoin(condition=[IS NOT DISTINCT FROM($0, $1)], joinType=[semi])\n    LogicalTableScan(table=[[A]])\n    LogicalTableScan(table=[[B]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "A",
+    "guaranteed" : [ ],
+    "fields" : [ "col-A" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "B",
+    "guaranteed" : [ ],
+    "fields" : [ "col-B" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "intersect" : [ {
+      "scan" : 0
+    }, {
+      "scan" : 1
+    } ]
+  }, {
+    "group" : {
+      "keys" : [ {
+        "column" : 0,
+        "type" : "INTEGER"
+      } ],
+      "function" : [ ],
+      "source" : {
+        "join" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            }, {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "IS NOT DISTINCT FROM"
+          },
+          "left" : {
+            "scan" : 0
+          },
+          "kind" : "SEMI",
+          "right" : {
+            "scan" : 1
+          }
+        }
+      }
+    }
+  } ]
+}

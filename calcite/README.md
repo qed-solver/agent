@@ -1,12 +1,13 @@
 # RuleScript porting progress
 
-_Last updated: 2026-09-25T18:26:50.450095+00:00_
+_Last updated: 2026-10-13T19:58:16.065630+00:00_
 
-**88/151 rules proved** (0 failed, 63 skipped as out of QED's supported fragment).
+**89/151 rules proved** (0 failed, 62 skipped as out of QED's supported fragment).
 
 | Rule | Backend | Status | Scope | Attempts | Notes |
 |---|---|---|---|---|---|
 | `AggregateExpandDistinctAggregates` | Apache Calcite | ✅ PROVED | PARTIAL | 72 | The encoding faithfully mirrors the source rule's `convertMonopole` branch: `before()` is `GROUP BY k` of two distinct calls `f(DISTINCT ... |
+| `AggregateExpandWithinDistinct` | Apache Calcite | ✅ PROVED | PARTIAL | 24 | The encoding is non-vacuous (a single COUNT(DISTINCT x) aggregate vs. a nested dedup-then-count plan), and tracing the source rule on the... |
 | `AggregateExtractProject` | Apache Calcite | ✅ PROVED | PARTIAL | 14 | The encoding faithfully mirrors the source rule's actual computation: it computes the used columns (group col 0, agg arg col 1), projects... |
 | `AggregateFilterTranspose` | Apache Calcite | ✅ PROVED | PARTIAL | 9 | The encoding faithfully captures Case 1 of the source rule: the uninterpreted predicate depends only on the group key (i.e. all filter co... |
 | `AggregateJoinJoinRemove` | Apache Calcite | ✅ PROVED | PARTIAL | 50 | The encoding is a faithful, honestly-tagged PARTIAL instance of the rule — pure DISTINCT on (A.col, C.col) over single-column inputs, exa... |
@@ -94,14 +95,13 @@ _Last updated: 2026-09-25T18:26:50.450095+00:00_
 | `UnionToDistinct` | Apache Calcite | ✅ PROVED | PARTIAL | 7 | The encoding matches the rule's exact shape: `before()` is a UNION DISTINCT (`union(false)`) over two independent uninterpreted inputs, a... |
 | `UnnestDecorrelate` | Apache Calcite | ✅ PROVED | PARTIAL | 40 | The encoding faithfully captures the rule's semantic claim: the INNER correlate over a single-row Values feeding a correlated uncollect i... |
 | `ValuesReduce` | Apache Calcite | ✅ PROVED | PARTIAL | 42 | The encoding is a genuine, non-vacuous trace of the rule's PROJECT config — Project([c,a]) over the 2-row Values (1,2,3),(4,5,6) folds to... |
-| `AggregateCaseToFilter` | Apache Calcite | ⏭️ SKIPPED | — | 26 | Every shape of this rule (A1/A2/B/C and the DISTINCT form) rewrites to an aggregate call carrying a SQL FILTER argument, but RuleScript's... |
-| `AggregateExpandWithinDistinct` | Apache Calcite | ⏭️ SKIPPED | — | 24 | The rule's before() requires `WITHIN DISTINCT` aggregate calls (distinct keys) and its full after() requires GROUPING SETS plus the GROUP... |
-| `AggregateFilterToCase` | Apache Calcite | ⏭️ SKIPPED | — | 21 | The before-side pattern is an aggregate call carrying a SQL FILTER (WHERE ...) clause, which has no representation in the DSL's AggCall o... |
-| `AggregateFilterToFilteredAggregate` | Apache Calcite | ⏭️ SKIPPED | — | 7 | The after side is a SQL filtered aggregate, and QED's model has no notion of a FILTER attribute on an aggregate call — the aggregate-call... |
-| `AggregateGroupingSetsToUnion` | Apache Calcite | ⏭️ SKIPPED | — | 23 | The rule's before-side is an Aggregate over GROUPING SETS (with GROUPING()/GROUPING_ID handling), which RuleScript cannot name: `RelRN.Ag... |
-| `AggregateMeasure` | Apache Calcite | ⏭️ SKIPPED | — | 7 | The rewrite is valid only because Calcite’s measure operators satisfy a specialized algebraic identity supplied by RelMdMeasure, namely t... |
-| `AggregateMeasure2` | Apache Calcite | ⏭️ SKIPPED | — | 26 | The rule's only non-trivial content is the Calcite measure-framework identity that AGG_M2V(c) over a group equals RelMdMeasure's expansio... |
-| `AggregateMinMaxToLimit` | Apache Calcite | ⏭️ SKIPPED | — | 13 | The rewrite's target is a `ORDER BY c ASC/DESC LIMIT 1` scalar subquery, and QED has no ordering semantics — Sort/Limit carry no bag-sema... |
+| `AggregateCaseToFilter` | Apache Calcite | ⏭️ SKIPPED | — | 22 | QED models aggregates as uninterpreted bag functions and, per its stated limitation, "knows nothing about a specific aggregate function's... |
+| `AggregateFilterToCase` | Apache Calcite | ⏭️ SKIPPED | — | 0 | The before-side is an aggregate call carrying a SQL `FILTER (WHERE ...)` clause. `RelRN.AggCall` has no filter field, `Aggregate.semantic... |
+| `AggregateFilterToFilteredAggregate` | Apache Calcite | ⏭️ SKIPPED | — | 25 | The rule's after-side is a per-call SQL `FILTER (WHERE P)`, which the pipeline cannot carry: `RelRN.AggCall` has no filter field and `Agg... |
+| `AggregateGroupingSetsToUnion` | Apache Calcite | ⏭️ SKIPPED | — | 26 | The rule's only match is a non-SIMPLE aggregate (real GROUPING SETS/CUBE/ROLLUP), but RuleScript's `Aggregate` and QED's serialized `grou... |
+| `AggregateMeasure` | Apache Calcite | ⏭️ SKIPPED | — | 47 | The rule's validity rests on Calcite's measure invariants — that a measure is constant within the group-key partition and that AGG_M2V(c)... |
+| `AggregateMeasure2` | Apache Calcite | ⏭️ SKIPPED | — | 25 | The rule's validity rests entirely on Calcite's measure invariant — AGG_M2V(m) over a group equals the scalar subquery produced by mq.exp... |
+| `AggregateMinMaxToLimit` | Apache Calcite | ⏭️ SKIPPED | — | 21 | The rule's after side (scalar subqueries of the form SELECT c FROM t WHERE c IS NOT NULL ORDER BY c ASC/DESC LIMIT 1 over a one-row VALUE... |
 | `AggregateProjectStarTable` | Apache Calcite | ⏭️ SKIPPED | — | 6 | The rule's soundness depends on two things QED structurally cannot capture: (1) its "after" side is a scan of a *different* materialized ... |
 | `AggregateReduceFunctions` | Apache Calcite | ⏭️ SKIPPED | — | 34 | AggregateReduceFunctions depends on aggregate algebraic identities (e.g. AVG(x) = SUM(x) / COUNT(x)) that QED cannot know, since it treat... |
 | `AggregateReduceFunctionsOnGroupKeys` | Apache Calcite | ⏭️ SKIPPED | — | 25 | The rule's only semantic premise — that MAX/MIN/AVG/ANY_VALUE (or a `SqlConstantValueAggFunction`) applied to an argument that is constan... |
@@ -168,6 +168,15 @@ _Last updated: 2026-09-25T18:26:50.450095+00:00_
 - Last updated: 2026-09-22T16:57:03.593558+00:00
 - Reason / notes: The encoding faithfully mirrors the source rule's `convertMonopole` branch: `before()` is `GROUP BY k` of two distinct calls `f(DISTINCT x), g(DISTINCT x)`, and `after()` makes them non-distinct on top of an intermediate `GROUP BY k, x` (no calls) that is exactly the source's `SELECT DISTINCT`-via-aggregate ded [NOTE: response was truncated at the token limit before finishing — if this cut off mid-code-block, that's why it couldn't be parsed.]
 - QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 114404667}, panicked=False
+
+### `AggregateExpandWithinDistinct` — ✅ PROVED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateExpandWithinDistinctRule.java
+- Attempts used: 24
+- Last updated: 2026-10-13T16:53:17.548093+00:00
+- Reason / notes: The encoding is non-vacuous (a single COUNT(DISTINCT x) aggregate vs. a nested dedup-then-count plan), and tracing the source rule on the no-grouping, single `COUNT(*) WITHIN DISTINCT (x)` input (empty arg list, no filter, one grouping set ⇒ no GROUPING()/MIN/MAX/throw clauses are emitted) shows it produces exactly this dedup-then-count shape, with the input written as COUNT(DISTINCT x) — the documented-identical form that the DSL can express since AggCall has no distinctKeys/filter fields. The before/after pair also holds under real bag+NULL semantics (both sides count distinct non-null x: the outer count takes the dedup key as operand, so a NULL group is ignored just as in COUNT(DISTINCT x)), and the PARTIAL scope line honestly and specifically states the assumed restriction (no grouping, one call); full-rule generality (grouping sets, GROUPING(), filters, THROW_UNLESS) is genuinely inexpressible in the current DSL, so the special case is a legitimate, non-degenerate result.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 82157166}, panicked=False
 
 ### `AggregateExtractProject` — ✅ PROVED
 
@@ -978,41 +987,33 @@ Note: PruneEmptyRules.java defines multiple distinct rule variants as separate s
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateCaseToFilterRule.java
-- Attempts used: 26
-- Last updated: 2026-09-25T08:43:52.028280+00:00
-- Reason / notes: Every shape of this rule (A1/A2/B/C and the DISTINCT form) rewrites to an aggregate call carrying a SQL FILTER argument, but RuleScript's AggCall record has no filter field — Aggregate.semantics() hardcodes a null filter into RelBuilder and JSONSerializer emits no filter for group functions at all — so QED never sees it, and the only alternative encodings are semantically wrong: a Filter below the aggregate drops groups having no matching row, and a join of two aggregates would require the unmodeled fact that the uninterpreted aggregate of an empty bag is NULL. On top of that, QED models aggregation as an uninterpreted function over its input bag (with only the built-in non-NULL filter), knows no algebra of specific aggregates (needed for the SUM0→COUNT and COUNT-of-literal shapes), and the scalar language has no CASE/NULL expression, so the before-side CASE-NULL generation is inexpressible as well — meaning no narrower special case of this rule is provable either. ```
-
-### `AggregateExpandWithinDistinct` — ⏭️ SKIPPED
-
-- Source backend: Apache Calcite
-- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateExpandWithinDistinctRule.java
-- Attempts used: 24
-- Last updated: 2026-09-25T08:52:23.286474+00:00
-- Reason / notes: The rule's before() requires `WITHIN DISTINCT` aggregate calls (distinct keys) and its full after() requires GROUPING SETS plus the GROUPING() row-provenance function with `g = constant` selection filters — none of which QED's semiring model represents: the JSON `group` node carries only a flat key list and a plain `distinct` boolean, the immutable prover models no dedup-by-keys aggregate input, and GROUPING's output is just an opaque uninterpreted value QED cannot reason about. The core MIN-reconstruction identity (outer `f` over per-(k, wd) `MIN(x)` rows equals `f(x) WITHIN DISTINCT (wd)`) holds only under the per-group functional-dependency premise that x is unique within each (k, wd) group, which the shipped rule enforces exclusively via the runtime `THROW_UNLESS` guard — a side-effecting operator outside bag semantics — so QED's universal quantification over all table contents would actually refute the identity rather than prove it. No expressible universally-valid special case survives: making the distinct keys coincide with the aggregate argument collapses the rewrite to `f(DISTINCT x)` dedup expansion, which is exactly the already-proved AggregateExpandDistinctAggregates result, and DSL extension cannot add the missing prover semantics.
+- Attempts used: 22
+- Last updated: 2026-10-13T16:46:38.669539+00:00
+- Reason / notes: QED models aggregates as uninterpreted bag functions and, per its stated limitation, "knows nothing about a specific aggregate function's algebra beyond bag equality of its input," so it can only prove two aggregate calls equal when their input bags are literally identical. This rule's soundness rests exactly on the NULL-identity/NULL-skip property it lacks: the pre-rewrite aggregate consumes `{x : p} ∪ {NULL : ¬p}` while the post-rewrite filtered aggregate consumes `{x : p}`, and those bags differ precisely by the CASE's non-matching NULLs (or the ELSE-0s in the SUM0 styles), an asymmetry no non-trivial special case removes. Hence even closing the (secondary) DSL gap — `AggCall`/`JSONSerializer` currently expose no `FILTER` argument — could not make it provable, because QED still could not equate the two uninterpreted aggregates over non-bag-equal inputs. ```
 
 ### `AggregateFilterToCase` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateFilterToCaseRule.java
-- Attempts used: 21
-- Last updated: 2026-09-25T08:41:37.564118+00:00
-- Reason / notes: The before-side pattern is an aggregate call carrying a SQL FILTER (WHERE ...) clause, which has no representation in the DSL's AggCall or in QED's JSON aggregate-call schema (operator/operand/distinct/ignoreNulls/type only) — a gap in the Rust prover's model, not something a Java-side builder can fix. Independently, the rule's soundness rests on aggregate NULL-ignoring algebra (agg over {a | cond} ≡ agg over {CASE cond THEN a ELSE NULL}), i.e. an aggregate algebraic identity QED explicitly cannot know: its uninterpreted aggregates only equate plans with identical groupings and bag-equal operand inputs, and these two operand bags differ by NULLs for every non-tautological cond, so no non-trivial special case becomes provable. The Filter-below-Aggregate alternative is correctly rejected since it drops groups with no matching rows, which FILTER semantics preserves. ```
+- Attempts used: 0
+- Last updated: 2026-10-13T18:58:37.360421+00:00
+- Reason / notes: The before-side is an aggregate call carrying a SQL `FILTER (WHERE ...)` clause. `RelRN.AggCall` has no filter field, `Aggregate.semantics()` builds calls without a filter argument, and `JSONSerializer` emits only operator/operand/distinct/ignoreNulls/type for aggregate calls, so the pattern the rule matches cannot reach the prover. Re-encoding the filter as a `Filter` below the aggregate changes the result (groups with no matching rows disappear, which FILTER preserves). Equating the filtered call with `agg(CASE WHEN c THEN x END)` would additionally need the aggregate's NULL-skipping algebra, but QED treats aggregates as uninterpreted functions of their input bag and the two operand bags differ by the CASE's NULLs. The sibling rules AggregateFilterToFilteredAggregate and AggregateCaseToFilter were skipped for the same reasons.
 
 ### `AggregateFilterToFilteredAggregate` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateFilterToFilteredAggregateRule.java
-- Attempts used: 7
-- Last updated: 2026-09-25T08:50:45.303105+00:00
-- Reason / notes: The after side is a SQL filtered aggregate, and QED's model has no notion of a FILTER attribute on an aggregate call — the aggregate-call JSON schema is exactly {operator, operand, distinct, ignoreNulls, type}, and the unmodifiable prover equates aggregate calls only by identical operator plus bag-equal input, giving it no means to relate "uninterpreted f over the P-filtered bag" to "f-with-filter over the full bag" (different input bags). Every faithful alternative encoding fails: a fresh uninterpreted operator for the filtered call is refutable by SMT, a plain aggregate over the full bag is not equivalent and not provable, and the only provable form is the structurally identical pre-filtered aggregate, which is the identity, not this rule — a genuine limitation in QED's aggregate semantics that no Java-side DSL/serializer extension can close, since the Rust prover lacks the filter semantics regardless of what JSON we emit. ```
+- Attempts used: 25
+- Last updated: 2026-10-13T17:49:23.216663+00:00
+- Reason / notes: The rule's after-side is a per-call SQL `FILTER (WHERE P)`, which the pipeline cannot carry: `RelRN.AggCall` has no filter field and `Aggregate.semantics()` hardcodes the aggregateCall filter arg to `null`, and `JSONSerializer` emits only operator/operand/distinct/ignoreNulls/type for aggregate calls, so even a hand-built `LogicalAggregate` with a filter would be stripped before reaching the prover. qed.pdf §4.1 confirms QED's aggregate normal form is an uninterpreted function of its input bag with only the fixed non-NULL prefilter (COUNT(*) vs COUNT(col)), so the rule's core identity — `AGG FILTER(P) over R` = `AGG over Filter(P, R)` — is an aggregate-algebra fact QED fundamentally cannot express or prove. No re-encoding in the core language closes the gap (encoding the after-side as the before-side is a trivial self-equality, and a `CASE`-based surrogate would require QED to know its aggregate's algebra), so UNSUPPORTED is the correct conclusion, not a missed encoding. ```
 
 ### `AggregateGroupingSetsToUnion` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateGroupingSetsToUnionRule.java
-- Attempts used: 23
-- Last updated: 2026-09-25T08:56:31.052414+00:00
-- Reason / notes: The rule's before-side is an Aggregate over GROUPING SETS (with GROUPING()/GROUPING_ID handling), which RuleScript cannot name: `RelRN.Aggregate` accepts only a flat group-key list, and the ground-truth `JSONSerializer`'s "group" node carries only flat `keys` + `function` (`getGroupSets()`/`getGroupingCalls()` are dropped), so the only component that could supply grouping-sets semantics — the unmodifiable Rust prover — has no model of the very operator the rule rewrites. No non-trivial special case exists, since every firing instance has a grouping-sets aggregate on the before side, and encoding that side as its own union-of-per-set-aggregates would make `before()` structurally identical to `after()`, a tautology rather than a port of the rule. This is a genuine fixed-prover limitation (operator semantics absent from QED's JSON/semiring model, in the same class as Sort/Window), not a missing Java builder that `extend_dsl_file` could close.
+- Attempts used: 26
+- Last updated: 2026-10-13T18:06:14.133230+00:00
+- Reason / notes: The rule's only match is a non-SIMPLE aggregate (real GROUPING SETS/CUBE/ROLLUP), but RuleScript's `Aggregate` and QED's serialized `group` node carry only a single flat grouping-key function, so the "before" operator is unnameable in the pattern language and `extend_dsl_file` can't close the gap because the fixed Rust prover has no multi-set-aggregate semantics to consult (a new JSON field would be ignored or rejected, yielding a vacuous proof against a simple aggregate). Compounding this, the rule folds `GROUPING` aggregate calls into literal bit-mask constants, which requires knowledge of that specific aggregate's algebra that QED explicitly lacks (aggregates are uninterpreted beyond bag equality of their input), and no meaningful narrower case exists: the rule bails on single-set/SIMPLE aggregates, and any encodable stand-in for the before side is either the trivial identity or circular (defining it in terms of the after side's own semantics).
 
 ### `AggregateMeasure` — ⏭️ SKIPPED
 
@@ -1020,9 +1021,9 @@ Note: PruneEmptyRules.java defines multiple distinct rule variants as separate s
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/MeasureRules.java
 
 Note: MeasureRules.java defines multiple distinct rule variants as separate static nested classes. Implement specifically the `AggregateMeasureRule` variant (not AggregateMeasure2Rule, ProjectMeasureRule, FilterSortMeasureRule, ProjectSortMeasureRule, which are separate rules ported under their own spec names).
-- Attempts used: 7
-- Last updated: 2026-09-25T08:59:26.073834+00:00
-- Reason / notes: The rewrite is valid only because Calcite’s measure operators satisfy a specialized algebraic identity supplied by RelMdMeasure, namely that an AGG_M2V aggregate over a group equals SINGLE_VALUE of the per-row M2X(c, SAME_PARTITION(group)) expansion. QED treats aggregate functions and scalar operators as uninterpreted, with no axiom mechanism to encode that identity, so a faithful RuleScript encoding would leave a required equality between distinct uninterpreted aggregate/term structures that the prover cannot derive.
+- Attempts used: 47
+- Last updated: 2026-10-13T18:44:08.315200+00:00
+- Reason / notes: The rule's validity rests on Calcite's measure invariants — that a measure is constant within the group-key partition and that AGG_M2V(c) coincides with SINGLE_VALUE(M2X(c, SAME_PARTITION(keys))) — which QED cannot model: every aggregate (AGG_M2V, SINGLE_VALUE) and scalar op (M2X, SAME_PARTITION) is an uninterpreted symbol with no axioms (in particular no "single_value over a group-constant bag returns that value" law), and the partition-constancy invariant is not expressible as a table constraint in the DSL. Hence the prover's counterexample is a genuine one in QED's semantics, not an encoding artifact — the two sides name different aggregate symbols over related bags, which no name-matching fix can align — and since the rule's firing condition is at least one AGG_M2V call whose replacement inherently introduces the SINGLE_VALUE/M2X construction, no non-vacuous special case avoids the barrier, so UNSUPPORTED is correct. ```
 
 ### `AggregateMeasure2` — ⏭️ SKIPPED
 
@@ -1030,17 +1031,17 @@ Note: MeasureRules.java defines multiple distinct rule variants as separate stat
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/MeasureRules.java
 
 Note: MeasureRules.java defines multiple distinct rule variants as separate static nested classes. Implement specifically the `AggregateMeasure2Rule` variant (not AggregateMeasureRule, ProjectMeasureRule, FilterSortMeasureRule, ProjectSortMeasureRule, which are separate rules ported under their own spec names).
-- Attempts used: 26
-- Last updated: 2026-09-25T09:14:39.546310+00:00
-- Reason / notes: The rule's only non-trivial content is the Calcite measure-framework identity that AGG_M2V(c) over a group equals RelMdMeasure's expansion — a correlated subquery built from *different* operators (AGG_M2M, M2X/M2V, measure-specific functions), all of which become distinct uninterpreted symbols in RuleScript. QED's sole aggregate principle is bag-equality of inputs for the *same* operator; it has no axioms relating different operator symbols, so the SMT layer finds countermodels for every instance (even the minimal one-key, one-AGG_M2V case), and no DSL extension (e.g. a scalar-subquery builder) could close this gap without hard-coding the measure's definitional semantics as an axiom, which would make the proof vacuous. ```
+- Attempts used: 25
+- Last updated: 2026-10-13T19:58:16.055475+00:00
+- Reason / notes: The rule's validity rests entirely on Calcite's measure invariant — AGG_M2V(m) over a group equals the scalar subquery produced by mq.expand(m) (with AGG_M2M standing in for measure-to-measure references) — while QED models AGG_M2V, AGG_M2M, and any subquery/aggregate body as uninterpreted symbols with no axioms connecting them, so that equality is not a consequence of bag semantics and is not derivable by any DSL extension (a RexSubQuery builder would let the pattern be written but QED would soundly report "not provable" since the two sides are distinct uninterpreted terms). The only non-trivial content of the rewrite is precisely this M2V→subquery replacement; the pass-through of group keys and non-measure agg calls is either trivial or depends on the same measure axiom, so no genuine provable special case exists. ```
 
 ### `AggregateMinMaxToLimit` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateMinMaxToLimitRule.java
-- Attempts used: 13
-- Last updated: 2026-09-23T01:37:40.988870+00:00
-- Reason / notes: The rewrite's target is a `ORDER BY c ASC/DESC LIMIT 1` scalar subquery, and QED has no ordering semantics — Sort/Limit carry no bag-semantic meaning (the serializer's `LogicalSort` case only shows the JSON *format* can carry such nodes; the prover still cannot decide them), so the "after" side cannot be faithfully encoded, and that gap lives in the prover's semantics, not in a missing builder `extend_dsl_file` could add. Independently, the rule's correctness is precisely the algebraic identity "MIN/MAX of a column = top-1 row of its ordering", but QED treats aggregate operators as uninterpreted beyond bag equality of their inputs, so it cannot connect an `aggOp(c)` call on one side with a sort/limit pipeline on the other. Since every instance of this rule — no matter how specialized (single column, unique key, filters) — requires exactly that identity to be established, no non-degenerate special case is provable, and the porter's UNSUPPORTED conclusion is correct. ```
+- Attempts used: 21
+- Last updated: 2026-10-13T19:54:31.272646+00:00
+- Reason / notes: The rule's after side (scalar subqueries of the form SELECT c FROM t WHERE c IS NOT NULL ORDER BY c ASC/DESC LIMIT 1 over a one-row VALUES) is only equivalent to MIN/MAX if the prover knows that the first row of an ordered bag is its minimum/maximum — but QED assigns no bag-semantic meaning to Sort/Limit (no ordering axioms exist), and MIN/MAX are uninterpreted higher-order aggregates it can only compare by bag equality of their inputs, so it cannot relate them to any ordering at all. Even if the DSL were extended with sort/limit/scalar-subquery builders (JSONSerializer already serializes LogicalSort and RexSubQuery, so that gap is closable), the semantic gap is fundamental: a faithful after side must carry ordering, and no ordering statement is provable without order semantics. Hence no provable special case exists, and the porter's UNSUPPORTED conclusion is correct (its one minor imprecision — saying QED "models" Sort/Limit as uninterpreted operators rather than leaving them semantically unmodeled — does not change the verdict). ```
 
 ### `AggregateProjectStarTable` — ⏭️ SKIPPED
 

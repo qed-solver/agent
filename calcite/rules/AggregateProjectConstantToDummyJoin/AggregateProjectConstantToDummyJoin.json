@@ -1,0 +1,118 @@
+{
+  "help" : [ "LogicalAggregate(group=[{0, 1, 2}], f=[f($2)])\n  LogicalProject($f0=[true], $f1=[false], col-S=[$0])\n    LogicalTableScan(table=[[S]])\n", "LogicalAggregate(group=[{0, 1, 2}], f=[f($2)])\n  LogicalProject(x=[$1], d=[$2], col-S=[$0])\n    LogicalJoin(condition=[true], joinType=[inner])\n      LogicalTableScan(table=[[S]])\n      LogicalValues(tuples=[[{ true, false }]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "S",
+    "guaranteed" : [ ],
+    "fields" : [ "col-S" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "group" : {
+      "keys" : [ {
+        "column" : 0,
+        "type" : "BOOLEAN"
+      }, {
+        "column" : 1,
+        "type" : "BOOLEAN"
+      }, {
+        "column" : 2,
+        "type" : "INTEGER"
+      } ],
+      "function" : [ {
+        "distinct" : false,
+        "type" : "INTEGER",
+        "operand" : [ {
+          "column" : 2,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "f",
+        "ignoreNulls" : false
+      } ],
+      "source" : {
+        "project" : {
+          "source" : {
+            "scan" : 0
+          },
+          "target" : [ {
+            "type" : "BOOLEAN",
+            "operand" : [ ],
+            "operator" : "true"
+          }, {
+            "type" : "BOOLEAN",
+            "operand" : [ ],
+            "operator" : "false"
+          }, {
+            "column" : 0,
+            "type" : "INTEGER"
+          } ]
+        }
+      }
+    }
+  }, {
+    "group" : {
+      "keys" : [ {
+        "column" : 0,
+        "type" : "BOOLEAN"
+      }, {
+        "column" : 1,
+        "type" : "BOOLEAN"
+      }, {
+        "column" : 2,
+        "type" : "INTEGER"
+      } ],
+      "function" : [ {
+        "distinct" : false,
+        "type" : "INTEGER",
+        "operand" : [ {
+          "column" : 2,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "f",
+        "ignoreNulls" : false
+      } ],
+      "source" : {
+        "project" : {
+          "source" : {
+            "join" : {
+              "condition" : {
+                "type" : "BOOLEAN",
+                "operand" : [ ],
+                "operator" : "true"
+              },
+              "left" : {
+                "scan" : 0
+              },
+              "kind" : "INNER",
+              "right" : {
+                "values" : {
+                  "schema" : [ "BOOLEAN", "BOOLEAN" ],
+                  "content" : [ [ {
+                    "type" : "BOOLEAN",
+                    "operand" : [ ],
+                    "operator" : "true"
+                  }, {
+                    "type" : "BOOLEAN",
+                    "operand" : [ ],
+                    "operator" : "false"
+                  } ] ]
+                }
+              }
+            }
+          },
+          "target" : [ {
+            "column" : 1,
+            "type" : "BOOLEAN"
+          }, {
+            "column" : 2,
+            "type" : "BOOLEAN"
+          }, {
+            "column" : 0,
+            "type" : "INTEGER"
+          } ]
+        }
+      }
+    }
+  } ]
+}

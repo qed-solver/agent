@@ -1,0 +1,31 @@
+{
+  "help" : [ "LogicalAggregate(group=[{0}])\n  LogicalTableScan(table=[[S]])\n", "LogicalUnion(all=[false])\n  LogicalTableScan(table=[[S]])\n  LogicalTableScan(table=[[S]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "S",
+    "guaranteed" : [ ],
+    "fields" : [ "col-S" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "group" : {
+      "keys" : [ {
+        "column" : 0,
+        "type" : "INTEGER"
+      } ],
+      "function" : [ ],
+      "source" : {
+        "scan" : 0
+      }
+    }
+  }, {
+    "distinct" : {
+      "union" : [ {
+        "scan" : 0
+      }, {
+        "scan" : 0
+      } ]
+    }
+  } ]
+}

@@ -1,0 +1,106 @@
+{
+  "help" : [ "LogicalJoin(condition=[S($0, $2)], joinType=[semi])\n  LogicalJoin(condition=[C($0, $1)], joinType=[inner])\n    LogicalTableScan(table=[[X]])\n    LogicalTableScan(table=[[Y]])\n  LogicalTableScan(table=[[Z]])\n", "LogicalJoin(condition=[C($0, $1)], joinType=[inner])\n  LogicalJoin(condition=[S($0, $1)], joinType=[semi])\n    LogicalTableScan(table=[[X]])\n    LogicalTableScan(table=[[Z]])\n  LogicalTableScan(table=[[Y]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "X",
+    "guaranteed" : [ ],
+    "fields" : [ "col-X" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Y",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Y" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Z",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Z" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 2,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "S"
+      },
+      "left" : {
+        "join" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            }, {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "C"
+          },
+          "left" : {
+            "scan" : 0
+          },
+          "kind" : "INNER",
+          "right" : {
+            "scan" : 1
+          }
+        }
+      },
+      "kind" : "SEMI",
+      "right" : {
+        "scan" : 2
+      }
+    }
+  }, {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "C"
+      },
+      "left" : {
+        "join" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            }, {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "S"
+          },
+          "left" : {
+            "scan" : 0
+          },
+          "kind" : "SEMI",
+          "right" : {
+            "scan" : 2
+          }
+        }
+      },
+      "kind" : "INNER",
+      "right" : {
+        "scan" : 1
+      }
+    }
+  } ]
+}

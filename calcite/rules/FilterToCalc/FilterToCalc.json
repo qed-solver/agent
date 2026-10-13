@@ -1,0 +1,40 @@
+{
+  "help" : [ "LogicalFilter(condition=[cond($0)])\n  LogicalTableScan(table=[[Source]])\n", "LogicalFilter(condition=[cond($0)])\n  LogicalTableScan(table=[[Source]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Source",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Source" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "filter" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "cond"
+      },
+      "source" : {
+        "scan" : 0
+      }
+    }
+  }, {
+    "filter" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "cond"
+      },
+      "source" : {
+        "scan" : 0
+      }
+    }
+  } ]
+}

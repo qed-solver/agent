@@ -1,0 +1,55 @@
+{
+  "help" : [ "LogicalUnion(all=[true])\n  LogicalTableScan(table=[[A]])\n  LogicalUnion(all=[true])\n    LogicalTableScan(table=[[B]])\n    LogicalTableScan(table=[[C]])\n  LogicalTableScan(table=[[D]])\n", "LogicalUnion(all=[true])\n  LogicalTableScan(table=[[A]])\n  LogicalTableScan(table=[[B]])\n  LogicalTableScan(table=[[C]])\n  LogicalTableScan(table=[[D]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "A",
+    "guaranteed" : [ ],
+    "fields" : [ "col-A" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "B",
+    "guaranteed" : [ ],
+    "fields" : [ "col-B" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "C",
+    "guaranteed" : [ ],
+    "fields" : [ "col-C" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "D",
+    "guaranteed" : [ ],
+    "fields" : [ "col-D" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "union" : [ {
+      "scan" : 0
+    }, {
+      "union" : [ {
+        "scan" : 1
+      }, {
+        "scan" : 2
+      } ]
+    }, {
+      "scan" : 3
+    } ]
+  }, {
+    "union" : [ {
+      "scan" : 0
+    }, {
+      "scan" : 1
+    }, {
+      "scan" : 2
+    }, {
+      "scan" : 3
+    } ]
+  } ]
+}

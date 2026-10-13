@@ -1,0 +1,66 @@
+{
+  "help" : [ "LogicalProject(c=[$2], a=[$0])\n  LogicalValues(tuples=[[{ 1, 2, 3 }, { 4, 5, 6 }]])\n", "LogicalValues(tuples=[[{ 3, 1 }, { 6, 4 }]])\n" ],
+  "schemas" : [ ],
+  "queries" : [ {
+    "project" : {
+      "source" : {
+        "values" : {
+          "schema" : [ "INTEGER", "INTEGER", "INTEGER" ],
+          "content" : [ [ {
+            "type" : "INTEGER",
+            "operand" : [ ],
+            "operator" : "1"
+          }, {
+            "type" : "INTEGER",
+            "operand" : [ ],
+            "operator" : "2"
+          }, {
+            "type" : "INTEGER",
+            "operand" : [ ],
+            "operator" : "3"
+          } ], [ {
+            "type" : "INTEGER",
+            "operand" : [ ],
+            "operator" : "4"
+          }, {
+            "type" : "INTEGER",
+            "operand" : [ ],
+            "operator" : "5"
+          }, {
+            "type" : "INTEGER",
+            "operand" : [ ],
+            "operator" : "6"
+          } ] ]
+        }
+      },
+      "target" : [ {
+        "column" : 2,
+        "type" : "INTEGER"
+      }, {
+        "column" : 0,
+        "type" : "INTEGER"
+      } ]
+    }
+  }, {
+    "values" : {
+      "schema" : [ "INTEGER", "INTEGER" ],
+      "content" : [ [ {
+        "type" : "INTEGER",
+        "operand" : [ ],
+        "operator" : "3"
+      }, {
+        "type" : "INTEGER",
+        "operand" : [ ],
+        "operator" : "1"
+      } ], [ {
+        "type" : "INTEGER",
+        "operand" : [ ],
+        "operator" : "6"
+      }, {
+        "type" : "INTEGER",
+        "operand" : [ ],
+        "operator" : "4"
+      } ] ]
+    }
+  } ]
+}

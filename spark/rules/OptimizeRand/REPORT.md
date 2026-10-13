@@ -1,8 +1,7 @@
 # OptimizeRand
 
-**Status:** FAILED
+**Status:** SKIPPED
 **Source backend:** Apache Spark Catalyst
-**Porter attempts used:** 102  **Verification rounds used:** 6
 
 ## Source rule (as given to the porter)
 
@@ -10,8 +9,6 @@
 Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/OptimizeRand.scala, lines 33-63
 ```
 
-## Independent verifier review
+## Reason
 
-**Verdict:** REJECTED
-
-The provable claim is only that `Filter(T, T.col < 1)` is redundant for a one-column table `T` whose check constraint already guarantees `col < 1`; that is a constraint-redundancy rule, not Spark's expression-level rewrite of `Rand()` comparisons. It does not model an arbitrary input plan with a `Rand` expression having range [0,1), and it hard-codes the random value as the scanned column, so the proof is of a different pattern. A faithful encoding would either introduce an arbitrary source plus an uninterpreted `Rand` predicate/function with its range as an explicit axiom, or declare the full rule unsupported if QED cannot model that function semantics.
+The rewrite `rand() < 1.0 -> true` / `rand() > 1.0 -> false` etc. is sound only because Rand() is known to produce values in [0, 1). QED treats a nondeterministic scalar function as an opaque uninterpreted function with no range axiom, and the only place the prover accepts value-range facts is a table-level check constraint on a scanned column, which describes a stored column rather than an expression. Encoding Rand as a constrained column proves a different pattern (redundant filter over a constrained table), and without the range fact the rewrite is not an equivalence for an uninterpreted function. No faithful narrowing exists.

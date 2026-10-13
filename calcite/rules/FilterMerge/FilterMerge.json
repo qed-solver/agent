@@ -1,0 +1,63 @@
+{
+  "help" : [ "LogicalFilter(condition=[outer($0)])\n  LogicalFilter(condition=[inner($0)])\n    LogicalTableScan(table=[[Source]])\n", "LogicalFilter(condition=[AND(inner($0), outer($0))])\n  LogicalTableScan(table=[[Source]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Source",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Source" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "filter" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "outer"
+      },
+      "source" : {
+        "filter" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "inner"
+          },
+          "source" : {
+            "scan" : 0
+          }
+        }
+      }
+    }
+  }, {
+    "filter" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "type" : "BOOLEAN",
+          "operand" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          } ],
+          "operator" : "inner"
+        }, {
+          "type" : "BOOLEAN",
+          "operand" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          } ],
+          "operator" : "outer"
+        } ],
+        "operator" : "AND"
+      },
+      "source" : {
+        "scan" : 0
+      }
+    }
+  } ]
+}

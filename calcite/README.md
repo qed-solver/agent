@@ -1,6 +1,6 @@
 # RuleScript porting progress
 
-_Last updated: 2026-10-13T18:58:37.362719+00:00_
+_Last updated: 2026-10-13T19:58:16.065630+00:00_
 
 **89/151 rules proved** (0 failed, 62 skipped as out of QED's supported fragment).
 
@@ -100,8 +100,8 @@ _Last updated: 2026-10-13T18:58:37.362719+00:00_
 | `AggregateFilterToFilteredAggregate` | Apache Calcite | ⏭️ SKIPPED | — | 25 | The rule's after-side is a per-call SQL `FILTER (WHERE P)`, which the pipeline cannot carry: `RelRN.AggCall` has no filter field and `Agg... |
 | `AggregateGroupingSetsToUnion` | Apache Calcite | ⏭️ SKIPPED | — | 26 | The rule's only match is a non-SIMPLE aggregate (real GROUPING SETS/CUBE/ROLLUP), but RuleScript's `Aggregate` and QED's serialized `grou... |
 | `AggregateMeasure` | Apache Calcite | ⏭️ SKIPPED | — | 47 | The rule's validity rests on Calcite's measure invariants — that a measure is constant within the group-key partition and that AGG_M2V(c)... |
-| `AggregateMeasure2` | Apache Calcite | ⏭️ SKIPPED | — | 26 | The rule's only non-trivial content is the Calcite measure-framework identity that AGG_M2V(c) over a group equals RelMdMeasure's expansio... |
-| `AggregateMinMaxToLimit` | Apache Calcite | ⏭️ SKIPPED | — | 13 | The rewrite's target is a `ORDER BY c ASC/DESC LIMIT 1` scalar subquery, and QED has no ordering semantics — Sort/Limit carry no bag-sema... |
+| `AggregateMeasure2` | Apache Calcite | ⏭️ SKIPPED | — | 25 | The rule's validity rests entirely on Calcite's measure invariant — AGG_M2V(m) over a group equals the scalar subquery produced by mq.exp... |
+| `AggregateMinMaxToLimit` | Apache Calcite | ⏭️ SKIPPED | — | 21 | The rule's after side (scalar subqueries of the form SELECT c FROM t WHERE c IS NOT NULL ORDER BY c ASC/DESC LIMIT 1 over a one-row VALUE... |
 | `AggregateProjectStarTable` | Apache Calcite | ⏭️ SKIPPED | — | 6 | The rule's soundness depends on two things QED structurally cannot capture: (1) its "after" side is a scan of a *different* materialized ... |
 | `AggregateReduceFunctions` | Apache Calcite | ⏭️ SKIPPED | — | 34 | AggregateReduceFunctions depends on aggregate algebraic identities (e.g. AVG(x) = SUM(x) / COUNT(x)) that QED cannot know, since it treat... |
 | `AggregateReduceFunctionsOnGroupKeys` | Apache Calcite | ⏭️ SKIPPED | — | 25 | The rule's only semantic premise — that MAX/MIN/AVG/ANY_VALUE (or a `SqlConstantValueAggFunction`) applied to an argument that is constan... |
@@ -1031,17 +1031,17 @@ Note: MeasureRules.java defines multiple distinct rule variants as separate stat
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/MeasureRules.java
 
 Note: MeasureRules.java defines multiple distinct rule variants as separate static nested classes. Implement specifically the `AggregateMeasure2Rule` variant (not AggregateMeasureRule, ProjectMeasureRule, FilterSortMeasureRule, ProjectSortMeasureRule, which are separate rules ported under their own spec names).
-- Attempts used: 26
-- Last updated: 2026-09-25T09:14:39.546310+00:00
-- Reason / notes: The rule's only non-trivial content is the Calcite measure-framework identity that AGG_M2V(c) over a group equals RelMdMeasure's expansion — a correlated subquery built from *different* operators (AGG_M2M, M2X/M2V, measure-specific functions), all of which become distinct uninterpreted symbols in RuleScript. QED's sole aggregate principle is bag-equality of inputs for the *same* operator; it has no axioms relating different operator symbols, so the SMT layer finds countermodels for every instance (even the minimal one-key, one-AGG_M2V case), and no DSL extension (e.g. a scalar-subquery builder) could close this gap without hard-coding the measure's definitional semantics as an axiom, which would make the proof vacuous. ```
+- Attempts used: 25
+- Last updated: 2026-10-13T19:58:16.055475+00:00
+- Reason / notes: The rule's validity rests entirely on Calcite's measure invariant — AGG_M2V(m) over a group equals the scalar subquery produced by mq.expand(m) (with AGG_M2M standing in for measure-to-measure references) — while QED models AGG_M2V, AGG_M2M, and any subquery/aggregate body as uninterpreted symbols with no axioms connecting them, so that equality is not a consequence of bag semantics and is not derivable by any DSL extension (a RexSubQuery builder would let the pattern be written but QED would soundly report "not provable" since the two sides are distinct uninterpreted terms). The only non-trivial content of the rewrite is precisely this M2V→subquery replacement; the pass-through of group keys and non-measure agg calls is either trivial or depends on the same measure axiom, so no genuine provable special case exists. ```
 
 ### `AggregateMinMaxToLimit` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateMinMaxToLimitRule.java
-- Attempts used: 13
-- Last updated: 2026-09-23T01:37:40.988870+00:00
-- Reason / notes: The rewrite's target is a `ORDER BY c ASC/DESC LIMIT 1` scalar subquery, and QED has no ordering semantics — Sort/Limit carry no bag-semantic meaning (the serializer's `LogicalSort` case only shows the JSON *format* can carry such nodes; the prover still cannot decide them), so the "after" side cannot be faithfully encoded, and that gap lives in the prover's semantics, not in a missing builder `extend_dsl_file` could add. Independently, the rule's correctness is precisely the algebraic identity "MIN/MAX of a column = top-1 row of its ordering", but QED treats aggregate operators as uninterpreted beyond bag equality of their inputs, so it cannot connect an `aggOp(c)` call on one side with a sort/limit pipeline on the other. Since every instance of this rule — no matter how specialized (single column, unique key, filters) — requires exactly that identity to be established, no non-degenerate special case is provable, and the porter's UNSUPPORTED conclusion is correct. ```
+- Attempts used: 21
+- Last updated: 2026-10-13T19:54:31.272646+00:00
+- Reason / notes: The rule's after side (scalar subqueries of the form SELECT c FROM t WHERE c IS NOT NULL ORDER BY c ASC/DESC LIMIT 1 over a one-row VALUES) is only equivalent to MIN/MAX if the prover knows that the first row of an ordered bag is its minimum/maximum — but QED assigns no bag-semantic meaning to Sort/Limit (no ordering axioms exist), and MIN/MAX are uninterpreted higher-order aggregates it can only compare by bag equality of their inputs, so it cannot relate them to any ordering at all. Even if the DSL were extended with sort/limit/scalar-subquery builders (JSONSerializer already serializes LogicalSort and RexSubQuery, so that gap is closable), the semantic gap is fundamental: a faithful after side must carry ordering, and no ordering statement is provable without order semantics. Hence no provable special case exists, and the porter's UNSUPPORTED conclusion is correct (its one minor imprecision — saying QED "models" Sort/Limit as uninterpreted operators rather than leaving them semantically unmodeled — does not change the verdict). ```
 
 ### `AggregateProjectStarTable` — ⏭️ SKIPPED
 

@@ -1,0 +1,89 @@
+{
+  "help" : [ "LogicalAggregate(group=[{0}])\n  LogicalAggregate(group=[{1, 2}], v=[v($0)])\n    LogicalProject(col-S=[$0], $f1=[k1($0)], $f2=[k2($0)])\n      LogicalTableScan(table=[[S]])\n", "LogicalAggregate(group=[{0}])\n  LogicalProject($f1=[k1($0)])\n    LogicalTableScan(table=[[S]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "S",
+    "guaranteed" : [ ],
+    "fields" : [ "col-S" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "group" : {
+      "keys" : [ {
+        "column" : 0,
+        "type" : "INTEGER"
+      } ],
+      "function" : [ ],
+      "source" : {
+        "group" : {
+          "keys" : [ {
+            "column" : 1,
+            "type" : "INTEGER"
+          }, {
+            "column" : 2,
+            "type" : "INTEGER"
+          } ],
+          "function" : [ {
+            "distinct" : false,
+            "type" : "INTEGER",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "v",
+            "ignoreNulls" : false
+          } ],
+          "source" : {
+            "project" : {
+              "source" : {
+                "scan" : 0
+              },
+              "target" : [ {
+                "column" : 0,
+                "type" : "INTEGER"
+              }, {
+                "type" : "INTEGER",
+                "operand" : [ {
+                  "column" : 0,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "k1"
+              }, {
+                "type" : "INTEGER",
+                "operand" : [ {
+                  "column" : 0,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "k2"
+              } ]
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "group" : {
+      "keys" : [ {
+        "column" : 0,
+        "type" : "INTEGER"
+      } ],
+      "function" : [ ],
+      "source" : {
+        "project" : {
+          "source" : {
+            "scan" : 0
+          },
+          "target" : [ {
+            "type" : "INTEGER",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "k1"
+          } ]
+        }
+      }
+    }
+  } ]
+}

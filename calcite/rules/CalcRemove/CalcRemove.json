@@ -1,0 +1,16 @@
+{
+  "help" : [ "LogicalTableScan(table=[[Source]])\n", "LogicalTableScan(table=[[Source]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER", "INTEGER" ],
+    "nullable" : [ true, true ],
+    "name" : "Source",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Source-0", "col-Source-1" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "scan" : 0
+  }, {
+    "scan" : 0
+  } ]
+}

@@ -1,0 +1,87 @@
+{
+  "help" : [ "LogicalFilter(condition=[EXISTS({\nLogicalFilter(condition=[AND(unbound_cond(), other_cond($0))])\n  LogicalTableScan(table=[[Inner]])\n})])\n  LogicalTableScan(table=[[Outer]])\n", "LogicalFilter(condition=[AND(EXISTS({\nLogicalFilter(condition=[other_cond($0)])\n  LogicalTableScan(table=[[Inner]])\n}), unbound_cond())])\n  LogicalTableScan(table=[[Outer]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Inner",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Inner" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Outer",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Outer" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "filter" : {
+      "condition" : {
+        "query" : {
+          "filter" : {
+            "condition" : {
+              "type" : "BOOLEAN",
+              "operand" : [ {
+                "type" : "BOOLEAN",
+                "operand" : [ ],
+                "operator" : "unbound_cond"
+              }, {
+                "type" : "BOOLEAN",
+                "operand" : [ {
+                  "column" : 1,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "other_cond"
+              } ],
+              "operator" : "AND"
+            },
+            "source" : {
+              "scan" : 0
+            }
+          }
+        },
+        "type" : "BOOLEAN",
+        "operand" : [ ],
+        "operator" : "EXISTS"
+      },
+      "source" : {
+        "scan" : 1
+      }
+    }
+  }, {
+    "filter" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "query" : {
+            "filter" : {
+              "condition" : {
+                "type" : "BOOLEAN",
+                "operand" : [ {
+                  "column" : 1,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "other_cond"
+              },
+              "source" : {
+                "scan" : 0
+              }
+            }
+          },
+          "type" : "BOOLEAN",
+          "operand" : [ ],
+          "operator" : "EXISTS"
+        }, {
+          "type" : "BOOLEAN",
+          "operand" : [ ],
+          "operator" : "unbound_cond"
+        } ],
+        "operator" : "AND"
+      },
+      "source" : {
+        "scan" : 1
+      }
+    }
+  } ]
+}

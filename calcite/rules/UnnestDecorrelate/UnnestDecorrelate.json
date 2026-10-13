@@ -1,0 +1,93 @@
+{
+  "help" : [ "LogicalProject($f0=[P($2)])\n  LogicalJoin(condition=[M($0, $2)], joinType=[inner])\n    LogicalTableScan(table=[[L]])\n    LogicalTableScan(table=[[E]])\n", "LogicalProject($f0=[P($1)])\n  LogicalJoin(condition=[M($0, $1)], joinType=[inner])\n    LogicalProject(col-L-0=[$0])\n      LogicalTableScan(table=[[L]])\n    LogicalTableScan(table=[[E]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER", "INTEGER" ],
+    "nullable" : [ true, true ],
+    "name" : "L",
+    "guaranteed" : [ ],
+    "fields" : [ "col-L-0", "col-L-1" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "E",
+    "guaranteed" : [ ],
+    "fields" : [ "col-E" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "project" : {
+      "source" : {
+        "join" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            }, {
+              "column" : 2,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "M"
+          },
+          "left" : {
+            "scan" : 0
+          },
+          "kind" : "INNER",
+          "right" : {
+            "scan" : 1
+          }
+        }
+      },
+      "target" : [ {
+        "type" : "INTEGER",
+        "operand" : [ {
+          "column" : 2,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "P"
+      } ]
+    }
+  }, {
+    "project" : {
+      "source" : {
+        "join" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            }, {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "M"
+          },
+          "left" : {
+            "project" : {
+              "source" : {
+                "scan" : 0
+              },
+              "target" : [ {
+                "column" : 0,
+                "type" : "INTEGER"
+              } ]
+            }
+          },
+          "kind" : "INNER",
+          "right" : {
+            "scan" : 1
+          }
+        }
+      },
+      "target" : [ {
+        "type" : "INTEGER",
+        "operand" : [ {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "P"
+      } ]
+    }
+  } ]
+}

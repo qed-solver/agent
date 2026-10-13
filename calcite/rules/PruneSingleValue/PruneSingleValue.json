@@ -1,0 +1,70 @@
+{
+  "help" : [ "LogicalJoin(condition=[jcond($0, $1)], joinType=[inner])\n  LogicalTableScan(table=[[O]])\n  LogicalValues(tuples=[[{ true }]])\n", "LogicalProject(col-O=[$0], $f1=[true])\n  LogicalFilter(condition=[jcond($0, true)])\n    LogicalTableScan(table=[[O]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "O",
+    "guaranteed" : [ ],
+    "fields" : [ "col-O" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "BOOLEAN"
+        } ],
+        "operator" : "jcond"
+      },
+      "left" : {
+        "scan" : 0
+      },
+      "kind" : "INNER",
+      "right" : {
+        "values" : {
+          "schema" : [ "BOOLEAN" ],
+          "content" : [ [ {
+            "type" : "BOOLEAN",
+            "operand" : [ ],
+            "operator" : "true"
+          } ] ]
+        }
+      }
+    }
+  }, {
+    "project" : {
+      "source" : {
+        "filter" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            }, {
+              "type" : "BOOLEAN",
+              "operand" : [ ],
+              "operator" : "true"
+            } ],
+            "operator" : "jcond"
+          },
+          "source" : {
+            "scan" : 0
+          }
+        }
+      },
+      "target" : [ {
+        "column" : 0,
+        "type" : "INTEGER"
+      }, {
+        "type" : "BOOLEAN",
+        "operand" : [ ],
+        "operator" : "true"
+      } ]
+    }
+  } ]
+}

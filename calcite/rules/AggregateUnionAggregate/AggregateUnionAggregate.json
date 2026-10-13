@@ -1,0 +1,58 @@
+{
+  "help" : [ "LogicalAggregate(group=[{0}])\n  LogicalUnion(all=[true])\n    LogicalTableScan(table=[[A]])\n    LogicalAggregate(group=[{0}])\n      LogicalTableScan(table=[[L]])\n", "LogicalAggregate(group=[{0}])\n  LogicalUnion(all=[true])\n    LogicalTableScan(table=[[A]])\n    LogicalTableScan(table=[[L]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "A",
+    "guaranteed" : [ ],
+    "fields" : [ "col-A" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "L",
+    "guaranteed" : [ ],
+    "fields" : [ "col-L" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "group" : {
+      "keys" : [ {
+        "column" : 0,
+        "type" : "INTEGER"
+      } ],
+      "function" : [ ],
+      "source" : {
+        "union" : [ {
+          "scan" : 0
+        }, {
+          "group" : {
+            "keys" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            } ],
+            "function" : [ ],
+            "source" : {
+              "scan" : 1
+            }
+          }
+        } ]
+      }
+    }
+  }, {
+    "group" : {
+      "keys" : [ {
+        "column" : 0,
+        "type" : "INTEGER"
+      } ],
+      "function" : [ ],
+      "source" : {
+        "union" : [ {
+          "scan" : 0
+        }, {
+          "scan" : 1
+        } ]
+      }
+    }
+  } ]
+}

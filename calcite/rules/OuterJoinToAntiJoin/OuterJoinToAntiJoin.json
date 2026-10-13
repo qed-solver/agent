@@ -1,0 +1,81 @@
+{
+  "help" : [ "LogicalProject(col-L=[$0])\n  LogicalFilter(condition=[IS NULL($1)])\n    LogicalJoin(condition=[cond($0, $1)], joinType=[left])\n      LogicalTableScan(table=[[L]])\n      LogicalTableScan(table=[[R]])\n", "LogicalJoin(condition=[cond($0, $1)], joinType=[anti])\n  LogicalTableScan(table=[[L]])\n  LogicalTableScan(table=[[R]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "L",
+    "guaranteed" : [ ],
+    "fields" : [ "col-L" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ false ],
+    "name" : "R",
+    "guaranteed" : [ ],
+    "fields" : [ "col-R" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "project" : {
+      "source" : {
+        "filter" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "IS NULL"
+          },
+          "source" : {
+            "join" : {
+              "condition" : {
+                "type" : "BOOLEAN",
+                "operand" : [ {
+                  "column" : 0,
+                  "type" : "INTEGER"
+                }, {
+                  "column" : 1,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "cond"
+              },
+              "left" : {
+                "scan" : 0
+              },
+              "kind" : "LEFT",
+              "right" : {
+                "scan" : 1
+              }
+            }
+          }
+        }
+      },
+      "target" : [ {
+        "column" : 0,
+        "type" : "INTEGER"
+      } ]
+    }
+  }, {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "cond"
+      },
+      "left" : {
+        "scan" : 0
+      },
+      "kind" : "ANTI",
+      "right" : {
+        "scan" : 1
+      }
+    }
+  } ]
+}

@@ -1,0 +1,33 @@
+{
+  "help" : [ "LogicalAggregate(group=[{0}], f=[f($0)])\n  LogicalValues(tuples=[[]])\n", "LogicalValues(tuples=[[]])\n" ],
+  "schemas" : [ ],
+  "queries" : [ {
+    "group" : {
+      "keys" : [ {
+        "column" : 0,
+        "type" : "INTEGER"
+      } ],
+      "function" : [ {
+        "distinct" : false,
+        "type" : "INTEGER",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "f",
+        "ignoreNulls" : false
+      } ],
+      "source" : {
+        "values" : {
+          "schema" : [ "INTEGER" ],
+          "content" : [ ]
+        }
+      }
+    }
+  }, {
+    "values" : {
+      "schema" : [ "INTEGER", "INTEGER" ],
+      "content" : [ ]
+    }
+  } ]
+}

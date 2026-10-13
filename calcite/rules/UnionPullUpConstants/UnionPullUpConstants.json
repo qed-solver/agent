@@ -1,0 +1,83 @@
+{
+  "help" : [ "LogicalUnion(all=[true])\n  LogicalProject($f0=[true], col-A-1=[$1])\n    LogicalTableScan(table=[[A]])\n  LogicalProject($f0=[true], col-B-1=[$1])\n    LogicalTableScan(table=[[B]])\n", "LogicalProject($f0=[true], col-B-1=[$0])\n  LogicalUnion(all=[true])\n    LogicalProject(col-A-1=[$1])\n      LogicalTableScan(table=[[A]])\n    LogicalProject(col-B-1=[$1])\n      LogicalTableScan(table=[[B]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER", "INTEGER" ],
+    "nullable" : [ true, true ],
+    "name" : "A",
+    "guaranteed" : [ ],
+    "fields" : [ "col-A-0", "col-A-1" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER", "INTEGER" ],
+    "nullable" : [ true, true ],
+    "name" : "B",
+    "guaranteed" : [ ],
+    "fields" : [ "col-B-0", "col-B-1" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "union" : [ {
+      "project" : {
+        "source" : {
+          "scan" : 0
+        },
+        "target" : [ {
+          "type" : "BOOLEAN",
+          "operand" : [ ],
+          "operator" : "true"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ]
+      }
+    }, {
+      "project" : {
+        "source" : {
+          "scan" : 1
+        },
+        "target" : [ {
+          "type" : "BOOLEAN",
+          "operand" : [ ],
+          "operator" : "true"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ]
+      }
+    } ]
+  }, {
+    "project" : {
+      "source" : {
+        "union" : [ {
+          "project" : {
+            "source" : {
+              "scan" : 0
+            },
+            "target" : [ {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ]
+          }
+        }, {
+          "project" : {
+            "source" : {
+              "scan" : 1
+            },
+            "target" : [ {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ]
+          }
+        } ]
+      },
+      "target" : [ {
+        "type" : "BOOLEAN",
+        "operand" : [ ],
+        "operator" : "true"
+      }, {
+        "column" : 0,
+        "type" : "INTEGER"
+      } ]
+    }
+  } ]
+}

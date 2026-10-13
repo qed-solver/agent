@@ -1,0 +1,42 @@
+{
+  "help" : [ "LogicalIntersect(all=[false])\n  LogicalTableScan(table=[[A]])\n  LogicalTableScan(table=[[B]])\n  LogicalTableScan(table=[[C]])\n", "LogicalIntersect(all=[false])\n  LogicalTableScan(table=[[C]])\n  LogicalTableScan(table=[[A]])\n  LogicalTableScan(table=[[B]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "A",
+    "guaranteed" : [ ],
+    "fields" : [ "col-A" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "B",
+    "guaranteed" : [ ],
+    "fields" : [ "col-B" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "C",
+    "guaranteed" : [ ],
+    "fields" : [ "col-C" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "intersect" : [ {
+      "scan" : 0
+    }, {
+      "scan" : 1
+    }, {
+      "scan" : 2
+    } ]
+  }, {
+    "intersect" : [ {
+      "scan" : 2
+    }, {
+      "scan" : 0
+    }, {
+      "scan" : 1
+    } ]
+  } ]
+}

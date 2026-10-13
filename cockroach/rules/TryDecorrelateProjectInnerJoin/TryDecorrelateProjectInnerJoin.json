@@ -1,0 +1,173 @@
+{
+  "help" : [ "LogicalJoin(condition=[on($0, $1, $2)], joinType=[left])\n  LogicalTableScan(table=[[L]])\n  LogicalProject(col-IL=[$0], $f1=[f($0, $1)])\n    LogicalJoin(condition=[innerOn($0, $1)], joinType=[inner])\n      LogicalTableScan(table=[[IL]])\n      LogicalTableScan(table=[[IR]])\n", "LogicalProject(col-L=[$0], col-IL=[$1], $f2=[$3])\n  LogicalJoin(condition=[AND(on($0, $1, $3), innerOn($1, $2))], joinType=[left])\n    LogicalTableScan(table=[[L]])\n    LogicalProject(col-IL=[$0], col-IR=[$1], $f2=[f($0, $1)])\n      LogicalJoin(condition=[true], joinType=[inner])\n        LogicalTableScan(table=[[IL]])\n        LogicalTableScan(table=[[IR]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "L",
+    "guaranteed" : [ ],
+    "fields" : [ "col-L" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "IL",
+    "guaranteed" : [ ],
+    "fields" : [ "col-IL" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "IR",
+    "guaranteed" : [ ],
+    "fields" : [ "col-IR" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 1,
+          "type" : "INTEGER"
+        }, {
+          "column" : 2,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "on"
+      },
+      "left" : {
+        "scan" : 0
+      },
+      "kind" : "LEFT",
+      "right" : {
+        "project" : {
+          "source" : {
+            "join" : {
+              "condition" : {
+                "type" : "BOOLEAN",
+                "operand" : [ {
+                  "column" : 0,
+                  "type" : "INTEGER"
+                }, {
+                  "column" : 1,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "innerOn"
+              },
+              "left" : {
+                "scan" : 1
+              },
+              "kind" : "INNER",
+              "right" : {
+                "scan" : 2
+              }
+            }
+          },
+          "target" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          }, {
+            "type" : "INTEGER",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            }, {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "f"
+          } ]
+        }
+      }
+    }
+  }, {
+    "project" : {
+      "source" : {
+        "join" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "type" : "BOOLEAN",
+              "operand" : [ {
+                "column" : 0,
+                "type" : "INTEGER"
+              }, {
+                "column" : 1,
+                "type" : "INTEGER"
+              }, {
+                "column" : 3,
+                "type" : "INTEGER"
+              } ],
+              "operator" : "on"
+            }, {
+              "type" : "BOOLEAN",
+              "operand" : [ {
+                "column" : 1,
+                "type" : "INTEGER"
+              }, {
+                "column" : 2,
+                "type" : "INTEGER"
+              } ],
+              "operator" : "innerOn"
+            } ],
+            "operator" : "AND"
+          },
+          "left" : {
+            "scan" : 0
+          },
+          "kind" : "LEFT",
+          "right" : {
+            "project" : {
+              "source" : {
+                "join" : {
+                  "condition" : {
+                    "type" : "BOOLEAN",
+                    "operand" : [ ],
+                    "operator" : "true"
+                  },
+                  "left" : {
+                    "scan" : 1
+                  },
+                  "kind" : "INNER",
+                  "right" : {
+                    "scan" : 2
+                  }
+                }
+              },
+              "target" : [ {
+                "column" : 0,
+                "type" : "INTEGER"
+              }, {
+                "column" : 1,
+                "type" : "INTEGER"
+              }, {
+                "type" : "INTEGER",
+                "operand" : [ {
+                  "column" : 0,
+                  "type" : "INTEGER"
+                }, {
+                  "column" : 1,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "f"
+              } ]
+            }
+          }
+        }
+      },
+      "target" : [ {
+        "column" : 0,
+        "type" : "INTEGER"
+      }, {
+        "column" : 1,
+        "type" : "INTEGER"
+      }, {
+        "column" : 3,
+        "type" : "INTEGER"
+      } ]
+    }
+  } ]
+}

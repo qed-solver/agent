@@ -1,0 +1,16 @@
+{
+  "help" : [ "LogicalTableScan(table=[[Input]])\n", "LogicalTableScan(table=[[Input]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Input",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Input" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "scan" : 0
+  }, {
+    "scan" : 0
+  } ]
+}

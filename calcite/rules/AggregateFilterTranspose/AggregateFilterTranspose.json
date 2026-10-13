@@ -1,0 +1,109 @@
+{
+  "help" : [ "LogicalAggregate(group=[{0}], f=[f($1)])\n  LogicalFilter(condition=[p($0)])\n    LogicalJoin(condition=[true], joinType=[inner])\n      LogicalTableScan(table=[[A]])\n      LogicalTableScan(table=[[B]])\n", "LogicalFilter(condition=[p($0)])\n  LogicalAggregate(group=[{0}], f=[f($1)])\n    LogicalJoin(condition=[true], joinType=[inner])\n      LogicalTableScan(table=[[A]])\n      LogicalTableScan(table=[[B]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "A",
+    "guaranteed" : [ ],
+    "fields" : [ "col-A" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "B",
+    "guaranteed" : [ ],
+    "fields" : [ "col-B" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "group" : {
+      "keys" : [ {
+        "column" : 0,
+        "type" : "INTEGER"
+      } ],
+      "function" : [ {
+        "distinct" : false,
+        "type" : "INTEGER",
+        "operand" : [ {
+          "column" : 1,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "f",
+        "ignoreNulls" : false
+      } ],
+      "source" : {
+        "filter" : {
+          "condition" : {
+            "type" : "BOOLEAN",
+            "operand" : [ {
+              "column" : 0,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "p"
+          },
+          "source" : {
+            "join" : {
+              "condition" : {
+                "type" : "BOOLEAN",
+                "operand" : [ ],
+                "operator" : "true"
+              },
+              "left" : {
+                "scan" : 0
+              },
+              "kind" : "INNER",
+              "right" : {
+                "scan" : 1
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "filter" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "p"
+      },
+      "source" : {
+        "group" : {
+          "keys" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          } ],
+          "function" : [ {
+            "distinct" : false,
+            "type" : "INTEGER",
+            "operand" : [ {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "f",
+            "ignoreNulls" : false
+          } ],
+          "source" : {
+            "join" : {
+              "condition" : {
+                "type" : "BOOLEAN",
+                "operand" : [ ],
+                "operator" : "true"
+              },
+              "left" : {
+                "scan" : 0
+              },
+              "kind" : "INNER",
+              "right" : {
+                "scan" : 1
+              }
+            }
+          }
+        }
+      }
+    }
+  } ]
+}

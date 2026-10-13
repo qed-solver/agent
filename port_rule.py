@@ -540,10 +540,11 @@ def summarize_round(
         print(f"   [summary] couldn't summarize round {round_num}: {e}")
         return ""
     summary = completion.content.strip()
-    if not summary and completion.reasoning.strip():
-        print(f"   [summary] no final summary for round {round_num} (truncated={completion.truncated}); "
-              f"using {len(completion.reasoning)} chars of reasoning as fallback")
-        summary = SUMMARY_FALLBACK_HEADER + completion.reasoning.strip()
+    reasoning = completion.reasoning.strip()
+    if reasoning and (completion.truncated or not summary):
+        print(f"   [summary] no complete summary for round {round_num} (truncated={completion.truncated}); "
+              f"adding {len(reasoning)} chars of reasoning as fallback")
+        summary = SUMMARY_FALLBACK_HEADER + (f"{summary}\n\n---\n\n" if summary else "") + reasoning
     if summary:
         path = debug_dir / rule_name / f"round_{round_num:02d}_summary.md"
         path.parent.mkdir(parents=True, exist_ok=True)

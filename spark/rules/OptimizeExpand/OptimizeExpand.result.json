@@ -4,33 +4,33 @@
   "complete_fragment": false,
   "equiv_class_duration": {
     "secs": 0,
-    "nanos": 12294333
+    "nanos": 126476374
   },
   "equiv_class_timed_out": false,
   "smt_duration": {
     "secs": 0,
-    "nanos": 25735209
+    "nanos": 89273708
   },
   "smt_timed_out": false,
   "nontrivial_perms": false,
   "translate_duration": {
     "secs": 0,
-    "nanos": 1110125
+    "nanos": 1561416
   },
   "normal_duration": {
     "secs": 0,
-    "nanos": 823875
+    "nanos": 5075000
   },
   "stable_duration": {
     "secs": 0,
-    "nanos": 28440708
+    "nanos": 240349000
   },
   "unify_duration": {
     "secs": 0,
-    "nanos": 25828625
+    "nanos": 90682583
   },
   "total_duration": {
     "secs": 0,
-    "nanos": 70285500
+    "nanos": 352421417
   }
 }

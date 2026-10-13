@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Spark Catalyst
-**Porter attempts used:** 13  **Verification rounds used:** 1
+**Porter attempts used:** 7  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/Remo
 
 **Verdict:** AGREE
 
-Both branches of RemoveRedundantSorts rest on list-level properties that QED's bag semantics cannot express: the local branch is only sound when the child's guaranteed output ordering satisfies the requested one (`orderingSatisfies(child.outputOrdering, orders)`), and the global branch rewrites into `RepartitionByExpression`, a physical shuffle operator with no relational meaning. QED models relations as bags with no Sort operator, no ordering-guarantee symbol, and per-row table "guarantee" constraints cannot encode a row-order property, so the rule's actual correctness precondition is inexpressible rather than merely unbuilt. The only bag-checkable reading (Sort ≡ identity) is vacuously provable for any child but verifies none of the rule's soundness condition and would justify an incorrect rewrite of a top-level ORDER BY, confirming this is a fundamental prover limitation that extending RelRN cannot close. ```
+The rule's two substantive rewrites are justified solely by non-bag facts: the child's output-ordering property already satisfying the sort keys, and the global-sort-under-local-sort demotion existing to preserve *partitioning* via RepartitionByExpression, not ordering. QED's model is bag-only and explicitly does not support the ordering semantics of Sort/Order By (qed.pdf §6.2), and RuleScript has no way to express "child is already sorted by X" as a side condition on an uninterpreted child — nor any partitioning concept — and even if a `sort` builder were added to the DSL (JSONSerializer already carries LogicalSort), the unmodifiable Rust prover has no ordering/partitioning semantics to check against, so the only provable statement would be the vacuous bag identity `sort(child) ≡ child`, which is not the rule being ported. Thus the porter correctly identified a genuine QED limitation rather than a missing DSL capability, and UNSUPPORTED is the right conclusion. ```

@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Spark Catalyst
-**Porter attempts used:** 23  **Verification rounds used:** 4
+**Porter attempts used:** 11  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: sql/core/src/main/scala/org/apache/spark/sql/execution/externalUDF/Extra
 
 **Verdict:** AGREE
 
-The rule's only semantic content is commuting a row-wise external UDF across the Window boundary (per-row eval(udf(w)) = udf(eval(w))), and QED's input language has no Window node — JSONSerializer's Rel switch has no LogicalWindow case and falls through to "Not implemented", so the window can only be the aggregate-joined-back composite used in the accepted CollapseWindow precedent. In that composite the window's "inside" and "outside" are both just Projects around one uninterpreted aggregate, so any faithful encoding renders before() and after() structurally identical (udf at the same relational level in both, a vacuous self-proof), while modeling the pre-rewrite window's UDF'd column as a distinct opaque aggregate would require QED to prove g(B) = udf(f(B)) for free aggregate symbols — an equation its uninterpreted-aggregate model, which knows nothing beyond bag equality of inputs, cannot establish. Even the narrowest modelable slice (partition-determined, order-free expressions) therefore yields no non-vacuous provable statement, and the general case additionally needs ordering semantics QED lacks entirely, so the porter's UNSUPPORTED conclusion and its stated reason are correct. ```
+The rule rewrites a `Window` node into a `Project` over a differently-defined `Window`, and its correctness hinges on the Window operator evaluating each window expression to the same per-row value under a fixed partition/order/frame, so that an external UDF applied above the window sees the identical input. QED reasons purely under bag semantics and has no model for list/ordering operators — `Window` (like `Sort`/`Limit`/`Sample`) carries no bag meaning and has no Q-expression/JSON form the unmodifiable Rust prover could interpret — and the two distinct Window invocations (one computing `externalUDF(w)`, the other computing bare `w`) cannot be related by any uninterpreted-symbol trick, so no DSL extension or narrower special case can render this provable. ```

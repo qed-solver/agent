@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Spark Catalyst
-**Porter attempts used:** 7  **Verification rounds used:** 1
+**Porter attempts used:** 24  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/Opti
 
 **Verdict:** AGREE
 
-All three families of EliminateLimits depend on semantics QED explicitly lacks: the elimination case needs a `maxRows` cardinality upper bound (QED models only key uniqueness, never row counts/statistics), and both `Limit(0, X) ≡ ∅` and the nested-merge `Limit(le, Limit(ne, X)) ≡ Limit(min(le,ne), X)` require axioms that Limit selects a first-n prefix of an ordered row stream (qed.pdf §6.2 states QED has no ordering semantics for Limit/Offset/Order By — the emitted `sort` QOp is a fully uninterpreted bag operator, so SMT refutes even the degenerate `Limit(n, Limit(n, X)) ≡ Limit(n, X)`). The gap is in the trusted, unmodifiable prover's semantics, not the DSL surface: a new Limit/Sort builder could only serialize that same uninterpreted operator and could not supply the missing axioms, so no RuleScript encoding can be provable.
+QED deliberately gives Sort/Limit/Offset no bag-semantic meaning — per qed.pdf, Limit is only expressible as the uninterpreted QOp(Limit, n, Q) with no axioms — so `Limit(0,Q)=∅` and `Limit(a,Limit(b,Q))=Limit(min(a,b),Q)` are not derivable for an uninterpreted function, and the maxRows≤n elimination case additionally needs a cardinality side condition that RRule's bare before/after interface cannot express and which makes the unguarded universal statement false. This is corroborated by the DSL ground truth: `RelRN.java` exposes no Limit/Sort builder at all, and `extend_dsl_file` could at best surface QED's uninterpreted QOp, which the prover's bag-based theory (its explicit "List semantic" limitation) cannot reason about — a genuine QED limitation, not a missing or mismodeled encoding. ```

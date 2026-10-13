@@ -1,8 +1,10 @@
 # EliminateSerialization
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** Apache Spark Catalyst
-**Porter attempts used:** 10  **Verification rounds used:** 2
+**Porter attempts used:** 22  **Verification rounds used:** 2
+**Scope detail:** only the case where the filter's condition references solely the single deserialized-object column produced by the same uninterpreted projection used in the project (no serialization round-trip elimination, no object-append cases)
+
 
 ## Source rule (as given to the porter)
 
@@ -12,6 +14,47 @@ Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/obje
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-Every branch of EliminateSerialization is sound only because a deserializer is the inverse of its matching serializer (deser(ser(x)) = x) on matching types, and the AppendColumns branch additionally depends on the internal behavior of the backend's AppendColumns/AppendColumnsWithObject operator pair. QED models projections as uninterpreted functions with no equation/entailment reasoning between them, so a faithful encoding is unprovable (as the porter's tested encoding confirmed), and any provable variant must either make before/after structurally identical (round-trip erased to a pass-through) or axiomatize the inverse law — i.e. assume the rewrite's own content, leaving only a vacuous tautology. No DSL operator or scan constraint can supply a specific backend operator's semantics, so this is a genuine QED limitation (no function entailment / bespoke operator semantics), not a naming or modeling bug the porter missed. ```
+The encoding faithfully abstracts the rule's `DeserializeToObject`-over-`TypedFilter` case: the scan is the serialized child, the uninterpreted projection `deser` stands in for deserialization, and the shared uninterpreted predicate `cond` on the deserialized column stands in for the typed filter's condition, yielding structurally distinct plans — `Project(Filter(Row, cond(deser)))` vs `Filter(Project(Row, deser), cond)` — whose bag-semantic equivalence is a genuine, non-vacuous theorem with correct symbol sharing and the type-equality guard enforced structurally. The `SCOPE: PARTIAL` line is honest and specific: it covers exactly one of the rule's four cases (no round-trip elimination, no `AppendColumns`, no typed-filter-through-serialize case), yet within that case the row type, object type, projection, and condition form are all left fully uninterpreted, so nothing real is hard-coded.
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": true,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 5425708
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 35266541
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 1055417
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 392083
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 15454750
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 35353833
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 66134708
+  }
+}
+```

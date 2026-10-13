@@ -1,8 +1,8 @@
 # OptimizeRand
 
-**Status:** SKIPPED
+**Status:** FAILED
 **Source backend:** Apache Spark Catalyst
-**Porter attempts used:** 48  **Verification rounds used:** 3
+**Porter attempts used:** 102  **Verification rounds used:** 6
 
 ## Source rule (as given to the porter)
 
@@ -12,6 +12,6 @@ Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/Opti
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** REJECTED
 
-Every branch of OptimizeRand is only valid under the semantic axiom that rand() ∈ [0,1) (the folding) or under an equivalence between distinct comparison predicates (the operand swap), and QED supports neither: it models all function and predicate symbols as uninterpreted with no user-axiom channel, and the only side-information the rule format can carry is "guaranteed" constraints on base-table columns, which cannot attach to the output of a scalar function like rand(). Hence no narrowing faithful to the rule is provable — dropping the range assumption makes the folds unsound, and modeling rand as a constrained table column is a different rule — so this is a genuine QED limitation (the prover has no concept of function axioms) rather than a missing DSL builder that `extend_dsl_file` could close.
+The provable claim is only that `Filter(T, T.col < 1)` is redundant for a one-column table `T` whose check constraint already guarantees `col < 1`; that is a constraint-redundancy rule, not Spark's expression-level rewrite of `Rand()` comparisons. It does not model an arbitrary input plan with a `Rand` expression having range [0,1), and it hard-codes the random value as the scanned column, so the proof is of a different pattern. A faithful encoding would either introduce an arbitrary source plus an uninterpreted `Rand` predicate/function with its range as an explicit axiom, or declare the full rule unsupported if QED cannot model that function semantics.

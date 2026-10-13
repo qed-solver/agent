@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Spark Catalyst
-**Porter attempts used:** 24  **Verification rounds used:** 2
+**Porter attempts used:** 9  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/Opti
 
 **Verdict:** AGREE
 
-Every arm is sound only by numeric facts about decimal types — a scale-preserving widening cast is value-identical/monotone (so it commutes with Min/Max), decimal Sum is homomorphic over the unscaled long sum (the Sum/MakeDecimal arms), and Average's double-division path is value-identical (the Average arms) — but QED encodes all casts/projections and aggregate functions as uninterpreted symbols with no arithmetic, monotonicity, or aggregate-algebra axioms (only input-bag equality), so even the smallest instance, e.g. `min(f(x)) ≡ f(min(x))` for uninterpreted f, admits a countermodel (non-monotone f) and is unprovable. The window arms additionally require Window, which has no bag semantics in QED at all. Since the prover's operator interpretation is fixed and unmodifiable and a DSL extension could only add more uninterpreted symbols, no encoding can close this gap — consistent with the verified ReduceDecimals and EliminateCast rejections of the same cast/numeric-identity class.
+The claim holds: every arm rests on decimal arithmetic QED cannot know — aggregates are equatable only via bag-equality of their inputs (and every arm changes that input bag, e.g. Min(Cast(x)) vs Cast(Min(x)), where the cast is an uninterpreted function with no monotonicity/injectivity, so the commutation isn't even valid in QED's theory), and Cast/MakeDecimal/UnscaledValue/Divide are uninterpreted symbols with no arithmetic or ordering, making the Sum/Average scaling-and-division identities unprovable by construction. The window arm additionally needs window/list semantics QED explicitly lacks, and this is a real QED limitation rather than a missing DSL builder: the prover is a fixed Rust project whose JSON vocabulary has no way to attach numeric axioms (monotone, scaling, power-of-10 division) to uninterpreted functions, so no Java-side extension could make any arm provable. ```

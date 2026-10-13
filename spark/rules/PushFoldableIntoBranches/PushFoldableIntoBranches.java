@@ -1,42 +1,37 @@
 package org.qed.RRuleInstances;
 
-import kala.collection.Seq;
 import org.apache.calcite.sql.SqlOperator;
-import org.qed.RelRN;
-import org.qed.RexRN;
 import org.qed.RRule;
+import org.qed.RelRN;
+import org.qed.RelType;
+import org.qed.RexRN;
 import org.qed.RuleBuilder;
+import kala.collection.Seq;
 
-// SCOPE: FULL
+// SCOPE: PARTIAL — encodes only the unary form U(If(c, t, f)) ⟹ If(c, U(t), U(f)); Spark's CaseWhen and binary-expression-with-foldable-operand variants are omitted
 public record PushFoldableIntoBranches() implements RRule {
+    static final RelType.VarType val = new RelType.VarType("VAL", true);
+    static final RelType.VarType valOut = new RelType.VarType("VAL_OUT", true);
 
-    // Source has two value columns (the If branches t and e, same type) and
-    // the rule is purely scalar: f(if(c, t, e))  ->  if(c, f(t), f(e)),
-    // with c a boolean predicate over the row and f a scalar (projection) op.
-    static final RelRN source = RelRN.scanMany(
-        "Source", Seq.of(RexRN.varType("Val_Type", true), RexRN.varType("Val_Type", true)));
+    // 3-operand operator named "CASE" so QED deserializes the node as a genuine
+    // CASE (ite); the local object only carries the name and result type.
+    static final SqlOperator caseOp = new RuleBuilder.QedFunction("CASE", valOut);
 
+    static final RelRN source = RelRN.scanMany("Source", Seq.of(val, val));
+    static final RexRN cond = source.pred("cond");
     static final RexRN t = source.field(0);
-    static final RexRN e = source.field(1);
-    static final RexRN c = source.pred("c");
+    static final RexRN f = source.field(1);
 
-    static final SqlOperator fOp =
-        RuleBuilder.create().genericProjectionOp("f", RexRN.varType("Val_Type", true));
-    static final SqlOperator ifOp =
-        RuleBuilder.create().genericProjectionOp("if", RexRN.varType("Val_Type", true));
+    static final RexRN ite = new RexRN.Proj(caseOp, Seq.of(cond, t, f));
 
     @Override
     public RelRN before() {
-        RexRN ifTerm = new RexRN.Proj(ifOp, Seq.of(c, t, e));      // if(c, t, e)
-        RexRN expr = new RexRN.Proj(fOp, Seq.of(ifTerm));          // f(if(c, t, e))
-        return source.project(expr);
+        return source.project(ite.proj("U", "VAL_OUT"));
     }
 
     @Override
     public RelRN after() {
-        RexRN ft = new RexRN.Proj(fOp, Seq.of(t));                 // f(t)
-        RexRN fe = new RexRN.Proj(fOp, Seq.of(e));                 // f(e)
-        RexRN expr = new RexRN.Proj(ifOp, Seq.of(c, ft, fe));      // if(c, f(t), f(e))
-        return source.project(expr);
+        RexRN iteU = new RexRN.Proj(caseOp, Seq.of(cond, t.proj("U", "VAL_OUT"), f.proj("U", "VAL_OUT")));
+        return source.project(iteU);
     }
 }

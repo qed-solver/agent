@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Spark Catalyst
-**Porter attempts used:** 7  **Verification rounds used:** 1
+**Porter attempts used:** 14  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: sql/core/src/main/scala/org/apache/spark/sql/execution/datasources/MarkS
 
 **Verdict:** AGREE
 
-MarkSingleTaskExecution makes zero change to relational/bag content — it returns a structurally identical clone with only a physical TreeNodeTag (a planner hint) set on scan/Expand nodes, so the before() and after() patterns would be the *same* logical plan. QED is a bag-semantic logical-equivalence prover with no notion of node tags or physical hints (its JSON/Q-expression format carries only relational structure plus table constraints, no per-node metadata), so the only obtainable result is the vacuous identity before ≡ before, which asserts nothing about this rule. This is a fundamental limitation, not a missing builder: extend_dsl_file cannot help because the unmodifiable prover checks equivalence purely on relational semantics, where a tag is either invisible (giving a tautology) or, if surfaced, would make before/after non-equivalent in a way that contradicts the rule's annotation-only intent — unlike CollapseRepartition, whose removed shuffle node is genuinely bag-equivalent to identity and thus had real content to prove. ```
+MarkSingleTaskExecution's only effect is setting a `TreeNodeTag` planning hint on a private clone — it transforms zero rows, and RuleScript's core language has no representation for plan metadata/annotations, so the tagged and untagged plans serialize to identical Q-expressions. QED decides bag-semantic equivalence of output rows and cannot model the config flags, the LocalRelation row-count bounds, or the physical planner behavior that give the tag its meaning, so the only encodable form is a vacuous `before()==after()` identity with nothing genuine to prove. This is a fundamental mismatch between a physical planning-hint rule and a logical bag-equivalence prover, not a DSL API gap that `extend_dsl_file` could close (any tag carrier would have to map to a semantically neutral RelNode, yielding the same vacuity).

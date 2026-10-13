@@ -154,3 +154,35 @@ def parse_verdict(reply: str) -> tuple[str | None, str]:
         elif in_reasoning:
             reasoning_lines.append(stripped)
     return verdict, " ".join(l for l in reasoning_lines if l).strip()
+
+
+DECISION_COMPLETION_REQUEST = """Your reply ended without a parseable verdict (if it is cut off, your output budget
+ran out while you were still reasoning). Do not restart the review or re-derive things you already
+established. Based only on the evidence you have actually examined so far, give your
+decision now. If what you've seen is not enough to establish the rule is faithful
+(or, for an unsupported claim, a genuine limitation), say so and choose the
+rejecting/disagreeing verdict — do not guess in either direction.
+
+Reply with **only** the exact two-line format (`VERDICT: ...` then `REASONING: ...`,
+1-3 sentences), nothing else."""
+
+
+DECISION_COMPLETION_REQUEST_NO_NOTES = """Your previous reply produced no visible output (likely your whole output
+budget went into reasoning), so no verdict was reached. Be brief: decide from the material in the original
+request using only the checks you can make quickly. If that isn't enough to establish
+faithfulness (or a genuine limitation), choose the rejecting/disagreeing verdict.
+
+Reply with **only** the exact two-line format (`VERDICT: ...` then `REASONING: ...`,
+1-3 sentences), nothing else."""
+
+
+DECISION_COMPLETION_REQUEST_FORCED = """FINAL REQUEST — you must answer now. Your previous attempts did not reach a
+verdict, and this is the last chance. Stop reasoning. Do NOT
+think further, re-derive, or explain at length: any output that is not the two lines
+below is a failure. Pick the verdict your reasoning so far best supports; if it
+doesn't establish that the result is faithful (or a genuine limitation), pick the
+rejecting/disagreeing verdict.
+
+Your entire reply must be exactly:
+VERDICT: <TOKEN>
+REASONING: <1-2 sentences>"""

@@ -3,36 +3,79 @@ package org.qed.RRuleInstances;
 import kala.collection.Seq;
 import org.qed.RRule;
 import org.qed.RelRN;
+import org.qed.RexRN;
+import org.qed.RelType;
 
-// SCOPE: PARTIAL — single-key-column child, fixed two-branch Expand, upper aggregate modeled group-by-only (its aggregate expressions omitted), and each branch's gid modeled as an uninterpreted function of the key
+// SCOPE: PARTIAL — Expand projections pass Key and Value through, vary only the two cat columns, and the inner distinct agg is a count over Value
 public record OptimizeExpand() implements RRule {
-    // Child of the Expand: a bag of rows with one reference column k.
-    static final RelRN src = RelRN.scan("src", "k_type");
+    static final RelType.VarType KEY_T   = RexRN.varType("Key", true);
+    static final RelType.VarType CAT1_T  = RexRN.varType("Cat1", true);
+    static final RelType.VarType CAT2_T  = RexRN.varType("Cat2", true);
+    static final RelType.VarType VALUE_T = RexRN.varType("Value", true);
+    static final RelType.VarType CNT_T   = RexRN.varType("Cnt", true);
+    static final RelType.VarType AGG2_T  = RexRN.varType("Agg2", true);
 
-    // Expand modeled as a bag-union of two branches; branch i outputs
-    // [k, slot_i(k), gid_i(k)] where slot_i and gid_i are branch-specific
-    // uninterpreted functions of the row (reused names = same symbol on both sides).
-    static final RelRN branch1 = src.project(Seq.of(src.field(0), src.proj("d1", "d_type"), src.proj("g1", "gid_type")));
-    static final RelRN branch2 = src.project(Seq.of(src.field(0), src.proj("d2", "d_type"), src.proj("g2", "gid_type")));
-    static final RelRN expand = branch1.union(true, branch2);
+    static final RelRN child =
+        RelRN.scanMany("child", Seq.of(KEY_T, CAT1_T, CAT2_T, VALUE_T));
 
-    // Pre-aggregate inserted below the Expand by the rule: group-by-only over
-    // the reference column, collapsing duplicate tuples the Expand branches consume.
-    static final RelRN preAgg = new RelRN.Aggregate(src, Seq.of(src.field(0)), Seq.of());
+    // one Expand variant: Key and Value pass through, the two cat columns
+    // become uninterpreted projections of the input row (same names on both
+    // sides of the rule = same uninterpreted projection symbol)
+    static RelRN branch(RelRN s, String p1, String p2) {
+        return s.project(Seq.of(
+            s.field(0),
+            s.proj(p1, "Cat1"),
+            s.proj(p2, "Cat2"),
+            s.field(3)));
+    }
 
-    // The same two Expand branches, now over the pre-aggregate's output.
-    static final RelRN preBranch1 = preAgg.project(Seq.of(preAgg.field(0), preAgg.proj("d1", "d_type"), preAgg.proj("g1", "gid_type")));
-    static final RelRN preBranch2 = preAgg.project(Seq.of(preAgg.field(0), preAgg.proj("d2", "d_type"), preAgg.proj("g2", "gid_type")));
-    static final RelRN preExpand = preBranch1.union(true, preBranch2);
+    static RelRN expand(RelRN s) {
+        return branch(s, "c1a", "c2a")
+            .union(true,
+                branch(s, "c1b", "c2b"),
+                branch(s, "c1c", "c2c"));
+    }
 
-    // Upper aggregate groups over all Expand-produced attributes
-    // (key + distinct-expression slot + gid); group-by-only, so it dedupes.
-    static final RelRN before = new RelRN.Aggregate(expand, Seq.of(expand.field(0), expand.field(1), expand.field(2)), Seq.of());
-    static final RelRN after = new RelRN.Aggregate(preExpand, Seq.of(preExpand.field(0), preExpand.field(1), preExpand.field(2)), Seq.of());
+    // the rule's aggregation stack above the Expand. The inner count
+    // distinct over Value per (Key, cat1', cat2') group is written as its
+    // defining decomposition:
+    //   L1: pure group-by over all four expanded columns — dedup of the
+    //       (Key, cat1', cat2', Value) pairs (set semantics: erases the
+    //       row multiplicities the pushed-down dedup changes),
+    //   L2: count of Value per group over those unique pairs,
+    //   L3: the rule's outer aggregation, grouped by Key
+    static RelRN wrap(RelRN s) {
+        RelRN e = expand(s);
+        RelRN pairs = new RelRN.Aggregate(
+            e,
+            Seq.of(e.field(0), e.field(1), e.field(2), e.field(3)),
+            Seq.empty());
+        RelRN counts = new RelRN.Aggregate(
+            pairs,
+            Seq.of(pairs.field(0), pairs.field(1), pairs.field(2)),
+            Seq.of(new RelRN.AggCall("count", false, CNT_T,
+                Seq.of(pairs.field(3)))));
+        return new RelRN.Aggregate(
+            counts,
+            Seq.of(counts.field(0)),
+            Seq.of(new RelRN.AggCall("outeragg", false, AGG2_T,
+                Seq.of(counts.field(3)))));
+    }
+
+    // the deduplication the rule pushes below the Expand: group by all
+    // child columns referenced by the Expand, no aggregate calls
+    static final RelRN dedup = new RelRN.Aggregate(
+        child,
+        Seq.of(child.field(0), child.field(1), child.field(2), child.field(3)),
+        Seq.empty());
 
     @Override
-    public RelRN before() { return before; }
+    public RelRN before() {
+        return wrap(child);
+    }
 
     @Override
-    public RelRN after() { return after; }
+    public RelRN after() {
+        return wrap(dedup);
+    }
 }

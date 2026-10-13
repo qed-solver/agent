@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Spark Catalyst
-**Porter attempts used:** 21  **Verification rounds used:** 2
+**Porter attempts used:** 13  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/Opti
 
 **Verdict:** AGREE
 
-Every branch of Spark's LimitPushDown relocates or adjusts Limit/LocalLimit/Offset nodes (through Union, through Join, limit-1 through a group-only Aggregate, merging Limit over Offset, limit-1 onto the right side of a condition-less semi/anti join), and all of these operators are defined by row-position/prefix semantics (keep-first-n, skip-first-m, arbitrary-row selection) that QED's bag-semantic model has no meaning for — "the first n rows of a bag" is not a deterministic bag operation, so no SMT equivalence decision is even defined over such plans. The one branch with a bag-flavored core (limit-1 on the right of a cross semi/anti join, where only non-emptiness of the right side matters) still requires a Limit operator whose choice of *which* row survives is nondeterministic and therefore inexpressible as a QED relation, and the DSL has no Limit/Offset/Sort builders at all; since the missing piece is in QED's own semantics (it does not model ordering/prefix semantics) rather than a missing builder, `extend_dsl_file` cannot close the gap, leaving no non-trivial provable subcase. The porter's UNSUPPORTED verdict is correct.
+Every case of this rule rests on Spark's non-bag limit semantics (Limit(n, X) denotes an arbitrary subset of ≤ n rows, possibly in order), which QED explicitly does not model — Limit/Offset have no bag-semantic meaning and at best surface as uninterpreted operators with no axioms, so SMT has nothing to relate two distinct limit expressions. Worse, most cases are simply not bag equalities under any deterministic semantics: e.g. `Limit(n, A ⋈ B) → Limit(n, Limit(n, A) ⋈ Limit(n, B))` changes row counts, and `Limit(1, GroupBy(X)) → Limit(1, Project(keys, Limit(1, X)))` loses de-duplication and can select different group rows, so no correct bag-equivalence encoding exists. Adding a Limit builder (the JSON serializer can already carry sort/limit fields) would only expose the axiom-free uninterpreted QOp, confirming this is a fundamental prover limitation, not a missed encoding. ```

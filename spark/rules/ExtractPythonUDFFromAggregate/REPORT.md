@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Spark Catalyst
-**Porter attempts used:** 27  **Verification rounds used:** 3
+**Porter attempts used:** 25  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: sql/core/src/main/scala/org/apache/spark/sql/execution/python/ExtractPyt
 
 **Verdict:** AGREE
 
-The rule's entire content is moving a scalar Python UDF from inside Spark's Aggregate expression list (where Spark permits arbitrary expressions wrapping aggregate results) to a Project above the Aggregate, but in RuleScript's core language an Aggregate's output is exactly the group keys plus flat uninterpreted AggCalls over input rows — there is no position for a scalar expression over the aggregate's own result, and QED's JSON/Q-expression format has no corresponding node form, so a `extend_dsl_file` builder extension could not introduce it without changing the unmodifiable Rust prover. Any compilable before/after pair is therefore either the identical `Project(g, Aggregate(...))` on both sides (a vacuous identity, as the reviewer flagged) or unfaithful (e.g. placing g below the aggregate, which changes per-group vs per-row bag semantics). UNSUPPORTED is the correct verdict. ```
+The rule's before-plan is a Spark `Aggregate` whose output column is an arbitrary "aggregate expression" `f(g, α)` mixing grouping keys and inner aggregate calls, but RuleScript's `Aggregate` only emits group keys plus flat `AggCall`s, so the only expressible before-plan is `Project(f(g, α), Aggregate(g; α))` — textually identical to the after-plan, i.e. a vacuous self-identity rather than the rule. Extending the DSL would not close this: any distinct representation of the composite output would be modeled by QED as an uninterpreted aggregate symbol, and QED has no definitional knowledge that Spark's aggregate expression `f(g, α)` means "f applied per-group on top of the inner aggregate α" (a backend operator's bespoke internal semantics), so a non-vacuous before/after pair would pit independent uninterpreted symbols against each other and never be provable. The rule's actual justification — a physical constraint that Python UDFs be evaluated only after aggregation — is likewise outside QED's bag semantics entirely.

@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Spark Catalyst
-**Porter attempts used:** 10  **Verification rounds used:** 1
+**Porter attempts used:** 11  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/Opti
 
 **Verdict:** AGREE
 
-`CheckCartesianProducts` is a pure validation rule — its only effect is to `throw` a compilation error on a detected Cartesian join, so it produces no rewritten "after" plan, while RRule/QED can only model and prove bag-semantic equivalence between two concrete relations (there is no rejection/exception construct anywhere in the DSL, serializer, or prover contract). On top of that, its core decision (`isCartesianProduct`) is a *syntactic, plan-structural* inspection of which columns the join condition references — a meta-level property of the operator that QED's uninterpreted, bag-semantic semantics has no way to see or reason about (and no clean relational equivalence to stand in for it, since a one-side-only condition does not make the join bag-equal to a pure cross product). So there is genuinely no faithful before/after pair to encode, and the porter's UNSUPPORTED conclusion stands.
+CheckCartesianProducts is a pure validator — its only effects are identity (plan passes through) or throwing joinConditionMissingOrTrivialError, so there is no successful post-rewrite plan and hence no non-vacuous before/after pair for QED to decide equivalence on; the only encodable candidate would be an identity join ⟹ join, which ignores the rule's content entirely. Compounding this, the rule's trigger is a syntactic property of the predicate term (whether its conjuncts' references span both the left and right output sets), which QED's encoding cannot even inspect, since uninterpreted predicates are opaque boolean functions whose argument-reference sets carry no semantic meaning in the prover. The DSL and JSONSerializer expose only relational operators (scan/filter/project/join/correlate/group/union/intersect/except/sort/values) with no throw/abort/guard node, so the rule's defining behavior is unrepresentable rather than mis-modeled. ```

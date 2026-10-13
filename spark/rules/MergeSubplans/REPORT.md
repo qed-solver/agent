@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Spark Catalyst
-**Porter attempts used:** 25  **Verification rounds used:** 2
+**Porter attempts used:** 49  **Verification rounds used:** 4
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: sql/core/src/main/scala/org/apache/spark/sql/execution/planmerging/Merge
 
 **Verdict:** AGREE
 
-The rule's core content is a whole-plan common-subexpression elimination that identifies structurally identical but separately-instantiated scalar subplans and hoists them into new CTE definitions, and none of it is provable here: RuleScript rules carry no side conditions, so the "these two subplans are structurally equal" precondition cannot be stated (encoding them as one shared symbol makes the rewrite vacuous and unrepresentable, since the before/after shape depends on how many subqueries the input plan happens to contain), and the fixed QED arbiter's semiring/JSON language has no CTE definition/reference binding nor arbitrary scalar-subquery semantics (its subquery node serves only exists/in/unique higher-order operators), so the gap is in the arbiter, not a missing builder that `extend_dsl_file` could close; the rule's auxiliary one-row and determinism preconditions and the struct pack/unpack identities between independent uninterpreted functions are likewise beyond what QED can assume or know.
+The rule's essence is hoisting duplicated one-row subplans into a shared CTE (WithCTE/CTERelationDef/CTERelationRef, evaluate-once), but I verified JSONSerializer's Rel switch only supports scan/values/filter/project/join/correlate/group/union/intersect/except/sort with default->throw, so no let/CTE node kind exists in the fixed fragment and no Java-side extension can serialize into one. Additionally, the rewrite is bag-semantically transparent (shared reuse is only physically observable), and the reference path GetStructField(ScalarSubquery(CTERef), i) over CreateNamedStruct would require a get∘pack identity that is unprovable for uninterpreted functions — so any encoding is either refuted or collapses to the vacuous before ≡ after identity, consistent with the prior InlineCTE (inverse rule) exhaustion. ```

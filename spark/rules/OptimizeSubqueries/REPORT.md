@@ -1,8 +1,10 @@
 # OptimizeSubqueries
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** Apache Spark Catalyst
-**Porter attempts used:** 57  **Verification rounds used:** 3
+**Porter attempts used:** 50  **Verification rounds used:** 3
+**Scope detail:** only the projection-insertion step of the Exists case: prune subquery output to the columns referenced in the EXISTS join condition
+
 
 ## Source rule (as given to the porter)
 
@@ -12,6 +14,47 @@ Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/Opti
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-The rule's only relational-algebraic transformation is removing a top-level Sort from a subquery body (Sort(R) ⇒ R), and QED's bag-semantic model has no Sort operator at all — Sort/Limit/Window/Sample require list semantics and are explicitly outside its decidable fragment, which the porter confirmed empirically: after properly extending RelRN.java with a Sort builder (now present in the DSL source) and serializing a clean `sort` node, the minimal Sort(scan) ⇒ scan test returned provable=false with no panic, proving the wall is in the prover, not the DSL. Every encoding of this rule's actual rewrite must place a Sort in the before-pattern, so no narrower sort-based instance can be provable. The rule's remaining branches — re-running the entire optimizer on the subquery, preserving the top Aggregate through re-optimization, and Spark exprId/attribute-identity bookkeeping in the COUNT-bug path — are backend-internal meta-operations (no SubqueryExpression operator exists in the DSL, and "optimizer.execute(...)" is a fixed-point operation with no before/after RA pattern), so they are inexpressible rather than merely untried; a fresh attempt cannot succeed. ```
+The encoding faithfully captures the Exists case's projection step: before() is a SEMI join of L with a 3-column right side R where the (uninterpreted) join condition references only R's columns 0 and 2, and after() replaces R with R.project(columns 0,2) and adjusts the condition's field ordinals accordingly — the JoinField arithmetic checks out (L.joinField(3,R) → R.col2 maps to L.joinField(2,R2) → R2.col1 = R.col2), the same uninterpreted predicate symbol is shared correctly, and the structural difference between before and after is genuine and non-vacuous. The SCOPE: PARTIAL tag is honest: the full Spark rule has three subcases (COUNT-bug scalar subquery, Exists, generic subquery) plus top-level-sort removal, and this encodes only the Exists column-pruning step, which is a specific, non-degenerate slice of the real optimization. ```
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": false,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 8763460
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 35477500
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 1107333
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 562000
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 22069959
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 35589750
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 73769958
+  }
+}
+```

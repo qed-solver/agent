@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Spark Catalyst
-**Porter attempts used:** 29  **Verification rounds used:** 2
+**Porter attempts used:** 21  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/expr
 
 **Verdict:** AGREE
 
-CombineConcats is a purely scalar rewrite whose soundness rests exactly on algebraic properties of `concat` (associativity/flattening) and on `Cast` distributing over a nested `concat` — both of which QED models as bare uninterpreted function symbols with no axioms, so any non-vacuous encoding of nested⟹flat admits an SMT countermodel and only identity encodings (same symbol, same argument shape on both sides) would be provable. This is not a missing-DSL gap that `extend_dsl_file` could close: the fixed prover's JSON interface (schemas/queries, table "guaranteed" constraints) has no channel for function-level axioms, so the limitation is fundamental to the uninterpreted-operator semantics the porter identified. ```
+The rule's entire content is the identity concat(a, concat(b, c)) ≡ concat(a, b, c) (plus the same-shape cast pushdown cast(concat(a,b)) ≡ concat(cast(a), cast(b))), which holds only by string-concatenation associativity; QED translates all generic projection operators (concat, cast) into uninterpreted function symbols over integer-sorted rows with no algebraic axioms, so differently shaped terms like f(f(a,b),c) vs g(a,b,c) are not validly equivalent (a countermodel in the theory of uninterpreted functions always exists, with different arities/nesting being distinct symbols). No non-trivial special case can escape this, since every instance of flattening changes the term's nesting or arity, leaving only degenerate identity shapes — this is precisely the "operator's bespoke internal semantics QED cannot see through as an uninterpreted function" limitation, not a missing DSL capability. ```

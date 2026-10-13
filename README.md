@@ -47,6 +47,13 @@ Two LLM roles per rule, so one hallucinated verdict can't slip through:
    Limitations) and not just giving up early? Disagreement sends it back to
    the porter for another round.
 
+   If the verifier runs out of output tokens while reasoning, it is given up
+   to 3 decision requests (the last one forced) that carry its own reasoning
+   forward. If it still gives no verdict, the result is `UNDECIDED` and the
+   porter gets another round, exactly like a rejection. Likewise, if the
+   round summarizer produces no final summary, its reasoning is kept as the
+   summary so the next round has context.
+
 Every rule ends up **PROVED**, **SKIPPED** (genuinely out of scope), or
 **FAILED**.
 

@@ -1,35 +1,23 @@
-// SCOPE: PARTIAL — only the sub-case where a DeserializeToObject sits directly above a SerializeFromObject, with a fixed two-column child; faithful uninterpreted model of the object-column round-trip
 package org.qed.RRuleInstances;
 
-import kala.collection.Seq;
-import org.qed.RelRN;
-import org.qed.RelType;
 import org.qed.RRule;
+import org.qed.RelRN;
+import org.qed.RexRN;
 
+// SCOPE: PARTIAL — only the case where the filter's condition references solely the single deserialized-object column produced by the same uninterpreted projection used in the project (no serialization round-trip elimination, no object-append cases)
 public record EliminateSerialization() implements RRule {
-    static final RelType.VarType objType = new RelType.VarType("Obj_Type", true);
-    static final RelType.VarType colType = new RelType.VarType("Col_Type", true);
-    static final RelRN child = RelRN.scanMany("Child", Seq.of(objType, colType));
-
-    // SerializeFromObject: the object column is mapped through an
-    // uninterpreted projection `ser`; the pass-through column is preserved.
-    static final RelRN serialize = child.project(Seq.of(
-            child.proj("ser", "Ser_Type"),
-            child.field(1)));
-
-    // DeserializeToObject: the serialized column is mapped through an
-    // independent uninterpreted projection `deser`.
-    static final RelRN deserialize = serialize.project(serialize.proj("deser", "Obj_Type"));
+    static final RelRN row = RelRN.scan("Row", "RowType");
+    static final RexRN deser = row.proj("deser", "ObjType");
+    static final RexRN cond = deser.pred("cond");
 
     @Override
     public RelRN before() {
-        return deserialize;
+        return row.filter(cond).project(deser);
     }
 
     @Override
     public RelRN after() {
-        // The rule's conclusion: a project over the serializer's child keeping
-        // only its original object column.
-        return child.project(child.field(0));
+        RelRN projected = row.project(deser);
+        return projected.filter(projected.field(0).pred("cond"));
     }
 }

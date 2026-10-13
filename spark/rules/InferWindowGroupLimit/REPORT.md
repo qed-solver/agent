@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Spark Catalyst
-**Porter attempts used:** 25  **Verification rounds used:** 2
+**Porter attempts used:** 21  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/Infe
 
 **Verdict:** AGREE
 
-The rule's soundness rests entirely on order-dependent semantics that QED by design does not model: `WindowGroupLimit` keeps the first `limit` rows of each partition under `orderSpec`, and row_number/rank/dense_rank assign ordinal positions within that ordering — the equivalence holds only because `rank <= limit` selects exactly that order-prefix (with tie behavior handled by the retained filter). QED is a bag-semiring decision procedure that explicitly lacks ordering semantics for Limit/Offset/Order By (qed.pdf §6.2), has no Window/rank-frame operator in the DSL or the prover's theory, and cannot perform predicate inference between independent uninterpreted symbols, so even a faithful encoding with `WindowGroupLimit` and the rank column as uninterpreted symbols leaves the critical prefix↔rank relation as an unknowable internal semantic. This is a fundamental limitation of the Rust prover's theory, not a missing builder that `extend_dsl_file` could close. ```
+The rewrite's soundness rests on ordinal semantics: row_number/rank/dense_rank over an expanding (UNBOUNDED PRECEDING, CURRENT ROW) frame under a non-empty ORDER BY, plus the property that truncating each partition to its first k rows (WindowGroupLimit) leaves the rank values of all rows with rank ≤ k unchanged — and QED's decision procedure operates over bag semantics with uninterpreted functions, with no model of ordering, window frames, or rank (Sort/Limit/Window are explicitly excluded). Since the needed invariant is a statement about the internal behavior of those operators, encoding Window/WindowGroupLimit as uninterpreted symbols would leave before/after as unrelated opaque functions with no algebraic relationship for the prover to discharge, and extending the DSL can't close this either because the trusted, unchangeable Rust prover itself lacks list/ordering semantics. ```

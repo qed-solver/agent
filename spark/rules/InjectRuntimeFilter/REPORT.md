@@ -1,8 +1,10 @@
 # InjectRuntimeFilter
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** Apache Spark Catalyst
-**Porter attempts used:** 41  **Verification rounds used:** 3
+**Porter attempts used:** 43  **Verification rounds used:** 3
+**Scope detail:** single equi-key INNER join; bloom filter modeled as exact semi-join (no false positives)
+
 
 ## Source rule (as given to the porter)
 
@@ -12,6 +14,47 @@ Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/Inje
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-The rewrite's soundness rests on the bloom filter's no-false-negative invariant — `BloomFilterMightContain(agg(right_keys), hash(l.key))` must hold for every left row that satisfies the join condition — and QED models both `BloomFilterAggregate` (a specific aggregate whose algebra it knows nothing about) and `BloomFilterMightContain` as uninterpreted, so under an interpretation where the predicate is identically false the after-plan is a strict sub-bag and equivalence is genuinely not derivable. This is the "backend operator's bespoke internal semantics / aggregate algebra" limitation, compounded by the fact that table `guaranteed` constraints are scoped to a table's own columns and cannot express the needed cross-table link between the join condition and the filter; adding a scalar-subquery builder via `extend_dsl_file` would not add the missing axioms, and the prover itself is off-limits, so no non-vacuous encoding (the only provable one is the no-op filter = true) can capture the rule.
+before() = L ⋈ R and after() = (L SEMI-join R) ⋈ R are structurally different and the equivalence is a genuine non-vacuous theorem (semi-join redundancy), which is exactly the core soundness lemma of Spark's rule: filtering the application side by the creation side's key set drops no join-matching row, with the sides and key correspondence matching the source (filter on left built from right's keys). The modeling choices are correct rather than accidental — L and R are independent scans, EQUALS is appropriate since the source rule operates on equi-join keys, and even predicate co-identification would not make the proof vacuous since the identity holds for an arbitrary condition. The narrowing to a single equi-key INNER join and the idealization of the bloom filter as an exact semi-join (no false positives) are genuine, specific restrictions — false-positive semantics are physically inexpressible in the DSL — and both are explicitly and accurately disclosed in the SCOPE line, making this a faithful, honest PARTIAL encoding of the rule's proof obligation. ```
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": false,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 10004501
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 35937333
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 1053167
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 614000
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 23526625
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 36060416
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 75529750
+  }
+}
+```

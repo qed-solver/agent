@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Spark Catalyst
-**Porter attempts used:** 101  **Verification rounds used:** 6
+**Porter attempts used:** 24  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/expr
 
 **Verdict:** AGREE
 
-RuleScript encodes scalar operators like `Add`/`Multiply` as uninterpreted function symbols in QED's SMT translation, carrying no algebraic axioms, so the prover cannot establish the associativity/commutativity, identity (`a+0=a`, `a*1=a`), zero-absorption, or literal-folding properties this rule's soundness rests on; even its narrowest subcase (`Add(Add(a,1),2) → Add(a,3)`) compares two syntactically distinct uninterpreted terms that QED can model as unequal, making it a genuine fundamental limitation rather than a fixable encoding gap.
+The rule's correctness rests entirely on the internal algebra of integer +/× — associativity/commutativity for flatten/reorder, 0/1 identity elimination, literal constant folding, and zero-product collapse — while QED models every non-boolean scalar operator as an uninterpreted function with no arithmetic theory. Consequently even the weakest non-trivial instance, a pure reassociation like `f(f(x,y),z) ⟹ f(f(x,z),y)`, is invalid for an arbitrary uninterpreted `f` (the SMT solver would correctly produce a countermodel), so no symbol-sharing or re-encoding trick can make any variant pass. This is a genuine prover-side limitation rather than a DSL gap: `extend_dsl_file` only adds Java builders/serialization and cannot grant the fixed Rust prover interpreted arithmetic semantics, and the rule has no meaningful provable special case since all of its content (plus its null/failOnError subtleties) depends on that unmodeled algebra. ```

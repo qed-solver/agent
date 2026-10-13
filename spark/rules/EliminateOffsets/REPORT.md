@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Spark Catalyst
-**Porter attempts used:** 21  **Verification rounds used:** 2
+**Porter attempts used:** 12  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/Opti
 
 **Verdict:** AGREE
 
-All three subcases of EliminateOffsets are axioms about row-ordering semantics — skipping the first n rows in order, producing an empty relation when the offset reaches the child's maxRows, and additivity of nested offsets — and QED is a bag-semantics decision procedure with no model of ordering at all (Sort/Limit/Offset/Window/Sample have no bag-semantic meaning, and Offset is an uninterpreted/no-semantics operator in the prover), so none of the rewrites is entailed for all instantiations. A DSL extension could at most add a Java-side Offset builder, but the missing Offset axioms would have to live in the QED prover itself, which is the fixed, unmodifiable arbiter, so the rule is genuinely outside RuleScript/QED. ```
+All three case laws require the prover to know Offset's positional "skip the first k rows" semantics — an ordered-list property that QED's bag model explicitly lacks (Sort/Limit/Offset have no bag-semantic meaning and would be uninterpreted), and case 2 additionally needs static cardinality (maxRows) bounding over the child, which QED does not reason about. No core-language operator can express "drop the first k rows," so even the most degenerate special case (e.g., Offset over an empty relation) still hinges on the unmodeled Offset semantics, and adding a DSL builder would confer no decidability since the fixed prover has no bag interpretation for it — matching qed.pdf §6.2's stated limitation. ```

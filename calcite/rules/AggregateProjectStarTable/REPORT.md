@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 6  **Verification rounds used:** 1
+**Porter attempts used:** 11  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateProjectStarTabl
 
 **Verdict:** AGREE
 
-The rule's soundness depends on two things QED structurally cannot capture: (1) its "after" side is a scan of a *different* materialized table chosen at match time from the planner's external lattice state, and the only constraint that would make that substitution valid — "materialization = group-by/aggregate over the star table" — is an inter-table definitional relation, while QED's per-table "guaranteed" constraints (per JSONSerializer) are row-wise predicates over a single table's own columns; even the no-rollup exact-match special case degenerates into swapping one uninterpreted scan for an unrelated uninterpreted scan, which no constraint in the format can link. (2) The roll-up variant (e.g. rolling COUNT(*) up as SUM over a coarser group set) requires additivity/regrouping algebra for specific aggregate functions, which QED explicitly does not model for uninterpreted aggregate operators — and this is a prover-level limitation no DSL extension can fix, so the porter's UNSUPPORTED conclusion is correct. ```
+The rule's `after` plan swaps the base-table scan for a scan of a *different* pre-aggregated materialized table chosen from the external planner's lattice, and only when such a materialization exists — so its validity rests on a cross-table catalog invariant (the materialized table's rows equal the base table's pre-aggregation at the given grain) plus conditional planner state, not on pure bag semantics of the shown operators. RuleScript can only introduce scans as independent uninterpreted relations and attach per-table first-order `guaranteed` check constraints, with no operator or constraint form that relates two distinct scans via an aggregate-equivalence, so QED treats the base and materialized scans as unrelated and would refute rather than prove the equivalence. This is a genuine QED/DSL limitation (bespoke materialization semantics + an unexpressible cross-table relational premise), not a symbol-sharing or encoding slip the porter failed to diagnose. ```

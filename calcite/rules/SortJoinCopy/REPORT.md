@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 23  **Verification rounds used:** 2
+**Porter attempts used:** 8  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/SortJoinCopyRule.java
 
 **Verdict:** AGREE
 
-SortJoinCopy's only semantic content is ordering — it copies the Sort (without offset/fetch) below each join input purely as a physical hint while leaving the outer Sort unchanged, so under QED's bag semantics, which explicitly do not model Sort/collation/limit/offset, both sides collapse to the identical join bag and the only expressible statement is the vacuous tautology Join(L,R) ≡ Join(L,R). That is a fundamental QED limitation on order semantics, not a missing DSL builder (a `sort()` builder via `extend_dsl_file` would still reduce to bag identity and prove nothing about the rule), consistent with the prior UNSUPPORTED verdict on the sibling rule SortJoinTranspose.
+SortJoinCopyRule's entire contract is row-ordering: it decomposes the top Sort's collation across the join's two sides, consults "already sorted" metadata, and is only safe because the outer Sort is preserved to re-establish global order. QED models no ordering at all — Sort is a bag identity — so both sides erase to the identical Join bag and the only provable statement is the tautology Join ≡ Join; tellingly, QED would "prove" an unsound variant that drops the outer sort just as readily, so its verdict carries no information about this rule's real correctness. This is exactly the reference's explicit fundamental limitation (correctness fundamentally rests on Sort/row-ordering semantics), not a symbol-sharing bug or a mis-modeling a genuine attempt could fix. ```

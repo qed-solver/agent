@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 28  **Verification rounds used:** 2
+**Porter attempts used:** 8  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -16,4 +16,4 @@ Note: MeasureRules.java defines multiple distinct rule variants as separate stat
 
 **Verdict:** AGREE
 
-The rule's match shape (Filter over Sort) and its documented M2V push-down both rest on row-ordering semantics — filtering preserving the sort's collation order — which QED fundamentally does not model (Sort/Limit carry no bag-semantic meaning, and the DSL core language has no sort operator at all), so the rule's real content could never be verified. Compounding this, the code as given performs no rewrite whatsoever: the guard `condition.equals(filter.getCondition())` is a reflexive self-comparison that is always true, so `onMatch` always returns early, and even the dead body would merely rebuild the identical Filter-over-Sort plan. There is therefore no non-vacuous, provable rewrite to encode.
+As written, Calcite's `FilterSortMeasureRule` is dead code: `onMatch` assigns `condition = filter.getCondition()` and then guards on `condition.equals(filter.getCondition())` — a reflexive self-comparison on the same object that is always true, so it always returns; even the unreachable branch merely rebuilds the identical `Filter(cond, Sort(R))` plan, so there is no substantive transformation to verify. The rule's matching shape (Filter over Sort, in service of the order-dependent M2V-pushdown intent seen in the sibling `ProjectSortMeasureRule`) fundamentally requires row-order semantics, which QED explicitly does not model (Sort/Limit have no bag-semantic meaning) and RuleScript's core language exposes no Sort operator — dropping the Sort yields only the vacuous identity `Filter(p, R) ≡ Filter(p, R)`, which certifies nothing.

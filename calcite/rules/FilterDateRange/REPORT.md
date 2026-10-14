@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 21  **Verification rounds used:** 2
+**Porter attempts used:** 23  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/DateRangeRules.java
 
 **Verdict:** AGREE
 
-FilterDateRange's soundness rests on the calendar rounding semantics of EXTRACT/FLOOR/CEIL — that `extract(unit, ts) = c` holds iff `ts` falls in a concrete boundary interval — but QED models those date-time functions only as uninterpreted function symbols over bag semantics, and the core language offers no way to introduce the date literals or any axioms/defined semantics tying an extraction function to interval bounds. For an uninterpreted `extract`, the implication `extract(x) = c ⟹ lo <= x < hi` fails under some instantiations, so SMT will always produce a countermodel; a "provable" encoding would have to equate the two sides via the same independent symbol and would no longer be this rule. This matches the "operator's bespoke internal semantics" limitation, not an encoding bug — note the porter also never actually attempted an encoding (the transcript ends in a context-length API error). ```
+FilterDateRange's soundness rests on the concrete calendar semantics of EXTRACT/FLOOR/CEIL and date literals — the claim that {t | EXTRACT(YEAR, t) = 1997} equals {t | t BETWEEN '1997-01-01' AND '1997-12-31'} holds only for that specific operator and those specific computed constants, not for arbitrary uninterpreted functions, so QED (which models all scalar operators/predicates as uninterpreted symbols and cannot reason about predicate entailment between independent symbols or a backend operator's bespoke internal semantics) must refute the faithful two-sided encoding. The transcript's SMT result (provable: false, complete_fragment: true, no timeout) is a genuine decision, not an incompleteness artifact, and the only encoding QED could accept would reuse one predicate symbol on both sides — a tautology that is not the rule. The gap is date/calendar theory in the unmodifiable Rust prover, not a missing DSL builder, so extend_dsl_file cannot close it and the UNSUPPORTED conclusion is correct. ```

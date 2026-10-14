@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 21  **Verification rounds used:** 2
+**Porter attempts used:** 14  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/materialize/Materialized
 
 **Verdict:** AGREE
 
-The rule's only non-trivial content is substituting a scan of a catalog-defined MV for the Project(Join) it materializes, and its soundness rests on the external catalog invariant that the MV table's contents equal its defining query (modulo freshness/delta in the union-rewriting variant); in QED's semantics a table scan is an uninterpreted symbol instantiable as any arbitrary relation, and neither RuleScript nor the immutable prover's JSON format has any facility to assert a definitional equality between a scan and a derived relation (nor any temporal/delta model), so no before()/after() pair — not even a narrower special case — would hold for all symbol instantiations. The only provable residue here (e.g., pushing a projection that references one join side through the join) is a different rule (ProjectJoinTranspose), not MV substitution.
+The rule's soundness rests entirely on the planner-maintained invariant that the MV's physical table holds exactly the bag produced by its defining query — a cross-table identity between two independent uninterpreted relations. QED's schema language only carries per-table premises (keys and single-table "guaranteed" check predicates, which are per-tuple first-order properties that cannot even express multiset equality between two tables), and its SMT procedure treats every table as an independent uninterpreted bag, so it can neither assume nor derive that scan(MV) ≡ the defining Project(Join) over base tables. The only encoding that would make the prover succeed is one that inlines the defining query in place of the MV scan, which degenerates the rule into a vacuous identity and no longer expresses materialization; hence no non-vacuous encoding exists (matching the correctly-verified sibling rules). ```

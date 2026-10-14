@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 23  **Verification rounds used:** 2
+**Porter attempts used:** 22  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateRemoveDuplicate
 
 **Verdict:** AGREE
 
-The rewrite's soundness rests on (i) a schema-level functional dependency (the dropped key being determined by the retained keys) which is a premise, not a universal law, and, decisively, (ii) the after() side reintroducing the dropped column via an ANY_VALUE aggregate whose correctness requires that call return the group's (constant) value; QED models every aggregate call as an uninterpreted function of its input bag with no axiom tying its output to a bag element, so it cannot prove ANY_VALUE(col) = col even when a key constraint supplies the FD, and no RelRN/RexRN/JSONSerializer edit can add such a prover axiom — squarely the documented "aggregate algebraic identity QED can't know" / "uninterpreted-function internal semantics" limitation.
+The rule's essential step replaces a dropped group key with an ANY_VALUE aggregate call over the coarser grouping, so the proof requires ANY_VALUE(bag) to equal the unique key value on that group — but per the reference and the DSL source (aggregate ops are introduced only via uninterpreted genericAggregateOp), QED treats aggregates as uninterpreted with no algebra, so it can neither force that equality nor (via extend_dsl_file) model ANY_VALUE's constant-group identity. This is a fundamental QED limitation, not a missing DSL capability or an encoding bug, so no genuine RuleScript encoding of this rewrite (full or key-recovery special case) can be proved. ```

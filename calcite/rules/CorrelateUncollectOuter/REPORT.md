@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 30  **Verification rounds used:** 1
+**Porter attempts used:** 64  **Verification rounds used:** 5
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/CorrelateUncollectOuterR
 
 **Verdict:** AGREE
 
-Manually investigated by Claude (not the automated porter/verifier LLM loop, which exhausted all 5 rounds on repeated context-length crashes without ever reaching a try_rule call). Read the source (CorrelateUncollectOuterRule.java): it moves the outer-join (null-extension-on-empty-array) semantics of a Correlate(joinType=LEFT) over an Uncollect down into the Uncollect operator's own isOuter flag, then relaxes the Correlate to joinType=INNER (since Uncollect(isOuter=true) now unconditionally guarantees at least one output row per input row, so INNER vs LEFT no longer changes cardinality). This requires representing Uncollect (array/multiset unnesting, e.g. UNNEST) as a relational operator with a configurable outer/empty-array behavior. Checked RuleScript's entire DSL (RelRN.java, RexRN.java, JSONSerializer.java/JSONDeserializer.java) and QED's prover core (qed-prover/src/pipeline/relation.rs's Relation enum: Singleton, Scan, Filter, Project, Join, Union, Intersect, Except, Distinct, Values, Sort, Aggregate, Correlate) — there is no array/multiset/Uncollect concept anywhere in either the DSL or the prover's data model. This is a fundamental representational gap, not a missing clever encoding: the operator this rule rewrites simply has no counterpart to construct in RuleScript at all, so there is no candidate encoding to even attempt.
+The claim holds: the rewrite's only soundness argument is that Uncollect(isOuter=true) over the single-row LogicalValues guarantees at least one (possibly NULL-filled) right row per left row, which makes the LEFT correlate behave as an INNER one — this is Uncollect's list-expansion (UNNEST) semantics, which QED does not model, and even if the Java side were extended to emit an Uncollect node, QED could at best treat it as uninterpreted and would then correctly refute the identity on a left row with an empty list. The encoding gap is real and not closable by extend_dsl_file: RelRN exposes no Uncollect builder, JSONSerializer's exhaustive Rel switch (scan/values/filter/project/join/correlate/group/union/intersect/except/sort) has no uncollect case and throws on LogicalUncollect, and the fixed prover's JSON vocabulary cannot carry one. Nor is there a fallback encoding or provable special case: the "≥1 row per left row" precondition cannot be stated in the DSL/JSON format (there is no non-emptiness assertion, and row-level "guaranteed" constraints are vacuous on empty relations), so any Uncollect-free encoding of LEFT→INNER correlate is simply invalid and would be refuted.

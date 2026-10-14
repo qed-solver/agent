@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 9  **Verification rounds used:** 1
+**Porter attempts used:** 23  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/ProjectMultiJoinMergeRul
 
 **Verdict:** AGREE
 
-The porter's analysis is correct: `RelOptUtil.projectMultiJoin` rebuilds the MultiJoin with every field identical except `projFields` (a `List<@Nullable ImmutableBitSet>`), which is pure planner metadata consumed later by decomposition heuristics (`LoptOptimizeJoinRule`) with zero effect on the node's rows or row type, so `Project(P, M) ⟹ Project(P, M')` is a metadata annotation, not a logical rewrite. RuleScript's core language has no notion of such per-operator planner metadata — not even an n-ary join with annotation hooks — so any faithful encoding makes `before()` and `after()` literally the same RelRN tree, a vacuous identity whose "proof" says nothing about the annotation's semantic inertness, and any non-trivial variant (e.g. actually pruning input columns) would assert a different rule than the one being ported. ```
+Calcite's `ProjectMultiJoinMerge` leaves the MultiJoin's inputs, join conditions, row type, and even the top-level project (reused verbatim in `onMatch`, which is only valid because the multi-join output is unchanged) all identical — it merely fills in the per-input `projFields` bitmaps that downstream physical rules consult for column pruning, so the transformation is bag-identical by construction. QED's decision procedure quantifies only over the bag semantics of relational expressions and has no concept of such non-semantic optimizer metadata; the DSL has no `MultiJoin`/`projFields` construct, and `extend_dsl_file` cannot close this gap because the unmodifiable prover's Q-expression language has no field for an annotation with no semantic effect, so any faithful encoding collapses to a vacuous before≡after identity. The only alternative — interpreting `projFields` as real per-input projections — would be a different (pushdown) rule whose validity rests on a "J' is J restricted to a subset of columns" correspondence between uninterpreted predicates and field indices that QED fundamentally cannot express or infer.

@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 23  **Verification rounds used:** 2
+**Porter attempts used:** 22  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/ReduceDecimalsRule.java
 
 **Verdict:** AGREE
 
-Every branch of ReduceDecimalsRule (scale alignment via ×10^k, decode/encode, ROUND_HALF_UP rounding through CASE, overflow checks, REINTERPRET∘REINTERPRET elimination) is only valid under a specific algebra between numeric operators — but QED encodes all scalar operators as uninterpreted symbols with no numeric-arithmetic axioms, so any instance of the rule, down to the simplest special cases like `REINTERPRET(REINTERPRET(x)) = x` or `CAST_dec→int(x) = DIV(x, 10^scale)`, asks the SMT solver to prove an identity between independent uninterpreted functions, which is genuinely invalid. This is a case of "an operator whose specific internal semantics QED cannot see through as an uninterpreted function": the rewrite's premise is the adapter's physical unscaled-BIGINT representation of DECIMAL — the exact reason Calcite itself deprecates the rule as producing non-logical plans — and closing it would require modifying the QED prover, not extending the DSL, so UNSUPPORTED is correct. ```
+Every sub-rewrite in this rule — including the simplest one, `REINTERPRET(REINTERPRET(x)) → x` — rests on a value-level identity between decimal arithmetic and its unscaled-BIGINT expansion (10^scale scaling, ROUND_HALF_UP via CASE/DIVIDE_INTEGER, precision/overflow bounds, and the physical REINTERPRET type reinterpretation), while QED only supplies bag algebra over uninterpreted scalar symbols with every virtual type lowered to a plain integer and no arithmetic semantics on any operator. Consequently no faithful before/after pair is decidable: an honest encoding is either two independent uninterpreted terms (unprovable) or the identical term on both sides (degenerate, not a rule), and `extend_dsl_file` cannot close the gap because the unmodifiable prover would still treat any new CAST/REINTERPRET/arithmetic builders as uninterpreted black boxes, and encoding REINTERPRET as a bare type identity would silently alter the semantics rather than capture the rule. ```

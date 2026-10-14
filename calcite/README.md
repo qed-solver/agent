@@ -1,8 +1,8 @@
 # RuleScript porting progress
 
-_Last updated: 2026-10-13T19:58:16.065630+00:00_
+_Last updated: 2026-10-14T15:59:53.925350+00:00_
 
-**89/151 rules proved** (0 failed, 62 skipped as out of QED's supported fragment).
+**96/151 rules proved** (0 failed, 55 skipped as out of QED's supported fragment).
 
 | Rule | Backend | Status | Scope | Attempts | Notes |
 |---|---|---|---|---|---|
@@ -65,6 +65,8 @@ _Last updated: 2026-10-13T19:58:16.065630+00:00_
 | `JoinToMultiJoin` | Apache Calcite | ✅ PROVED | PARTIAL | 23 | The encoding faithfully captures the core INNER-join 3-way flattening: `before` nests Fm at the inner join (Y⋈_Fm Z) with C at the outer ... |
 | `JoinToSemiJoin` | Apache Calcite | ✅ PROVED | PARTIAL | 37 | The encoding is non-vacuous and faithfully captures the rule's core rewrite — an INNER join of L with (R GROUP BY the join key), projecte... |
 | `JoinUnionTranspose` | Apache Calcite | ✅ PROVED | PARTIAL | 33 | The encoding is a faithful, non-vacuous instance of the rule: before() = (X ∪ALL Y) ⋈_C O vs after() = (X ⋈_C O) ∪ALL (Y ⋈_C O) is a genu... |
+| `LoptOptimizeJoin` | Apache Calcite | ✅ PROVED | PARTIAL | 0 |  |
+| `MarkToSemiOrAntiJoin` | Apache Calcite | ✅ PROVED | PARTIAL | 45 | The union-all expansion of LEFT_MARK into marker-tagged semi and anti branches is bag-exactly faithful, and before/after are structurally... |
 | `MinusToAntiJoin` | Apache Calcite | ✅ PROVED | PARTIAL | 5 | The encoding reproduces the rule's 2-way transformation exactly — set-minus (all=false) rewritten to an ANTI join on IS NOT DISTINCT FROM... |
 | `MultiJoinOptimizeBushy` | Apache Calcite | ✅ PROVED | PARTIAL | 33 | The encoding is non-vacuous and symbolically sound: before() is the left-deep chain (((A⋈B)⋈C)⋈F D) and after() is the genuinely bushy (A... |
 | `MultiJoinProjectTranspose` | Apache Calcite | ✅ PROVED | PARTIAL | 7 | The encoding faithfully captures the LEFT_PROJECT variant's core rewrite — pulling a (pure, uninterpreted) projection up through an inner... |
@@ -73,28 +75,33 @@ _Last updated: 2026-10-13T19:58:16.065630+00:00_
 | `ProjectCalcMerge` | Apache Calcite | ✅ PROVED | PARTIAL | 9 | The encoding faithfully desugars the Project-over-Calc match (a Calc as filter(B)∘project(E0,E1), exact because the fixed shape has no lo... |
 | `ProjectCorrelateTranspose` | Apache Calcite | ✅ PROVED | PARTIAL | 62 | The encoding is a genuine, non-vacuous special case: before() projects above a 4-column cross product while after() prunes each input to ... |
 | `ProjectFilterTranspose` | Apache Calcite | ✅ PROVED | PARTIAL | 39 | The encoding is a faithful fixed-shape instantiation of the rule's whole-expressions mode: before() = Filter(P(E(x,y), y), S) → Project(E... |
-| `ProjectJoinJoinRemove` | Apache Calcite | ✅ PROVED | PARTIAL | 120 | Manually re-derived and verified by Claude (not the automated porter/verifier LLM loop, which exhausted all 5 rounds on repeated context-... |
 | `ProjectJoinRemove` | Apache Calcite | ✅ PROVED | PARTIAL | 24 | The encoding is a non-vacuous, correctly-modeled special case of the source rule: it captures the LEFT-join self-join-on-unique-key form ... |
 | `ProjectJoinTranspose` | Apache Calcite | ✅ PROVED | PARTIAL | 10 | The encoding is a faithful, non-vacuous special case: `before()` (inner join of raw scans with condition C(TL(l),TR(r)) and top projectio... |
 | `ProjectMerge` | Apache Calcite | ✅ PROVED | FULL | 6 | `before()` (a Project stacked on a Project) and `after()` (a single Project) are structurally distinct, so the proof is non-vacuous and m... |
+| `ProjectReduceExpressions` | Apache Calcite | ✅ PROVED | PARTIAL | 21 | This is a genuine, non-vacuous special case of the real rule: ProjectReduceExpressionsRule's simplification pass (RexSimplify.simplifyPre... |
 | `ProjectRemove` | Apache Calcite | ✅ PROVED | PARTIAL | 41 | The encoding faithfully and non-vacuously captures the rule's core transformation: `before()` is a Project whose sole expression is `sour... |
 | `ProjectSetOpTranspose` | Apache Calcite | ✅ PROVED | PARTIAL | 68 | The encoding faithfully captures the core semantics of ProjectSetOpTranspose: a top-level uninterpreted projection F is pushed below a UN... |
 | `ProjectTableScan` | Apache Calcite | ✅ PROVED | PARTIAL | 6 | `before()` (Project over Scan) and `after()` (Project over Project over Scan) are structurally distinct, and the proved equivalence is ex... |
 | `ProjectToCalc` | Apache Calcite | ✅ PROVED | PARTIAL | 8 | The encoding faithfully maps the rule's two node shapes — `before()` is the bare `Project([E1,E2], S)` (the `LogicalProject`), and `after... |
 | `ProjectToSemiJoin` | Apache Calcite | ✅ PROVED | PARTIAL | 26 | The encoding faithfully captures the INNER-join branch of Calcite's ProjectToSemiJoinRule: before() is a left-fields-only Project over L ... |
+| `ProjectWindowTranspose` | Apache Calcite | ✅ PROVED | PARTIAL | 8 | The encoding is a genuine, non-vacuous PARTIAL instance of the rule: it models a whole-partition, single-group window as an inner equi-jo... |
 | `PruneEmpty` | Apache Calcite | ✅ PROVED | PARTIAL | 61 | The encoding is a faithful, non-vacuous rendering of Calcite's `RemoveEmptySingleRuleConfig.FILTER` instance (a Filter over an empty `Val... |
 | `PruneSingleValue` | Apache Calcite | ✅ PROVED | PARTIAL | 62 | The encoding is non-vacuous and matches the source rule's core inner-join transformation exactly: `O ⋈_{jcond} Values{true}` is rewritten... |
 | `RemoveEmptySingle` | Apache Calcite | ✅ PROVED | PARTIAL | 10 | The encoding faithfully captures the AGGREGATE variant of RemoveEmptySingleRule — a non-grand-total aggregate (group set non-empty, match... |
 | `SemiJoinFilterTranspose` | Apache Calcite | ✅ PROVED | FULL | 16 | The encoding faithfully captures the original rule: before() is SemiJoin(Filter(X, F), Y, C) and after() is Filter(SemiJoin(X, Y, C), F),... |
 | `SemiJoinJoinTranspose` | Apache Calcite | ✅ PROVED | PARTIAL | 66 | The encoding is faithful: before() = (X ⋈_C Y) ⋉_S Z and after() = (X ⋉_S Z) ⋈_C Y are structurally different plans whose bag-equality is... |
 | `SemiJoinProjectTranspose` | Apache Calcite | ✅ PROVED | PARTIAL | 80 | The encoding faithfully mirrors the rule's semi-join branch: before() = SemiJoin(Project([P0,P1], X), Y, C) and after() = Project([P0,P1]... |
+| `SemiJoinRemove` | Apache Calcite | ✅ PROVED | PARTIAL | 9 | The encoding faithfully mirrors the source rule's transformation — replacing a SEMI join with its left input (`getInput(0)`), with correc... |
 | `SetOpToFilter` | Apache Calcite | ✅ PROVED | PARTIAL | 11 | The encoding exactly captures Calcite's rewrite for the single-source, two-filter case — `Union(DISTINCT, [σ_P1(S), σ_P2(S)])` → all-fiel... |
+| `SubQueryRemove` | Apache Calcite | ✅ PROVED | PARTIAL | 87 | The encoding faithfully mirrors Calcite's uncorrelated-EXISTS-under-Filter (logic=TRUE) branch: before is `Filter(EXISTS(S), R)` and afte... |
 | `UnionEliminator` | Apache Calcite | ✅ PROVED | FULL | 10 | The encoding exactly mirrors the rule's matches condition for the union variant — a set op with all=true over exactly one input (input.un... |
 | `UnionMerge` | Apache Calcite | ✅ PROVED | PARTIAL | 5 | The encoding faithfully reproduces Calcite's UnionMerge onMatch for the UNION ALL instance — top union with a nested union in the second ... |
 | `UnionPullUpConstants` | Apache Calcite | ✅ PROVED | PARTIAL | 34 | The proof is of a real, nontrivial declared special case: a shared boolean-constant projection duplicated under a union-all is hoisted ab... |
 | `UnionToDistinct` | Apache Calcite | ✅ PROVED | PARTIAL | 7 | The encoding matches the rule's exact shape: `before()` is a UNION DISTINCT (`union(false)`) over two independent uninterpreted inputs, a... |
+| `UnionToValues` | Apache Calcite | ✅ PROVED | PARTIAL | 24 | `before()` (a 3-way UNION ALL of three constant `Values` nodes) and `after()` (a single `Values`) are structurally different plans, and t... |
 | `UnnestDecorrelate` | Apache Calcite | ✅ PROVED | PARTIAL | 40 | The encoding faithfully captures the rule's semantic claim: the INNER correlate over a single-row Values feeding a correlated uncollect i... |
 | `ValuesReduce` | Apache Calcite | ✅ PROVED | PARTIAL | 42 | The encoding is a genuine, non-vacuous trace of the rule's PROJECT config — Project([c,a]) over the 2-row Values (1,2,3),(4,5,6) folds to... |
+| `WindowReduceExpressions` | Apache Calcite | ✅ PROVED | PARTIAL | 0 |  |
 | `AggregateCaseToFilter` | Apache Calcite | ⏭️ SKIPPED | — | 22 | QED models aggregates as uninterpreted bag functions and, per its stated limitation, "knows nothing about a specific aggregate function's... |
 | `AggregateFilterToCase` | Apache Calcite | ⏭️ SKIPPED | — | 0 | The before-side is an aggregate call carrying a SQL `FILTER (WHERE ...)` clause. `RelRN.AggCall` has no filter field, `Aggregate.semantic... |
 | `AggregateFilterToFilteredAggregate` | Apache Calcite | ⏭️ SKIPPED | — | 25 | The rule's after-side is a per-call SQL `FILTER (WHERE P)`, which the pipeline cannot carry: `RelRN.AggCall` has no filter field and `Agg... |
@@ -102,61 +109,54 @@ _Last updated: 2026-10-13T19:58:16.065630+00:00_
 | `AggregateMeasure` | Apache Calcite | ⏭️ SKIPPED | — | 47 | The rule's validity rests on Calcite's measure invariants — that a measure is constant within the group-key partition and that AGG_M2V(c)... |
 | `AggregateMeasure2` | Apache Calcite | ⏭️ SKIPPED | — | 25 | The rule's validity rests entirely on Calcite's measure invariant — AGG_M2V(m) over a group equals the scalar subquery produced by mq.exp... |
 | `AggregateMinMaxToLimit` | Apache Calcite | ⏭️ SKIPPED | — | 21 | The rule's after side (scalar subqueries of the form SELECT c FROM t WHERE c IS NOT NULL ORDER BY c ASC/DESC LIMIT 1 over a one-row VALUE... |
-| `AggregateProjectStarTable` | Apache Calcite | ⏭️ SKIPPED | — | 6 | The rule's soundness depends on two things QED structurally cannot capture: (1) its "after" side is a scan of a *different* materialized ... |
-| `AggregateReduceFunctions` | Apache Calcite | ⏭️ SKIPPED | — | 34 | AggregateReduceFunctions depends on aggregate algebraic identities (e.g. AVG(x) = SUM(x) / COUNT(x)) that QED cannot know, since it treat... |
-| `AggregateReduceFunctionsOnGroupKeys` | Apache Calcite | ⏭️ SKIPPED | — | 25 | The rule's only semantic premise — that MAX/MIN/AVG/ANY_VALUE (or a `SqlConstantValueAggFunction`) applied to an argument that is constan... |
-| `AggregateRemoveDuplicateKeys` | Apache Calcite | ⏭️ SKIPPED | — | 23 | The rewrite's soundness rests on (i) a schema-level functional dependency (the dropped key being determined by the retained keys) which i... |
-| `AggregateRemoveLiteralAgg` | Apache Calcite | ⏭️ SKIPPED | — | 23 | The rule's soundness rests entirely on the algebraic identity LITERAL_AGG(c) ≡ c — i.e., the call must evaluate to the constant operand f... |
-| `AggregateStarTable` | Apache Calcite | ⏭️ SKIPPED | — | 9 | This rule is a materialization substitution, not a relational identity: it replaces Aggregate(Scan(starTable)) with a Scan of a *separate... |
-| `CalcSplit` | Apache Calcite | ⏭️ SKIPPED | — | 27 | The rule's before side is a single fused Calc node, and the QED prover's JSON/Q-expression contract — with the unchangeable Rust translat... |
-| `CalcToWindow` | Apache Calcite | ⏭️ SKIPPED | — | 61 | The rule's entire semantic content is the evaluation semantics of the window operator (a Calc/Project containing a `RexOver` being equal ... |
-| `CoerceInputs` | Apache Calcite | ⏭️ SKIPPED | — | 16 | The rule's only non-trivial content is inserting per-input cross-type casts, which in any faithful model are value-changing transformatio... |
-| `CombineSimpleEquivalence` | Apache Calcite | ⏭️ SKIPPED | — | 6 | The rule's soundness rests entirely on the Spool's producer→consumer binding — a sibling branch's `LogicalTableScan` must denote exactly ... |
-| `CorrelateUncollectOuter` | Apache Calcite | ⏭️ SKIPPED | — | 30 | Manually investigated by Claude (not the automated porter/verifier LLM loop, which exhausted all 5 rounds on repeated context-length cras... |
-| `ExchangeRemoveConstantKeys` | Apache Calcite | ⏭️ SKIPPED | — | 6 | The rule only rewrites the physical properties of Exchange/SortExchange (hash-distribution keys and collation fields), leaving the bag of... |
-| `FilterDateRange` | Apache Calcite | ⏭️ SKIPPED | — | 21 | FilterDateRange's soundness rests on the calendar rounding semantics of EXTRACT/FLOOR/CEIL — that `extract(unit, ts) = c` holds iff `ts` ... |
-| `FilterHilbert` | Apache Calcite | ⏭️ SKIPPED | — | 26 | FilterHilbert's soundness is exactly the concrete spatial/Hilbert-curve fact — that every point within distance d of a constant geometry ... |
-| `FilterSampleTranspose` | Apache Calcite | ⏭️ SKIPPED | — | 10 | Sample has no deterministic bag semantics for QED to reason about — Bernoulli sampling is per-row probabilistic and system sampling depen... |
-| `FilterSortMeasure` | Apache Calcite | ⏭️ SKIPPED | — | 28 | The rule's match shape (Filter over Sort) and its documented M2V push-down both rest on row-ordering semantics — filtering preserving the... |
-| `FilterSortTranspose` | Apache Calcite | ⏭️ SKIPPED | — | 7 | FilterSortTranspose's entire correctness content is the ordering claim that filtering preserves a relation's collation, but QED decides e... |
-| `FilterTableScan` | Apache Calcite | ⏭️ SKIPPED | — | 9 | FilterTableScanRule is a purely physical pushdown (Filter(TableScan) → BindableTableScan) whose before and after differ only in represent... |
-| `IntersectToDistinct` | Apache Calcite | ⏭️ SKIPPED | — | 25 | The rule's entire correctness content is that a key survives the final `Filter(count_i > 0)` (no-pushdown variant) or `Filter(count(*) = ... |
-| `JoinExpandOrToUnion` | Apache Calcite | ⏭️ SKIPPED | — | 0 | The rewrite's core identity — Join(Or(P,Q)) ⟹ UnionAll(Join(P), Join(And(Q, ¬P))) — was tested directly against QED under both candidate ... |
-| `LoptOptimizeJoin` | Apache Calcite | ⏭️ SKIPPED | — | 1 | Manually investigated by the harness operator (the automated porter never got past turn 9 before crashing on context overflow — LoptOptim... |
-| `MarkToSemiOrAntiJoin` | Apache Calcite | ⏭️ SKIPPED | — | 65 | The before() pattern must name an actual LEFT_MARK join, but its marker column — a per-left-row existential summary (∃ right row satisfyi... |
-| `Match` | Apache Calcite | ⏭️ SKIPPED | — | 7 | This rule is a pure identity transformation — `MatchRule` rebuilds a `LogicalMatch` field-for-field identical — so any faithful encoding ... |
-| `MaterializedViewFilterScan` | Apache Calcite | ⏭️ SKIPPED | — | 26 | The rewrite's soundness rests on the materialization invariant that the MV table's stored bag equals the result of its defining query ove... |
-| `MaterializedViewOnlyAggregate` | Apache Calcite | ⏭️ SKIPPED | — | 23 | The rule's soundness is a catalog-level invariant — the stored MV's bag must equal the evaluation of its defining plan over the base tabl... |
-| `MaterializedViewOnlyFilter` | Apache Calcite | ⏭️ SKIPPED | — | 24 | The rule's soundness is exactly the catalog invariant that a materialized view's contents are maintained to equal its defining plan over ... |
-| `MaterializedViewOnlyJoin` | Apache Calcite | ⏭️ SKIPPED | — | 23 | MaterializedViewOnlyJoin is a catalog-driven materialized-view rewrite, not a closed-form algebraic identity: its validity rests on the e... |
-| `MaterializedViewProjectAggregate` | Apache Calcite | ⏭️ SKIPPED | — | 22 | The rewrite's soundness depends on the catalog's MV-maintenance invariant — the MV's stored bag equals its defining aggregate over the ba... |
-| `MaterializedViewProjectFilter` | Apache Calcite | ⏭️ SKIPPED | — | 21 | An MV-substitution rewrite is sound only under the external, planner-maintained invariant that the MV table's contents equal its defining... |
-| `MaterializedViewProjectJoin` | Apache Calcite | ⏭️ SKIPPED | — | 21 | The rule's only non-trivial content is substituting a scan of a catalog-defined MV for the Project(Join) it materializes, and its soundne... |
-| `MinusToDistinct` | Apache Calcite | ⏭️ SKIPPED | — | 23 | The rule's after-pattern encodes set difference purely through cardinality — `COUNT() FILTER (branch=i)` per group, then a final `Filter(... |
-| `MinusToFilter` | Apache Calcite | ⏭️ SKIPPED | — | 22 | The rewrite MINUS(base, Filter(Q,base)) → distinct(Filter(NOT Q,base)) is valid only when the right-hand predicate Q is total, because un... |
-| `ProjectMeasure` | Apache Calcite | ⏭️ SKIPPED | — | 21 | ProjectMeasureRule is sound only via Calcite's measure algebra — that M2X(M2V(E), SAME_PARTITION(g)) on a row of partition g equals E eva... |
-| `ProjectMultiJoinMerge` | Apache Calcite | ⏭️ SKIPPED | — | 9 | The porter's analysis is correct: `RelOptUtil.projectMultiJoin` rebuilds the MultiJoin with every field identical except `projFields` (a ... |
-| `ProjectOverSumToSum0` | Apache Calcite | ⏭️ SKIPPED | — | 18 | The rule's subject — `SUM(x) OVER <frame>` vs `SUM0(x) OVER <frame>` inside a project — is inherently a windowed aggregate, and QED's the... |
-| `ProjectReduceExpressions` | Apache Calcite | ⏭️ SKIPPED | — | 27 | ProjectReduceExpressions' actual transformation is constant-folding an operator on constant arguments (`f(consts)` → literal) and redunda... |
-| `ProjectSortMeasure` | Apache Calcite | ⏭️ SKIPPED | — | 25 | The rule rewrites Project-over-Sort into Project-over-Sort-over-Project, so both the before and after patterns structurally require a Sor... |
-| `ProjectToLogicalProjectAndWindow` | Apache Calcite | ⏭️ SKIPPED | — | 9 | The rule's entire semantic content is that a windowed aggregate (RexOver) evaluated inline inside a Project yields the same per-row value... |
-| `ProjectWindowTranspose` | Apache Calcite | ⏭️ SKIPPED | — | 12 | The rule's correctness rests entirely on Window semantics (one output row per input row, partition/order/frame-dependent values), but QED... |
-| `ReduceDecimals` | Apache Calcite | ⏭️ SKIPPED | — | 23 | Every branch of ReduceDecimalsRule (scale alignment via ×10^k, decode/encode, ROUND_HALF_UP rounding through CASE, overflow checks, REINT... |
-| `SampleToFilter` | Apache Calcite | ⏭️ SKIPPED | — | 13 | The rule's only claimed equivalence, Sample(R) ≡ Filter(rand() < rate, R), is a probabilistic (Bernoulli) identity — both sides keep rows... |
-| `SemiJoinRemove` | Apache Calcite | ⏭️ SKIPPED | — | 8 | `X SEMI JOIN Y ON c → X` is not a bag-semantic equivalence, and QED decides it over *every* instantiation of the uninterpreted symbols, s... |
-| `SortJoinCopy` | Apache Calcite | ⏭️ SKIPPED | — | 23 | SortJoinCopy's only semantic content is ordering — it copies the Sort (without offset/fetch) below each join input purely as a physical h... |
-| `SortJoinTranspose` | Apache Calcite | ⏭️ SKIPPED | — | 21 | The rule's soundness is fundamentally an ordering/top-N argument: replacing the join input L with just its first (offset+fetch) rows unde... |
-| `SortMerge` | Apache Calcite | ⏭️ SKIPPED | — | 21 | The rule's entire content is ordering/top-N composition — folding `Sort(fetch=t)` over `Sort(fetch=b)` into a single `Sort(fetch=min(t,b)... |
-| `SortProjectTranspose` | Apache Calcite | ⏭️ SKIPPED | — | 12 | SortProjectTranspose is an ordering claim end to end — its soundness (and its permutation/monotonic-cast side conditions on sort keys) ex... |
-| `SortRemove` | Apache Calcite | ⏭️ SKIPPED | — | 27 | SortRemoveRule is a physical-order (collation trait) rule, not a relational equivalence: its only precondition — the input's row order al... |
-| `SortRemoveConstantKeys` | Apache Calcite | ⏭️ SKIPPED | — | 9 | The rule's entire content is order-preserving — it drops (or deletes) sort keys whose columns are constant so the emitted row *sequence* ... |
-| `SortRemoveDuplicateKeys` | Apache Calcite | ⏭️ SKIPPED | — | 6 | The rule's soundness rests entirely on ordering semantics — that collation [k1, k2] induces the same row order as [k1] when k1 functional... |
-| `SortRemoveRedundant` | Apache Calcite | ⏭️ SKIPPED | — | 8 | The rule's before-pattern is necessarily a Sort node (ORDER BY, ORDER BY+LIMIT, or pure LIMIT), and its correctness rests on ordered-resu... |
-| `SortUnionTranspose` | Apache Calcite | ⏭️ SKIPPED | — | 8 | SortUnionTranspose's soundness is exactly the top-N order property that the first (offset+fetch) rows of each branch under the sort colla... |
-| `SubQueryRemove` | Apache Calcite | ⏭️ SKIPPED | — | 1 | Manually investigated by the harness operator, going further than the earlier automated verdict. SubQueryRemoveRule.java is 1488 lines di... |
-| `TableScan` | Apache Calcite | ⏭️ SKIPPED | — | 13 | TableScanRule's only non-trivial case (view expansion via `table.toRel`) asserts that a scanned table's contents equal the relational pla... |
-| `UnionToValues` | Apache Calcite | ⏭️ SKIPPED | — | 13 | UnionToValues is a constant-folding rule whose operand definition (a Union whose inputs are all Values) gives it no free relational or pr... |
-| `WindowReduceExpressions` | Apache Calcite | ⏭️ SKIPPED | — | 21 | The rule's before pattern is a LogicalWindow, but the core language has no Window operator (RelRN exposes only scan/filter/project/join/s... |
+| `AggregateProjectStarTable` | Apache Calcite | ⏭️ SKIPPED | — | 11 | The rule's `after` plan swaps the base-table scan for a scan of a *different* pre-aggregated materialized table chosen from the external ... |
+| `AggregateReduceFunctions` | Apache Calcite | ⏭️ SKIPPED | — | 27 | Every non-degenerate branch of AggregateReduceFunctionsRule is an algebraic identity between distinct aggregate functions (AVG=SUM/COUNT,... |
+| `AggregateReduceFunctionsOnGroupKeys` | Apache Calcite | ⏭️ SKIPPED | — | 24 | The only substantive transformation in this rule is replacing aggregate calls (MAX/MIN/AVG/ANY_VALUE on a group key, or constant-value ag... |
+| `AggregateRemoveDuplicateKeys` | Apache Calcite | ⏭️ SKIPPED | — | 22 | The rule's essential step replaces a dropped group key with an ANY_VALUE aggregate call over the coarser grouping, so the proof requires ... |
+| `AggregateRemoveLiteralAgg` | Apache Calcite | ⏭️ SKIPPED | — | 22 | The rule's soundness rests entirely on Calcite's internal semantics that `LITERAL_AGG(lit)` returns `lit` for every group, which is a spe... |
+| `AggregateStarTable` | Apache Calcite | ⏭️ SKIPPED | — | 7 | Every branch of this rule (exact match, roll-up, or measure reordering) rewrites `Aggregate(base)` into a plan over a *different* scan wh... |
+| `CalcSplit` | Apache Calcite | ⏭️ SKIPPED | — | 24 | CalcSplitRule's correctness rests purely on the definitional identity that a fused Calc operator equals its Filter-then-Project decomposi... |
+| `CalcToWindow` | Apache Calcite | ⏭️ SKIPPED | — | 21 | CalcToWindow's before pattern necessarily contains a RexOver window expression and its after pattern necessarily produces a LogicalWindow... |
+| `CoerceInputs` | Apache Calcite | ⏭️ SKIPPED | — | 39 | QED serializes every scalar operator — including any proposed "cast" symbol — as an uninterpreted function with no identity/transparency ... |
+| `CombineSimpleEquivalence` | Apache Calcite | ⏭️ SKIPPED | — | 21 | The rewrite introduces a new spool table and then consumes it, but QED treats table scans as independent input bags with no let/view/spoo... |
+| `CorrelateUncollectOuter` | Apache Calcite | ⏭️ SKIPPED | — | 64 | The claim holds: the rewrite's only soundness argument is that Uncollect(isOuter=true) over the single-row LogicalValues guarantees at le... |
+| `ExchangeRemoveConstantKeys` | Apache Calcite | ⏭️ SKIPPED | — | 13 | The rule's entire correctness content is physical placement — hashing on a constant-valued key puts every row in one bucket, so that key ... |
+| `FilterDateRange` | Apache Calcite | ⏭️ SKIPPED | — | 23 | FilterDateRange's soundness rests on the concrete calendar semantics of EXTRACT/FLOOR/CEIL and date literals — the claim that {t | EXTRAC... |
+| `FilterHilbert` | Apache Calcite | ⏭️ SKIPPED | — | 22 | The rule's soundness is exactly the entailment "under h = HILBERT(lon, lat), ST_DWithin/ST_Contains(g, ST_Point(lon, lat), d) ⇒ (h BETWEE... |
+| `FilterSampleTranspose` | Apache Calcite | ⏭️ SKIPPED | — | 9 | The validity of Filter(c, Sample(R)) ⟹ Sample(Filter(c, R)) rests on sampling being a per-row, probabilistic selection whose keep/drop de... |
+| `FilterSortMeasure` | Apache Calcite | ⏭️ SKIPPED | — | 8 | As written, Calcite's `FilterSortMeasureRule` is dead code: `onMatch` assigns `condition = filter.getCondition()` and then guards on `con... |
+| `FilterSortTranspose` | Apache Calcite | ⏭️ SKIPPED | — | 7 | The rule's entire correctness content is that filtering a sorted stream preserves relative row order — a list/ordering property — and QED... |
+| `FilterTableScan` | Apache Calcite | ⏭️ SKIPPED | — | 6 | FilterTableScanRule is a physical push-down whose correctness rests entirely on the FilterableTable/BindableTableScan execution contract ... |
+| `IntersectToDistinct` | Apache Calcite | ⏭️ SKIPPED | — | 28 | Both variants of IntersectToDistinct are correct only by COUNT's cardinality algebra — `COUNT(*) FILTER (WHERE i=k) > 0` means "branch k ... |
+| `JoinExpandOrToUnion` | Apache Calcite | ⏭️ SKIPPED | — | 66 | The porter's encoding was verified faithful — the serialized JSON shows the identical uninterpreted symbols c1/c2 applied to the same joi... |
+| `Match` | Apache Calcite | ⏭️ SKIPPED | — | 28 | Calcite's `LogicalMatch` is an ordering/frame-dependent CEP operator (pattern matching over an ordered stream with measures/interval), so... |
+| `MaterializedViewFilterScan` | Apache Calcite | ⏭️ SKIPPED | — | 58 | MaterializedViewFilterScan's soundness rests on the cross-table invariant that the MV scan's bag equals its defining query over the base ... |
+| `MaterializedViewOnlyAggregate` | Apache Calcite | ⏭️ SKIPPED | — | 28 | The rule's sole correctness premise is the registration-time invariant that a separately registered, externally refreshed MV table's cont... |
+| `MaterializedViewOnlyFilter` | Apache Calcite | ⏭️ SKIPPED | — | 9 | This is not an algebraic equivalence between two plans but a catalog-driven rewrite whose soundness rests on the external planner invaria... |
+| `MaterializedViewOnlyJoin` | Apache Calcite | ⏭️ SKIPPED | — | 29 | The rewrite substitutes a query join subplan with a scan of a separately registered MV table (cross-joined with query-only tables), and i... |
+| `MaterializedViewProjectAggregate` | Apache Calcite | ⏭️ SKIPPED | — | 21 | The rule replaces Project(Aggregate(Scan T)) with a scan of the MV's physical table, and its soundness rests on an external database inva... |
+| `MaterializedViewProjectFilter` | Apache Calcite | ⏭️ SKIPPED | — | 23 | The rule's before pattern (Project over Filter over base tables) and after pattern (projection/filter over the MV scan) are individually ... |
+| `MaterializedViewProjectJoin` | Apache Calcite | ⏭️ SKIPPED | — | 14 | The rule's soundness rests entirely on the planner-maintained invariant that the MV's physical table holds exactly the bag produced by it... |
+| `MinusToDistinct` | Apache Calcite | ⏭️ SKIPPED | — | 10 | The rewrite's correctness rests entirely on reading membership off aggregate outputs — `COUNT() FILTER tag=i` > 0 / == 0 testing whether ... |
+| `MinusToFilter` | Apache Calcite | ⏭️ SKIPPED | — | 45 | I independently verified the rewrite is mathematically sound, but any faithful encoding forces QED to relate its EXCEPT (set-minus) primi... |
+| `ProjectJoinJoinRemove` | Apache Calcite | ⏭️ SKIPPED | — | 105 | The rewrite's row-level validity hinges on B's key being unique AND the top join condition referencing only the shared A-key column plus ... |
+| `ProjectMeasure` | Apache Calcite | ⏭️ SKIPPED | — | 41 | ProjectMeasureRule's rewrite (Aggregate(g, SINGLE_VALUE(d)) over a Project with d = M2X(V2M(e)) AS d) is only sound because of the measur... |
+| `ProjectMultiJoinMerge` | Apache Calcite | ⏭️ SKIPPED | — | 23 | Calcite's `ProjectMultiJoinMerge` leaves the MultiJoin's inputs, join conditions, row type, and even the top-level project (reused verbat... |
+| `ProjectOverSumToSum0` | Apache Calcite | ⏭️ SKIPPED | — | 23 | The rewrite operates entirely on window aggregates (`SUM(x) OVER (frame)` → `SUM0(x) OVER (frame)`), and QED has no bag-semantic model fo... |
+| `ProjectSortMeasure` | Apache Calcite | ⏭️ SKIPPED | — | 34 | The rule's only non-vacuous content is that re-emitting the Sort (identical sortExps/offset/fetch) below the inserted M2V projection pres... |
+| `ProjectToLogicalProjectAndWindow` | Apache Calcite | ⏭️ SKIPPED | — | 10 | This rule's payload is the identity between an inline `RexOver` (windowed aggregate) inside a `Project` and a separate `LogicalWindow` op... |
+| `ReduceDecimals` | Apache Calcite | ⏭️ SKIPPED | — | 22 | Every sub-rewrite in this rule — including the simplest one, `REINTERPRET(REINTERPRET(x)) → x` — rests on a value-level identity between ... |
+| `SampleToFilter` | Apache Calcite | ⏭️ SKIPPED | — | 6 | Bernoulli `Sample`'s output is a random per-row selection, not a deterministic function of its input, so it has no bag semantics in QED's... |
+| `SortJoinCopy` | Apache Calcite | ⏭️ SKIPPED | — | 8 | SortJoinCopyRule's entire contract is row-ordering: it decomposes the top Sort's collation across the join's two sides, consults "already... |
+| `SortJoinTranspose` | Apache Calcite | ⏭️ SKIPPED | — | 23 | SortJoinTranspose is meaningful only through ordering semantics: the outer Sort/Offset/Fetch must be preserved while a derived Fetch/Limi... |
+| `SortMerge` | Apache Calcite | ⏭️ SKIPPED | — | 9 | SortMerge's soundness is purely a top-N/row-position statement — it must know which rows each LIMIT keeps and, even in the degenerate sub... |
+| `SortProjectTranspose` | Apache Calcite | ⏭️ SKIPPED | — | 9 | The rule's soundness is purely an order-preservation claim: a permutation (plus monotonicity-preserving casts) over a stream sorted by co... |
+| `SortRemove` | Apache Calcite | ⏭️ SKIPPED | — | 9 | SortRemoveRule is sound only under the non-bag premise that the child already emits rows in the Sort's collation (a planner trait fact), ... |
+| `SortRemoveConstantKeys` | Apache Calcite | ⏭️ SKIPPED | — | 6 | The rule is sound only because dropping a sort key that the input's predicates prove constant preserves the output row *ordering* — and Q... |
+| `SortRemoveDuplicateKeys` | Apache Calcite | ⏭️ SKIPPED | — | 10 | Both plans sort the same input, so their row bags are identical by construction; the rule's only non-trivial claim is that dropping a key... |
+| `SortRemoveRedundant` | Apache Calcite | ⏭️ SKIPPED | — | 22 | The rewrite is conditional on a cost-model fact — the input's max row count being ≤ 1 (ORDER BY) or ≤ fetch (pure LIMIT) — and RuleScript... |
+| `SortUnionTranspose` | Apache Calcite | ⏭️ SKIPPED | — | 5 | The rule’s correctness depends on row-order/top-N semantics: each union branch is capped at `offset + fetch` only because the outer `Sort... |
+| `TableScan` | Apache Calcite | ⏭️ SKIPPED | — | 24 | TableScanRule's entire correctness content is the identity "the bag of table V equals the relation produced by V's RelOptTable.toRel" (it... |
 
 ## Details
 
@@ -707,6 +707,23 @@ Note: SemiJoinRule.java defines multiple distinct rule variants as separate stat
 - Reason / notes: The encoding is a faithful, non-vacuous instance of the rule: before() = (X ∪ALL Y) ⋈_C O vs after() = (X ⋈_C O) ∪ALL (Y ⋈_C O) is a genuine distributivity law (structurally distinct shapes, not an identity), the double `union(true, ...)` matches the source's `union.all` requirement, INNER keeps the union off any null-generating side so no semantic precondition is dropped, and the single shared condition symbol C correctly mirrors the source reusing the identical `join.getCondition()` in all three joins (independent symbols would have been the error). Nullable, keyless scans match the source's lack of PK/NOT NULL preconditions, so no hidden constraint is assumed. The scope line is honest and specific about the genuine narrowing (INNER join, left-side union) — full multi-join-type coverage cannot be a single provable rule because the join kind is concrete in QED's serialization (meta join types only feed the family generator, whose assignments are proven individually) — and the result is still a substantive, useful special case of the real rule. ```
 - QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 1883000}, panicked=False
 
+### `LoptOptimizeJoin` — ✅ PROVED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/LoptOptimizeJoinRule.java
+- Attempts used: 0
+- Last updated: 2026-10-14T15:59:53.329840+00:00
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 22550208}, panicked=False
+
+### `MarkToSemiOrAntiJoin` — ✅ PROVED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/MarkToSemiOrAntiJoinRule.java
+- Attempts used: 45
+- Last updated: 2026-10-14T07:01:24.576016+00:00
+- Reason / notes: The union-all expansion of LEFT_MARK into marker-tagged semi and anti branches is bag-exactly faithful, and before/after are structurally distinct (marker-filtered union vs. bare semi), so the proof is non-vacuous; cond, the residual predicate P, and the projection p are all uninterpreted and correctly shared, and the semi branch is the only case of the source rule with no side conditions, so no precondition is silently dropped. The scope line honestly discloses the genuine narrowing (semi case only, single-column inputs, single residual conjunct and projected column), and the proved statement remains a real, non-degenerate special case of the rule.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 75350667}, panicked=False
+
 ### `MinusToAntiJoin` — ✅ PROVED
 
 - Source backend: Apache Calcite
@@ -779,15 +796,6 @@ Note: SemiJoinRule.java defines multiple distinct rule variants as separate stat
 - Reason / notes: The encoding is a faithful fixed-shape instantiation of the rule's whole-expressions mode: before() = Filter(P(E(x,y), y), S) → Project(E(x,y), F(x)), and after() hoists E and F into Project(S, [x, y, E(x,y), F(x)]), filters on the hoisted columns via the same uninterpreted P, and projects them back out — exactly the sub-project/filter/top-project shape Calcite's Replacer builds. The proof is non-vacuous (the plans genuinely differ: filter over raw scan with embedded uninterpreted calls vs. filter over a larger intermediate projection), symbols are correctly shared (E, F, P reused by name across both sides, with no spurious identification of independent expressions), and no hidden preconditions are needed since bag-semantics commutation of Filter and Project holds for any uninterpreted operators and all column types — which the prover checked universally. The remaining gap to the full rule (arbitrary numbers of input columns, project expressions, and filter operands, plus ref-collection across arbitrary shapes) is inherent to RuleScript's lack of let-binding/bounded-schema constructs, not an avoidable hard-coding; the SCOPE: PARTIAL line is specific, accurate, and the rule is a useful non-degenerate special case. ```
 - QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 84999541}, panicked=False
 
-### `ProjectJoinJoinRemove` — ✅ PROVED
-
-- Source backend: Apache Calcite
-- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/ProjectJoinJoinRemoveRule.java
-- Attempts used: 120
-- Last updated: 2026-09-25T18:26:16.886499+00:00
-- Reason / notes: Manually re-derived and verified by Claude (not the automated porter/verifier LLM loop, which exhausted all 5 rounds on repeated context-length crashes without ever reaching a try_rule call). Read the source (ProjectJoinJoinRemoveRule.java): it eliminates the right input B of a bottom LEFT JOIN(A,B) feeding a top LEFT JOIN(that, C), when (1) neither the outer project nor the top join's condition reference any column of B, (2) the top join's left-side join key equals the bottom join's own left-side join key (same column of A reused), and (3) B's join-key columns are unique. First tried the fully general two-distinct-relations form (A, B, C with B merely unique-keyed) — genuinely NOT provable (confirmed real, not a bug: QED's equivalence-class layer rejects it before SMT even runs). Then mirrored the same narrow mechanism the already-proven ProjectJoinRemove precedent uses: a SELF-join of a unique non-nullable column on EQUALS (every row provably matches itself, so the LEFT join's null-extension term never fires), extended with a second join to C reusing that same column. This proves (provable=true, real SMT work happened — smt_duration>0, unlike the failed general attempt), and is confirmed non-vacuous: dropping the unique=true flag on the negative control correctly flips it to provable=false. This is the same narrow self-join special case ProjectJoinRemove already covers, just extended with one more join layer — consistent scope, not a stronger general claim.
-- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 38820584}, panicked=False
-
 ### `ProjectJoinRemove` — ✅ PROVED
 
 - Source backend: Apache Calcite
@@ -814,6 +822,17 @@ Note: SemiJoinRule.java defines multiple distinct rule variants as separate stat
 - Last updated: 2026-09-22T01:28:12.707767+00:00
 - Reason / notes: `before()` (a Project stacked on a Project) and `after()` (a single Project) are structurally distinct, so the proof is non-vacuous and matches ProjectMerge's actual shape of collapsing two projections into one. Both projection layers are fully uninterpreted functions (`Bottom`, `Top`), and `Top`/`bottomExpr` are correctly shared as the *same* symbols on both sides, so what is proved is the fully general term-identity `Project(Top(Bottom(c)), Source) == Project(Top(Bottom(c)), Project(Bottom(c), Source))` rather than any concrete predicate or fixed arity-dependent structure. None of the source rule's guards (convention match, correlation variables, bloat/force) are bag-semantic preconditions, so nothing logical is missing; the only limitation is single-column arity, which is inherent to this DSL (scans and `Project` are 1-column) and does not narrow the algebraic content, since the per-expression composition is already fully general. ```
 - QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 308708}, panicked=False
+
+### `ProjectReduceExpressions` — ✅ PROVED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/ReduceExpressionsRule.java
+
+Note: ReduceExpressionsRule.java defines multiple distinct rule variants as separate static nested classes. Implement specifically the `ProjectReduceExpressionsRule` variant (not CalcReduceExpressionsRule, FilterReduceExpressionsRule, JoinReduceExpressionsRule, WindowReduceExpressionsRule, which are separate rules ported under their own spec names).
+- Attempts used: 21
+- Last updated: 2026-10-14T08:59:46.055967+00:00
+- Reason / notes: This is a genuine, non-vacuous special case of the real rule: ProjectReduceExpressionsRule's simplification pass (RexSimplify.simplifyPreservingType) does in fact rewrite a project expression like FALSE AND P(x) to the literal FALSE, and QED can only prove Project([FALSE ∧ P]) ≡ Project([FALSE]) by using its actual three-valued AND semantics (had AND been modeled as uninterpreted, the proof would fail), so the result is not trivial. Nothing is illegitimately hard-coded: the predicate P is uninterpreted (no concrete "x > 5" baked in), the same Source symbol is correctly shared between before() and after(), and the source rule carries no side preconditions (no keys/NOT NULL) that the encoding silently drops — the matchNullability cast the real rule would add is semantically inert on a literal. The narrowing to a purely-logical constant is forced by QED's inability to evaluate concrete operator algebra (the full rule's constant folding of e.g. 1+2 is a fundamental QED limitation, not a missing DSL feature), and the SCOPE: PARTIAL line states the assumption accurately and specifically. ```
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 351667}, panicked=False
 
 ### `ProjectRemove` — ✅ PROVED
 
@@ -861,6 +880,15 @@ Note: SemiJoinRule.java defines multiple distinct rule variants as separate stat
 - Last updated: 2026-09-25T14:58:01.150197+00:00
 - Reason / notes: The encoding faithfully captures the INNER-join branch of Calcite's ProjectToSemiJoinRule: before() is a left-fields-only Project over L INNER-JOIN (pure GROUP BY on R.1) with the equi condition L.0 = group key, and after() is the identical Project over L SEMI-JOIN the pre-aggregate relation R on the remapped condition L.0 = R.1 — exactly the transformation perform() performs (semi-join input is aggregate.getInput(), i.e. the shared rawRight symbol, with the right join key correctly remapped to the group key's source column), and the structural preconditions the rule checks (isEqui, rightSet = all group keys) are correctly baked in by using a concrete EQUALS on exactly the group key. before() and after() are genuinely different plans (inner join over a 1-column aggregate vs. semi-join over a 2-column raw scan), so the proof is non-vacuous, and the join→semi-join equivalence holds for every instantiation including nulls. The narrowing (INNER only — the LEFT branch is a distinct join-elimination rewrite, single equi key, no aggregate calls, project modeled as a left-field permutation) is a real, specific, non-degenerate fragment of the rule and is honestly disclosed in the one-line SCOPE tag.
 - QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 77653875}, panicked=False
+
+### `ProjectWindowTranspose` — ✅ PROVED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/ProjectWindowTransposeRule.java
+- Attempts used: 8
+- Last updated: 2026-10-14T09:33:49.370956+00:00
+- Reason / notes: The encoding is a genuine, non-vacuous PARTIAL instance of the rule: it models a whole-partition, single-group window as an inner equi-join of the input with a group-by on the partition key (the maximal expressible form, since QED fundamentally has no Window/ordering semantics), bakes in exactly the rule's applicability precondition — column x referenced by neither the window functions (f(v), g(v)), the partition key, nor the top projection — and uses the same uninterpreted Top symbol with correctly shifted indices (0,1,4,5 → 0,1,3,4) to mirror the rule's index adjustment, so before() and after() genuinely differ and the proven pushdown identity is the real substance of the rewrite. The SCOPE: PARTIAL line accurately and specifically names the assumed restrictions (single partition group, whole-partition functions over one operand column, exactly one pruned passthrough column, top projection ignoring it), so the result is an honest, non-degenerate special case rather than an overclaimed full rule. ```
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 208574417}, panicked=False
 
 ### `PruneEmpty` — ✅ PROVED
 
@@ -920,6 +948,15 @@ Note: PruneEmptyRules.java defines multiple distinct rule variants as separate s
 - Reason / notes: The encoding faithfully mirrors the rule's semi-join branch: before() = SemiJoin(Project([P0,P1], X), Y, C) and after() = Project([P0,P1], SemiJoin(X, Y, C')), with the same uninterpreted P0, P1, C symbols shared across both patterns and the condition correctly "adjusted" — in both patterns C is evaluated over the values (P0(x0,x1), P1(x0,x1), y0, y1), exactly matching `adjustCondition`'s substitution of the projection expressions for the LHS references — and the two plans are structurally different, so the proof is non-vacuous; the SEMI join kind is correctly preserved on both sides (and unlike an inner join, the per-row existence correspondence keeps bags equal). The only restriction relative to the source — semi-joins only, whereas Calcite also fires on anti-joins — is specific and honestly declared in the `SCOPE: PARTIAL` line, and the fixed two-column arity is an inherent fixed-arity DSL artifact that constrains no uninterpreted logic; allowing C to reference the left (projected) columns, which Calcite itself forbids, only makes the proven claim stronger, not weaker.
 - QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 73750625}, panicked=False
 
+### `SemiJoinRemove` — ✅ PROVED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/SemiJoinRemoveRule.java
+- Attempts used: 9
+- Last updated: 2026-10-14T09:55:58.135184+00:00
+- Reason / notes: The encoding faithfully mirrors the source rule's transformation — replacing a SEMI join with its left input (`getInput(0)`), with correct join kinds and uninterpreted, shared condition/right symbols rather than hard-coded predicates — and `before()`/`after()` are structurally distinct, so the proof is non-vacuous. The PARTIAL scope is honest and forced by a genuine limitation: the source rule's soundness rests on the global "all SemiJoins are advisory" plan property, which has no form as a local bag-equivalence (the unconditioned claim L SEMI⋈ R ≡ L is actually false, since a row of L with no match in R is dropped), so the locally-guaranteed redundancy instance the porter encoded is the only QED-provable statement and is a genuine, non-degenerate special case.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 24322292}, panicked=False
+
 ### `SetOpToFilter` — ✅ PROVED
 
 - Source backend: Apache Calcite
@@ -928,6 +965,15 @@ Note: PruneEmptyRules.java defines multiple distinct rule variants as separate s
 - Last updated: 2026-09-22T23:25:33.293479+00:00
 - Reason / notes: The encoding exactly captures Calcite's rewrite for the single-source, two-filter case — `Union(DISTINCT, [σ_P1(S), σ_P2(S)])` → all-fields group-by (no agg calls) over `σ_(P1∨P2)(S)` — and is faithful in the details: `union(false, ...)` preserves the rule's `!setOp.all` precondition, and rendering `.distinct()` as a group-by-all-fields Aggregate is precisely what Calcite's `RelBuilder.distinct()` itself builds, so the right side matches the rule's actual output (single branch, no 1-input set op). The proof is non-vacuous (the two sides are structurally different and require genuine filter-over-set-op reasoning with properly uninterpreted P1/P2 over a shared single source, exactly the sharing the rule requires), and the declared `SCOPE: PARTIAL` is honest and specific — 2-input UNION DISTINCT over filters on one shared source is a genuine, non-degenerate special case of the general arity/multi-source/INTERSECT/MINUS rule.
 - QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 74560667}, panicked=False
+
+### `SubQueryRemove` — ✅ PROVED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/SubQueryRemoveRule.java
+- Attempts used: 87
+- Last updated: 2026-10-14T11:03:27.923521+00:00
+- Reason / notes: The encoding faithfully mirrors Calcite's uncorrelated-EXISTS-under-Filter (logic=TRUE) branch: before is `Filter(EXISTS(S), R)` and after is `Project([0], InnerJoin(true, R, GroupBy(true, Project(true, S))))`, which matches the original's `push(S); project(true as i); aggregate(groupKey(0)); join(INNER, true); filter(true→noop); project([0])` sequence. The single-column-R restriction (imposed by `RelRN.scan` producing one column) and the filter-condition-is-purely-EXISTS restriction are both honestly stated in the SCOPE line, and the proof is non-vacuous since the two sides have structurally different shapes (filter-with-subquery vs join-with-aggregate).
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 23822333}, panicked=False
 
 ### `UnionEliminator` — ✅ PROVED
 
@@ -965,6 +1011,15 @@ Note: PruneEmptyRules.java defines multiple distinct rule variants as separate s
 - Reason / notes: The encoding matches the rule's exact shape: `before()` is a UNION DISTINCT (`union(false)`) over two independent uninterpreted inputs, and `after()` is an Aggregate grouping by all output columns with zero aggregate calls over the same inputs with `union(true)` — precisely what Calcite's `relBuilder.distinct()` produces — with the shared "T" type being a genuine union precondition rather than an over-constraint, no uniqueness assumptions, and no triviality since the two sides are structurally different. The only restrictions are the fixed two-input arity and single-column inputs, both forced by the DSL's construction (fixed-arity `union`, single-column `Scan`) and honestly flagged in the SCOPE line as a PARTIAL special case. The result is a genuine, non-degenerate instance of the rule: the dedup-by-aggregate rewrite over arbitrary (possibly duplicate) bags of the same type, which is the rule's full semantic content at 2 inputs × 1 column. ```
 - QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 65529417}, panicked=False
 
+### `UnionToValues` — ✅ PROVED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/UnionToValuesRule.java
+- Attempts used: 24
+- Last updated: 2026-10-14T10:25:12.878717+00:00
+- Reason / notes: `before()` (a 3-way UNION ALL of three constant `Values` nodes) and `after()` (a single `Values`) are structurally different plans, and the deliberately duplicated `(3,4)` row makes the proof a genuine check of bag-multiplicity preservation under UNION ALL — precisely the semantic content of the source rule's `all=true` branch — with identical row types on all inputs satisfying the rule's `equalsSansFieldNamesAndNullability` precondition. The hard-coded tuples, arity, and column count are forced rather than lazy over-constraint: the DSL has no uninterpreted constants or literal-row symbols for `Values` (uninterpreted symbols are only predicates/projections/aggregate ops/scan tables), so this concretization is the only encodable form and the PARTIAL tag discloses it honestly and specifically. The unmodeled `all=false` distinct variant is an omitted sibling instance, not a soundness hole in this proof, and the encoding is not degenerate (dropping one copy of `(3,4)` would have made it unprovable).
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 335917}, panicked=False
+
 ### `UnnestDecorrelate` — ✅ PROVED
 
 - Source backend: Apache Calcite
@@ -982,6 +1037,14 @@ Note: PruneEmptyRules.java defines multiple distinct rule variants as separate s
 - Last updated: 2026-09-23T13:58:21.384082+00:00
 - Reason / notes: The encoding is a genuine, non-vacuous trace of the rule's PROJECT config — Project([c,a]) over the 2-row Values (1,2,3),(4,5,6) folds to the concrete Values (3,1),(6,4) with the tuples correctly recomputed, the Project node eliminated, and non-empty Values precondition satisfied — so before() and after() are structurally different and the proof is not vacuous. The heavy concreteness (fixed tuples, fixed projection, no filter) is intrinsic rather than a symbol-sharing or under-generalization error: ValuesReduce is a constant-folding rule whose inputs and outputs are literal data that QED cannot stand in for with uninterpreted symbols, so no uninterpreted/general form is expressible, and the absence of the filter half is visible in before() and covered by the honest, specific PARTIAL scope tag (input-reference-only project). A stronger instance (e.g. the doc's `a - b` / `a + b > 4` example) would require literal/comparison builders the DSL lacks, but the proven instance is a real, correctly-computed special case rather than a degenerate identity. ```
 - QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 73364667}, panicked=False
+
+### `WindowReduceExpressions` — ✅ PROVED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/ReduceExpressionsRule.java
+- Attempts used: 0
+- Last updated: 2026-10-14T15:59:53.922881+00:00
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 91459}, panicked=False
 
 ### `AggregateCaseToFilter` — ⏭️ SKIPPED
 
@@ -1047,57 +1110,57 @@ Note: MeasureRules.java defines multiple distinct rule variants as separate stat
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateProjectStarTableRule.java
-- Attempts used: 6
-- Last updated: 2026-09-23T04:05:17.942440+00:00
-- Reason / notes: The rule's soundness depends on two things QED structurally cannot capture: (1) its "after" side is a scan of a *different* materialized table chosen at match time from the planner's external lattice state, and the only constraint that would make that substitution valid — "materialization = group-by/aggregate over the star table" — is an inter-table definitional relation, while QED's per-table "guaranteed" constraints (per JSONSerializer) are row-wise predicates over a single table's own columns; even the no-rollup exact-match special case degenerates into swapping one uninterpreted scan for an unrelated uninterpreted scan, which no constraint in the format can link. (2) The roll-up variant (e.g. rolling COUNT(*) up as SUM over a coarser group set) requires additivity/regrouping algebra for specific aggregate functions, which QED explicitly does not model for uninterpreted aggregate operators — and this is a prover-level limitation no DSL extension can fix, so the porter's UNSUPPORTED conclusion is correct. ```
+- Attempts used: 11
+- Last updated: 2026-10-13T20:12:45.576279+00:00
+- Reason / notes: The rule's `after` plan swaps the base-table scan for a scan of a *different* pre-aggregated materialized table chosen from the external planner's lattice, and only when such a materialization exists — so its validity rests on a cross-table catalog invariant (the materialized table's rows equal the base table's pre-aggregation at the given grain) plus conditional planner state, not on pure bag semantics of the shown operators. RuleScript can only introduce scans as independent uninterpreted relations and attach per-table first-order `guaranteed` check constraints, with no operator or constraint form that relates two distinct scans via an aggregate-equivalence, so QED treats the base and materialized scans as unrelated and would refute rather than prove the equivalence. This is a genuine QED/DSL limitation (bespoke materialization semantics + an unexpressible cross-table relational premise), not a symbol-sharing or encoding slip the porter failed to diagnose. ```
 
 ### `AggregateReduceFunctions` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateReduceFunctionsRule.java
-- Attempts used: 34
-- Last updated: 2026-09-25T09:13:16.383676+00:00
-- Reason / notes: AggregateReduceFunctions depends on aggregate algebraic identities (e.g. AVG(x) = SUM(x) / COUNT(x)) that QED cannot know, since it treats each aggregate function and scalar operator as an independent uninterpreted symbol with only bag-equality reasoning over a single aggregate's input. Thus no faithful encoding of the rule, including its simplest branch, can be proved.
+- Attempts used: 27
+- Last updated: 2026-10-13T20:18:04.369766+00:00
+- Reason / notes: Every non-degenerate branch of AggregateReduceFunctionsRule is an algebraic identity between distinct aggregate functions (AVG=SUM/COUNT, SUM vs SUM0/COUNT, the STDDEV/VAR/COVAR/REGR_SXX/SYY formulas over SUM/COUNT/REGR_COUNT, and MAX/MIN/AVG(x)=x when x is a group key), while QED treats each named aggregate as an uninterpreted symbol and has no axioms relating one aggregate's output to another's or to scalar arithmetic. The porter's empirical minimal test — the easiest branch, MAX(x) with x as the sole group key reduced to a call-free aggregate plus project — returned provable:false, which is exactly what the semantics predict, since no instantiation constraint forces an uninterpreted aggregate over a group-constant bag to return that constant. There is no narrower non-trivial special case to encode: any branch that actually rewrites an aggregate call differs in function names between before() and after(), so it is unprovable by construction, not by encoding. ```
 
 ### `AggregateReduceFunctionsOnGroupKeys` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateReduceFunctionsOnGroupKeysRule.java
-- Attempts used: 25
-- Last updated: 2026-09-25T09:24:55.173006+00:00
-- Reason / notes: The rule's only semantic premise — that MAX/MIN/AVG/ANY_VALUE (or a `SqlConstantValueAggFunction`) applied to an argument that is constant within each group yields that constant (or its declared constant under a NULL-preserving CASE) — is an algebraic identity about specific aggregate functions, while QED models every aggregate call as an uninterpreted higher-order function of its input bag (qed.pdf §6.2), so for any non-vacuous encoding there exists an instantiation of the aggregate symbol under which before and after differ. No narrower special case survives: any variant provable without that premise must retain the aggregate call, reducing to a trivial identity rather than the call-elimination this rule is about, and the gap cannot be closed with `extend_dsl_file` since the uninterpreted treatment of aggregates lives in the QED prover itself, which is off-limits.
+- Attempts used: 24
+- Last updated: 2026-10-13T20:23:01.777723+00:00
+- Reason / notes: The only substantive transformation in this rule is replacing aggregate calls (MAX/MIN/AVG/ANY_VALUE on a group key, or constant-value aggs like STDDEV_POP→0) with a reference to the group key itself — every branch is an algebraic identity about what a specific named aggregate returns, and QED encodes each aggregate as an uninterpreted bag-to-scalar function with no axioms relating its output to the group-constant input or to constants. The porter's minimal empirical test (MAX(x) over GROUP BY x → projection over the call-free aggregate) returned a clean, complete provable:false, which is exactly what the semantics predict for even the simplest branch, so the limitation is in the prover's model of aggregates, not in the DSL or in a symbol-sharing/encoding bug — and since every branch of the rule rests on this same unknown aggregate algebra, no narrower special case is provable either. ```
 
 ### `AggregateRemoveDuplicateKeys` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateRemoveDuplicateKeysRule.java
-- Attempts used: 23
-- Last updated: 2026-09-25T09:34:31.903994+00:00
-- Reason / notes: The rewrite's soundness rests on (i) a schema-level functional dependency (the dropped key being determined by the retained keys) which is a premise, not a universal law, and, decisively, (ii) the after() side reintroducing the dropped column via an ANY_VALUE aggregate whose correctness requires that call return the group's (constant) value; QED models every aggregate call as an uninterpreted function of its input bag with no axiom tying its output to a bag element, so it cannot prove ANY_VALUE(col) = col even when a key constraint supplies the FD, and no RelRN/RexRN/JSONSerializer edit can add such a prover axiom — squarely the documented "aggregate algebraic identity QED can't know" / "uninterpreted-function internal semantics" limitation.
+- Attempts used: 22
+- Last updated: 2026-10-13T20:32:00.508437+00:00
+- Reason / notes: The rule's essential step replaces a dropped group key with an ANY_VALUE aggregate call over the coarser grouping, so the proof requires ANY_VALUE(bag) to equal the unique key value on that group — but per the reference and the DSL source (aggregate ops are introduced only via uninterpreted genericAggregateOp), QED treats aggregates as uninterpreted with no algebra, so it can neither force that equality nor (via extend_dsl_file) model ANY_VALUE's constant-group identity. This is a fundamental QED limitation, not a missing DSL capability or an encoding bug, so no genuine RuleScript encoding of this rewrite (full or key-recovery special case) can be proved. ```
 
 ### `AggregateRemoveLiteralAgg` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateRemoveLiteralAggRule.java
-- Attempts used: 23
-- Last updated: 2026-09-25T09:38:45.242753+00:00
-- Reason / notes: The rule's soundness rests entirely on the algebraic identity LITERAL_AGG(c) ≡ c — i.e., the call must evaluate to the constant operand for every group (including the whole-bag group in the no-key case where the rule substitutes COUNT to keep a valid aggregate) — but QED axiomatizes every aggregate call as an uninterpreted bag-functional whose only provable property is that identical calls over bag-equal inputs agree. To the SMT decision procedure, the before-side LITERAL_AGG output column and the after-side projected constant are unrelated terms, so a counter-instantiation (LIT(G) ≠ c for some group) is always admissible, and no RuleScript encoding — constant-valued input column, symbol sharing, empty operand list — can teach the fixed prover a specific aggregate's constant-returning value, which makes this a genuine QED limitation (an aggregate algebraic identity it cannot know) rather than a missing DSL capability. ```
+- Attempts used: 22
+- Last updated: 2026-10-13T20:38:12.887071+00:00
+- Reason / notes: The rule's soundness rests entirely on Calcite's internal semantics that `LITERAL_AGG(lit)` returns `lit` for every group, which is a specific algebraic property of one backend aggregate function; QED's model treats every aggregate call as an uninterpreted function of its group's input bag, so the before-side aggregate column is an unconstrained symbol that no amount of structural manipulation (group-key shape, arity, input, or a DSL builder addition) can pin to the constant the after-side project emits. Since the gap is in the prover's uninterpreted-aggregate semantics — not a missing operator or shape in the core language — no encoding, narrower or full, can state this rule without smuggling in exactly the identity QED cannot know, so UNSUPPORTED is the correct conclusion.
 
 ### `AggregateStarTable` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateStarTableRule.java
-- Attempts used: 9
-- Last updated: 2026-09-23T04:53:04.543952+00:00
-- Reason / notes: This rule is a materialization substitution, not a relational identity: it replaces Aggregate(Scan(starTable)) with a Scan of a *separate* pre-aggregated table (optionally topped by a roll-up Aggregate or a reordering Project), and its soundness rests entirely on the planner lattice guaranteeing that the pre-aggregated table's rows equal the aggregation of the star table — a cross-table content invariant QED cannot express, since each scan is an independent uninterpreted relation whose schema carries only types, keys, and per-row guaranteed predicates (no builder or JSON field can relate one table's contents to another's, and the immutable prover has no such mechanism). The roll-up branch independently requires concrete SUM/COUNT roll-up aggregate algebra ("sum of sums = sum") that QED explicitly does not model for uninterpreted aggregate functions. The porter's diagnosis is correct and confirmed empirically: the two tables must be distinct symbols in any faithful encoding, the hint's fixable causes (name mismatch, missing composition, key/flag) genuinely don't apply, and the complete, non-timed-out `provable: false` run shows the gap is fundamental — and no narrower non-vacuous special case exists because the aggregate→scan-of-different-table substitution is the rule itself. ```
+- Attempts used: 7
+- Last updated: 2026-10-13T20:36:40.688667+00:00
+- Reason / notes: Every branch of this rule (exact match, roll-up, or measure reordering) rewrites `Aggregate(base)` into a plan over a *different* scan whose equality to the base table's aggregation is an external lattice/catalog invariant, not an operator semantics — and QED's verdict is an *unconditional* bag-equivalence over independently-instantiated uninterpreted relations, whose only admitted side information is per-table keys and per-table first-order `guaranteed` check constraints, so the second-order premise "materialized table = aggregation of base table" cannot be expressed or accepted (extending `RelRN`/`JSONSerializer` can't help, since that premise would require semantics only the unmodifiable Rust prover could provide). Moreover, the roll-up branch additionally depends on aggregate roll-up algebra (e.g. sum-of-sums), which QED explicitly does not model, so no narrower sub-case of the rule is provable without the invariant — the porter's UNSUPPORTED verdict is correct.
 
 ### `CalcSplit` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/CalcSplitRule.java
-- Attempts used: 27
-- Last updated: 2026-09-25T10:17:05.087515+00:00
-- Reason / notes: The rule's before side is a single fused Calc node, and the QED prover's JSON/Q-expression contract — with the unchangeable Rust translator as the final arbiter — has a closed set of relational nodes (scan, values, filter, project, join, correlate, union/intersect/except, group, sort) with no fused-Calc node and no uninterpreted relation-valued operator slot; a fused Calc is by definition project∘filter over bag semantics, so any faithful encoding of the before side yields a tree structurally identical to the after side, making the only provable version a vacuous identity. extend_dsl_file cannot close the gap: emitting a new "calc" node kind would be rejected by the unchangeable Rust prover, and modeling Calc as project∘filter in the Java layer is by construction the after pattern itself, so there is no non-vacuous encoding to attempt. ```
+- Attempts used: 24
+- Last updated: 2026-10-13T20:56:00.453689+00:00
+- Reason / notes: CalcSplitRule's correctness rests purely on the definitional identity that a fused Calc operator equals its Filter-then-Project decomposition; QED reasons only about relational-algebraic equivalences between plans built from its core operators, so a "fused" Calc is either (a) encoded as filter().project() in the DSL, making before() and after() structurally identical (a vacuous tautology), or (b) introduced as a new uninterpreted QOp for which QED has no axioms relating it to the Filter∘Project composition (unprovable). No DSL extension can close this gap because any serialization of the fused form either collapses to the split form (tautology) or remains opaque to the prover (uninterpretable), making this a genuine limitation of what a bag-semantic SMT-based equivalence checker can establish for operator-definition identities. ```
 
 ### `CalcToWindow` — ⏭️ SKIPPED
 
@@ -1105,65 +1168,65 @@ Note: MeasureRules.java defines multiple distinct rule variants as separate stat
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/ProjectToWindowRule.java
 
 Note: ProjectToWindowRule.java defines multiple distinct rule variants as separate static nested classes. Implement specifically the `CalcToWindowRule` variant (not ProjectToLogicalProjectAndWindowRule, which are separate rules ported under their own spec names).
-- Attempts used: 61
-- Last updated: 2026-09-25T10:39:01.664534+00:00
-- Reason / notes: The rule's entire semantic content is the evaluation semantics of the window operator (a Calc/Project containing a `RexOver` being equal to a pipeline containing a `LogicalWindow`), and window results are inherently order- and frame-dependent (partition keys, collation, ROWS/RANGE frames, functions like LAG/LEAD/ROW_NUMBER), whereas QED's bag-semantic SMT model has no notion of `Window` or any list/ordering operator and the Rust prover is the fixed, unmodifiable arbiter. Extending the DSL (a `RexOver` scalar builder, a `Window` rel builder, a `JSONSerializer` case) could at best emit a node kind QED has no semantics for, and encoding the window as an uninterpreted symbol or as a join-with-group-aggregate reduction would make the claim either vacuous (both sides sharing one opaque symbol) or a tautology, so the porter's UNSUPPORTED conclusion is correct.
+- Attempts used: 21
+- Last updated: 2026-10-14T04:20:33.492692+00:00
+- Reason / notes: CalcToWindow's before pattern necessarily contains a RexOver window expression and its after pattern necessarily produces a LogicalWindow node, and QED's bag-semantic translation has no Window operator — a stated limitation, since window values depend on ordering/frames within a partition and have no bag-semantic meaning. No uninterpreted-symbol workaround captures the rule's actual content: a window function's value for a row depends on the whole partition, not the row, so row-local uninterpreted functions misrepresent the before side; modeling the entire window as an uninterpreted relation symbol reduces the rewrite to a tautological projection reshuffle (and the prover's fixed JSON/Q-expression format has no window construct for a DSL extension to target, e.g. JSONSerializer throws on LogicalWindow); and the group-by substitute emits one row per partition instead of the one row per input row this cardinality-preserving decomposition requires. ```
 
 ### `CoerceInputs` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/CoerceInputsRule.java
-- Attempts used: 16
-- Last updated: 2026-09-23T06:00:21.425141+00:00
-- Reason / notes: The rule's only non-trivial content is inserting per-input cross-type casts, which in any faithful model are value-changing transformations, so QED must treat the cast as a non-identity uninterpreted function and correctly cannot prove `consumer(cast(x)) ≡ consumer(x)` under the consumer's uninterpreted predicates. Its soundness additionally rests on the consumer's `getExpectedInputRowType(i)` contract — a type-level side condition on a backend operator that the pattern language has no way to express. Adding a cast builder via `extend_dsl_file` would not close the gap: the only value-transparent instance (input type already equal, rename-only) is either a no-op the rule wouldn't perform or inexpressible as a rename in the core language, so no faithful, non-vacuous encoding exists for QED to prove. ```
+- Attempts used: 39
+- Last updated: 2026-10-14T04:52:13.598524+00:00
+- Reason / notes: QED serializes every scalar operator — including any proposed "cast" symbol — as an uninterpreted function with no identity/transparency axiom (paper §6.2; RelType.java translates all virtual types to plain integers), and CoerceInputsRule is sound precisely because coercion casts preserve values while the consumer reads the coerced column, so any encoding where the cast output is load-bearing is unprovable, while any provable encoding must leave the cast column unread, at which point the equivalence holds for *any* uninterpreted function and reduces to trivial column-independence rather than coercion. The rule's very definition also depends on backend-specific `getExpectedInputRowType`/`createCastRel` semantics QED cannot see, and since the Rust prover is the fixed arbiter, no DSL extension could supply the missing cast-identity axiom.
 
 ### `CombineSimpleEquivalence` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/CombineSimpleEquivalenceRule.java
-- Attempts used: 6
-- Last updated: 2026-09-25T10:25:44.673907+00:00
-- Reason / notes: The rule's soundness rests entirely on the Spool's producer→consumer binding — a sibling branch's `LogicalTableScan` must denote exactly the bag the `TableSpool` materialized — and QED's model cannot express that: its input format defines only independent base tables (with at most per-row scalar "guaranteed" constraints) over a fixed operator set (scan/values/filter/project/join/correlate/group/union/intersect/except/sort), with no let/define/spool operator that could tie an auxiliary table to a sub-expression's output. Since the QED prover itself is the unmodifiable arbiter and has no such semantics, no `RelRN`/`JSONSerializer` extension can close the gap — the consumer scan would remain an arbitrary table unrelated to the producer's output, so before/after cannot be shown bag-equivalent even in the narrowest special case (shared component = a plain scan, spool table still independent of the source table).
+- Attempts used: 21
+- Last updated: 2026-10-14T00:26:57.970237+00:00
+- Reason / notes: The rewrite introduces a new spool table and then consumes it, but QED treats table scans as independent input bags with no let/view/spool binding tying a table's contents to the subplan that materializes it. Therefore the required materialization identity is outside QED's pure bag-semantics model, not just a missing builder or symbol-sharing bug.
 
 ### `CorrelateUncollectOuter` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/CorrelateUncollectOuterRule.java
-- Attempts used: 30
-- Last updated: 2026-09-25T18:26:50.445063+00:00
-- Reason / notes: Manually investigated by Claude (not the automated porter/verifier LLM loop, which exhausted all 5 rounds on repeated context-length crashes without ever reaching a try_rule call). Read the source (CorrelateUncollectOuterRule.java): it moves the outer-join (null-extension-on-empty-array) semantics of a Correlate(joinType=LEFT) over an Uncollect down into the Uncollect operator's own isOuter flag, then relaxes the Correlate to joinType=INNER (since Uncollect(isOuter=true) now unconditionally guarantees at least one output row per input row, so INNER vs LEFT no longer changes cardinality). This requires representing Uncollect (array/multiset unnesting, e.g. UNNEST) as a relational operator with a configurable outer/empty-array behavior. Checked RuleScript's entire DSL (RelRN.java, RexRN.java, JSONSerializer.java/JSONDeserializer.java) and QED's prover core (qed-prover/src/pipeline/relation.rs's Relation enum: Singleton, Scan, Filter, Project, Join, Union, Intersect, Except, Distinct, Values, Sort, Aggregate, Correlate) — there is no array/multiset/Uncollect concept anywhere in either the DSL or the prover's data model. This is a fundamental representational gap, not a missing clever encoding: the operator this rule rewrites simply has no counterpart to construct in RuleScript at all, so there is no candidate encoding to even attempt.
+- Attempts used: 64
+- Last updated: 2026-10-14T05:09:33.600605+00:00
+- Reason / notes: The claim holds: the rewrite's only soundness argument is that Uncollect(isOuter=true) over the single-row LogicalValues guarantees at least one (possibly NULL-filled) right row per left row, which makes the LEFT correlate behave as an INNER one — this is Uncollect's list-expansion (UNNEST) semantics, which QED does not model, and even if the Java side were extended to emit an Uncollect node, QED could at best treat it as uninterpreted and would then correctly refute the identity on a left row with an empty list. The encoding gap is real and not closable by extend_dsl_file: RelRN exposes no Uncollect builder, JSONSerializer's exhaustive Rel switch (scan/values/filter/project/join/correlate/group/union/intersect/except/sort) has no uncollect case and throws on LogicalUncollect, and the fixed prover's JSON vocabulary cannot carry one. Nor is there a fallback encoding or provable special case: the "≥1 row per left row" precondition cannot be stated in the DSL/JSON format (there is no non-emptiness assertion, and row-level "guaranteed" constraints are vacuous on empty relations), so any Uncollect-free encoding of LEFT→INNER correlate is simply invalid and would be refuted.
 
 ### `ExchangeRemoveConstantKeys` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/ExchangeRemoveConstantKeysRule.java
-- Attempts used: 6
-- Last updated: 2026-09-25T10:43:14.784849+00:00
-- Reason / notes: The rule only rewrites the physical properties of Exchange/SortExchange (hash-distribution keys and collation fields), leaving the bag of rows untouched, and the core language exposes no Exchange/SortExchange — or even Sort — operator at all. More fundamentally, QED models only bag semantics with no notion of distribution or row ordering, so the rule's actual content (constant keys degenerating hash placement to SINGLETON, constant collation fields being vacuous) is inexpressible, and its precondition (the constantMap from pulled-up predicates) is a metadata inference QED cannot perform between uninterpreted symbols. Extending the DSL couldn't help, since the gap lies in QED's model itself (the unmodifiable arbiter has no distribution/ordering semantics to check against), so any before/after encoding collapses to the vacuous R = R, confirming the porter's UNSUPPORTED call.
+- Attempts used: 13
+- Last updated: 2026-10-14T00:20:09.353811+00:00
+- Reason / notes: The rule's entire correctness content is physical placement — hashing on a constant-valued key puts every row in one bucket, so that key (or the whole Exchange, reduced to SINGLETON) can be dropped — and QED decides equivalence purely under bag semantics, in which row placement across nodes is invisible: before and after yield the identical bag for any input, and no axiom relating hash(K) to hash(K∖constants) or to the identity exists or could be expressed in the prover's fragment. The Exchange operator is also absent from both the DSL and the serializer/prover (an uninterpreted, axiom-free symbol if added — the same barrier confirmed for the Sort precedents EliminateSorts and CapSortFetchWithLimit), and stripping the physical semantics leaves only the trivial identity rewrite, so no genuine non-trivial provable special case remains. ```
 
 ### `FilterDateRange` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/DateRangeRules.java
-- Attempts used: 21
-- Last updated: 2026-09-25T10:52:03.195032+00:00
-- Reason / notes: FilterDateRange's soundness rests on the calendar rounding semantics of EXTRACT/FLOOR/CEIL — that `extract(unit, ts) = c` holds iff `ts` falls in a concrete boundary interval — but QED models those date-time functions only as uninterpreted function symbols over bag semantics, and the core language offers no way to introduce the date literals or any axioms/defined semantics tying an extraction function to interval bounds. For an uninterpreted `extract`, the implication `extract(x) = c ⟹ lo <= x < hi` fails under some instantiations, so SMT will always produce a countermodel; a "provable" encoding would have to equate the two sides via the same independent symbol and would no longer be this rule. This matches the "operator's bespoke internal semantics" limitation, not an encoding bug — note the porter also never actually attempted an encoding (the transcript ends in a context-length API error). ```
+- Attempts used: 23
+- Last updated: 2026-10-14T00:32:40.603273+00:00
+- Reason / notes: FilterDateRange's soundness rests on the concrete calendar semantics of EXTRACT/FLOOR/CEIL and date literals — the claim that {t | EXTRACT(YEAR, t) = 1997} equals {t | t BETWEEN '1997-01-01' AND '1997-12-31'} holds only for that specific operator and those specific computed constants, not for arbitrary uninterpreted functions, so QED (which models all scalar operators/predicates as uninterpreted symbols and cannot reason about predicate entailment between independent symbols or a backend operator's bespoke internal semantics) must refute the faithful two-sided encoding. The transcript's SMT result (provable: false, complete_fragment: true, no timeout) is a genuine decision, not an incompleteness artifact, and the only encoding QED could accept would reuse one predicate symbol on both sides — a tautology that is not the rule. The gap is date/calendar theory in the unmodifiable Rust prover, not a missing DSL builder, so extend_dsl_file cannot close it and the UNSUPPORTED conclusion is correct. ```
 
 ### `FilterHilbert` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/SpatialRules.java
-- Attempts used: 26
-- Last updated: 2026-09-25T11:07:42.474798+00:00
-- Reason / notes: FilterHilbert's soundness is exactly the concrete spatial/Hilbert-curve fact — that every point within distance d of a constant geometry has a HilbertCurve2D(8) index inside the BETWEEN ranges computed from the buffered envelope (plus the ST_DWithin degenerate cases: negative distance ⟹ FALSE, zero distance ⟹ equality) — and in RuleScript ST_DWithin, HILBERT, ST_Point and the range predicate can only be introduced as independent uninterpreted symbols, with no arithmetic, ordering, or axiom mechanism in the core language that could express the coverage implication "DWithin(g,p,d) ∧ h=HILBERT(lon,lat) ⟹ h∈ranges". That implication is refutable by a trivial SMT countermodel (make the range predicate false on a row where DWithin holds), and the only DSL extension that would make it provable is asserting the rule's own geometric claim as an axiom, which would be circular rather than a proof — this is precisely the "backend operator's bespoke internal semantics / no predicate inference between independent symbols" limitation, so the porter's UNSUPPORTED verdict is correct. ```
+- Attempts used: 22
+- Last updated: 2026-10-14T00:41:18.604388+00:00
+- Reason / notes: The rule's soundness is exactly the entailment "under h = HILBERT(lon, lat), ST_DWithin/ST_Contains(g, ST_Point(lon, lat), d) ⇒ (h BETWEEN c1 AND c2 OR ...)", which holds only because of Calcite's Java-side knowledge of HilbertCurve2D's index ranges and ST_Buffer geometry — none of which appear in the relational expression. In any RuleScript encoding, ST_DWithin, ST_Point, HILBERT, ST_Buffer, and the spatial predicate are all independent uninterpreted symbols to QED, so the added range conjunct is not validly implied for all instantiations (SMT will model lon/lat with the equality h = HILBERT(lon,lat) true while the spatial predicate holds and h falls outside the range), making the faithful encoding correctly unprovable. No DSL extension can close this because QED's fixed prover cannot be taught bespoke spatial/Hilbert-curve operator semantics (and the prover itself must not be modified), and every sub-case (zero-distance → equality, negative-distance → false) rests on the same internal operator semantics.
 
 ### `FilterSampleTranspose` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/FilterSampleTransposeRule.java
-- Attempts used: 10
-- Last updated: 2026-09-23T06:56:46.529856+00:00
-- Reason / notes: Sample has no deterministic bag semantics for QED to reason about — Bernoulli sampling is per-row probabilistic and system sampling depends on row positions — and the Rust prover, which cannot be modified, has no model of the operator (qed.pdf explicitly lists Sample among operators with no bag-semantic meaning; even the Java-side JSONSerializer has no LogicalSample case, so a DSL extension could not close the gap). The only encodable stand-in, an uninterpreted per-row predicate, reduces the rule to Filter(P,Filter(S,R)) = Filter(S,Filter(P,R)), i.e. trivial conjunctive filter commutativity — a different theorem, not a special case of the transpose, since the rule's content *is* the Sample operator and every faithful instance must contain it. Hence there is no genuine non-vacuous special case for QED to prove, and the UNSUPPORTED conclusion stands. ```
+- Attempts used: 9
+- Last updated: 2026-10-14T00:37:28.921716+00:00
+- Reason / notes: The validity of Filter(c, Sample(R)) ⟹ Sample(Filter(c, R)) rests on sampling being a per-row, probabilistic selection whose keep/drop decision is independent of the row's attributes — QED is a deterministic bag-semantics decision procedure whose own reference lists Sample (with Sort/Limit/Offset/Window) as having no bag-semantic meaning, and whose unchangeable Rust prover has no sample/probability concept. The JSON format has no Sample node and no DSL parameter (rate/seed) to carry, so no `extend_dsl_file` can close the gap — the only encodable surrogate, Sample-as-uninterpreted-row-predicate, would merely prove trivial filter commutativity (Filter(c, Filter(s, R)) ⟹ Filter(s, Filter(c, R))) for two arbitrary filters, which says nothing about what makes an operator a sampler, so the porter's UNSUPPORTED conclusion is correct. ```
 
 ### `FilterSortMeasure` — ⏭️ SKIPPED
 
@@ -1171,146 +1234,129 @@ Note: ProjectToWindowRule.java defines multiple distinct rule variants as separa
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/MeasureRules.java
 
 Note: MeasureRules.java defines multiple distinct rule variants as separate static nested classes. Implement specifically the `FilterSortMeasureRule` variant (not AggregateMeasureRule, AggregateMeasure2Rule, ProjectMeasureRule, ProjectSortMeasureRule, which are separate rules ported under their own spec names).
-- Attempts used: 28
-- Last updated: 2026-09-25T11:35:40.765143+00:00
-- Reason / notes: The rule's match shape (Filter over Sort) and its documented M2V push-down both rest on row-ordering semantics — filtering preserving the sort's collation order — which QED fundamentally does not model (Sort/Limit carry no bag-semantic meaning, and the DSL core language has no sort operator at all), so the rule's real content could never be verified. Compounding this, the code as given performs no rewrite whatsoever: the guard `condition.equals(filter.getCondition())` is a reflexive self-comparison that is always true, so `onMatch` always returns early, and even the dead body would merely rebuild the identical Filter-over-Sort plan. There is therefore no non-vacuous, provable rewrite to encode.
+- Attempts used: 8
+- Last updated: 2026-10-14T03:15:30.317439+00:00
+- Reason / notes: As written, Calcite's `FilterSortMeasureRule` is dead code: `onMatch` assigns `condition = filter.getCondition()` and then guards on `condition.equals(filter.getCondition())` — a reflexive self-comparison on the same object that is always true, so it always returns; even the unreachable branch merely rebuilds the identical `Filter(cond, Sort(R))` plan, so there is no substantive transformation to verify. The rule's matching shape (Filter over Sort, in service of the order-dependent M2V-pushdown intent seen in the sibling `ProjectSortMeasureRule`) fundamentally requires row-order semantics, which QED explicitly does not model (Sort/Limit have no bag-semantic meaning) and RuleScript's core language exposes no Sort operator — dropping the Sort yields only the vacuous identity `Filter(p, R) ≡ Filter(p, R)`, which certifies nothing.
 
 ### `FilterSortTranspose` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/FilterSortTransposeRule.java
 - Attempts used: 7
-- Last updated: 2026-09-25T11:30:41.674098+00:00
-- Reason / notes: FilterSortTranspose's entire correctness content is the ordering claim that filtering preserves a relation's collation, but QED decides equivalence only under bag semantics where Sort/Order By carry no meaning, so both sides of the rewrite collapse to the identical bag Filter(cond, R) and any provable encoding would be a vacuous tautology with no bearing on the actual rule. The gap is in the prover itself (no list/ordering semantics for Sort), not merely a missing builder in RelRN, so neither a new encoding nor a DSL extension can capture the rule's non-trivial content. ```
+- Last updated: 2026-10-14T03:10:31.634758+00:00
+- Reason / notes: The rule's entire correctness content is that filtering a sorted stream preserves relative row order — a list/ordering property — and QED only decides bag-semantic equivalence, under which `Filter(p, Sort(R))` and `Sort(Filter(p, R))` both reduce to the identical bag {r in R | p(r)}, leaving zero non-trivial content to prove. Even if a Sort builder were added via `extend_dsl_file` (the JSON serializer can already carry `LogicalSort`), the prover would treat Sort as having no bag meaning and certify the tautology Filter(p,R) ≡ Filter(p,R), so the gap is a fundamental QED limitation (Sort/Limit/Offset/Window/Sample excluded from scope), not a missing DSL capability — the porter's UNSUPPORTED conclusion and reasoning are correct. ```
 
 ### `FilterTableScan` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/FilterTableScanRule.java
-- Attempts used: 9
-- Last updated: 2026-09-22T18:36:24.001981+00:00
-- Reason / notes: FilterTableScanRule is a purely physical pushdown (Filter(TableScan) → BindableTableScan) whose before and after differ only in representation — the BindableTableScan's output rows are *defined* by the backend FilterableTable/BindableTableScan contract to equal the logical Filter-over-Scan, so there is no logical algebraic identity for QED to verify. The bag-semantic core language has no physical/native-filtered-scan operator, so the after-side can only be encoded as the textually identical Filter(P,Scan) (a tautology that proves nothing about the rewrite) or as an uninterpreted operator to which the fixed QED prover has no axiom linking it back to Filter(P,Scan) — and this gap is a genuine limitation of QED's logical model, not a missing DSL builder that `extend_dsl_file` could close, since the physical operator has no distinct logical identity at all. ```
+- Attempts used: 6
+- Last updated: 2026-10-14T03:16:20.386687+00:00
+- Reason / notes: FilterTableScanRule is a physical push-down whose correctness rests entirely on the FilterableTable/BindableTableScan execution contract (a scan configured with predicate P returns exactly the rows of Filter(P, T)) — a backend operator's bespoke internal semantics that QED cannot model: under bag semantics the "after" node is definitionally identical to the before side, and QED's fixed Q-expression language has no predicate-parameterized scan operator. QED's table model is an uninterpreted bag with only PrimaryKey/References/Checks row constraints, none of which can express "table T2 is the bag-filter of T", so no encoding (even via a DSL extension, since the prover's operator set is fixed) can distinguish the pushed-scan from the plain filter; the only encodable variants degenerate into a tautology or into constraint-based filter elimination, which is a different rule, so no narrower special case carries this rule's actual content.
 
 ### `IntersectToDistinct` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/IntersectToDistinctRule.java
-- Attempts used: 25
-- Last updated: 2026-09-25T11:46:42.559826+00:00
-- Reason / notes: The rule's entire correctness content is that a key survives the final `Filter(count_i > 0)` (no-pushdown variant) or `Filter(count(*) = N)` (pushdown variant) exactly when it appears in every branch — i.e. it rests on the identity that `COUNT(*)` (and a filtered `COUNT(*)`) of a group equals that group's cardinality and is positive iff the group is non-empty. QED models every aggregate call as an uninterpreted function of its input bag (equating two results only when their input bags are bag-equal) and has no count/cardinality algebra or constant folding, so it cannot relate the emitted count value to branch membership and cannot prove the tagged UNION ALL + GROUP BY + count-filter `after()` equivalent to the set-`INTERSECT` `before()`. This is a fundamental prover limitation (an aggregate algebraic identity QED cannot know), not a missing DSL operator — the DSL already exposes `aggregate`/`union`/`filter`/`project`/`intersect`, so `extend_dsl_file` cannot change what the trusted prover knows about `COUNT`, and no faithful encoding of this rule avoids the count-based membership test. ```
+- Attempts used: 28
+- Last updated: 2026-10-14T03:29:14.120049+00:00
+- Reason / notes: Both variants of IntersectToDistinct are correct only by COUNT's cardinality algebra — `COUNT(*) FILTER (WHERE i=k) > 0` means "branch k contributed the key" and `COUNT(*) = N` in the pushdown variant means "the key appears in all N branches" — while QED models every aggregate call as an uninterpreted function over its group bag and knows nothing about COUNT beyond bag equality of its input (confirmed by the serializer emitting only operator name/operands with no kind tag, per paper eq. (5)). The after() side's post-aggregate filter on an aggregate output is therefore an uninterpreted predicate the prover cannot relate to the set-intersection before() side, and since every faithful version of this rewrite (full or partial, either variant, any N) necessarily passes through a count comparison, no encodable special case exists; the gap sits in QED's aggregate semantics rather than the DSL (which can already express intersect-set, union-all, aggregate, filter, and project, and the JSON format already carries all aggregate info), so extend_dsl_file cannot close it without touching the forbidden Rust prover. ```
 
 ### `JoinExpandOrToUnion` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/JoinExpandOrToUnionRule.java
-- Attempts used: 0
-- Last updated: 2026-09-22T23:59:02.692419+00:00
-- Reason / notes: The rewrite's core identity — Join(Or(P,Q)) ⟹ UnionAll(Join(P), Join(And(Q, ¬P))) — was tested directly against QED under both candidate negation operators and both failed identically: provable=false, complete_fragment=true (QED confidently explored the whole fragment, not a timeout). This was tried twice each, including in the simplest possible reduced form (a single relation, Filter(Or(P,Q)) vs Union(Filter(P), Filter(And(Q,¬P))), no join at all):
-
-1. Using RexRN.Not (plain negation): not provable.
-2. Using a new, correctly-implemented RexRN.IsNotTrue node (QED's Rust source at pipeline/relation.rs:618 confirms "IS NOT TRUE" is a real, recognized operator with proper 3-valued semantics distinct from NOT): not provable, same signature.
-
-Since the reduced single-relation form is a textbook propositional tautology (P ∨ (Q ∧ ¬P) ≡ P ∨ Q, trivial by case analysis on P), a hard "not provable" on it rules out both the specific-negation-operator hypothesis and any join-specific cause. The most likely explanation is a genuine QED equivalence-checking limitation: it does not correlate the same uninterpreted predicate symbol referenced both positively and negatively across two separate UNION branches of the *same* side, unlike a plain before()/after() pair (which is how every already-proved rule in this project uses shared symbols, and which QED handles fine). This is not a missing DSL operator that extend_dsl_file could add — both required operators (NOT, IS NOT TRUE) already exist and are correctly wired to QED's own recognized semantics; the gap is in how QED relates an uninterpreted symbol's occurrences across independent branches of a bag union, which is outside what a DSL-level change can address. UNSUPPORTED.
-
-### `LoptOptimizeJoin` — ⏭️ SKIPPED
-
-- Source backend: Apache Calcite
-- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/LoptOptimizeJoinRule.java
-- Attempts used: 1
-- Last updated: 2026-09-24T01:16:14.592803+00:00
-- Reason / notes: Manually investigated by the harness operator (the automated porter never got past turn 9 before crashing on context overflow — LoptOptimizeJoinRule.java is 2110 lines, too large for this model's 32K context to finish exploring regardless of restarts). Read the real Calcite source directly: onMatch() bundles four distinct sub-behaviors, not one rewrite: (1) findRemovableOuterJoins — drop a LEFT-join factor whose join key is unique and whose columns aren't projected downstream; (2) LoptSemiJoinOptimizer.chooseBestSemiJoin — a cost-based *selection* among semijoin filters (the underlying semijoin-filtering transformation itself is sound and already covered by this repo's existing *ToSemiJoin family, but WHICH one to apply is a cost heuristic, not an equivalence fact); (3) findRemovableSelfJoins — collapse two scans of the identical table joined on a unique key into one, which needs same-relation-identity reasoning beyond bag-equational proof; (4) the actual join-tree reordering search, which is a cost-based choice among already-equivalent trees — the underlying reassociation fact is exactly what DphypJoinReorder and MultiJoinOptimizeBushy already prove.
-
-Of these, only (1) looked tractable as a standalone equivalence fact (not cost-dependent), so it was actually attempted: left.scan (nullable), right.scan declared UNIQUE on its join column, before() = Project(left-col-only, LeftJoin(left, right, EQUALS(left.col, right.col))), after() = left. This compiled and generated a structurally correct JSON (schema correctly shows right's key=[[0]]), but QED returned provable=false with smt_duration=0 — rejected before real SMT solving, i.e. this shape (2 base relations collapsing to 1 via a bare uniqueness argument) isn't in QED's equivalence-class procedure's recognized patterns. For comparison, the ALREADY-PROVED AggregateJoinRemove achieves a closely related 'drop a LEFT join' result differently: it wraps the join in a DISTINCT aggregate, so deduplication (not a direct uniqueness/cardinality argument) is what absorbs any row multiplication — that's a genuinely different, QED-provable proof technique, and it already exists in this repo. A bare (non-aggregated) join-elimination-via-declared-uniqueness, as LoptOptimizeJoin's sub-case (1) would need, is not something QED's decision procedure supports.
-
-Conclusion: every piece of LoptOptimizeJoinRule.java's actual mathematical content is either already covered by existing proved rules (AggregateJoinRemove for join-removal-via-dedup, DphypJoinReorder/MultiJoinOptimizeBushy for join-tree reassociation) or is fundamentally a cost-based heuristic choice (semijoin selection, join-order search) that QED — which checks relational equivalence, not cost-optimality — cannot express a preference between. There is no additional provable content this rule would uniquely contribute.
-
-### `MarkToSemiOrAntiJoin` — ⏭️ SKIPPED
-
-- Source backend: Apache Calcite
-- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/MarkToSemiOrAntiJoinRule.java
-- Attempts used: 65
-- Last updated: 2026-09-25T13:46:51.084723+00:00
-- Reason / notes: The before() pattern must name an actual LEFT_MARK join, but its marker column — a per-left-row existential summary (∃ right row satisfying the condition, at left-row bag multiplicity) appended as an extra output column — is bespoke operator semantics that no operator in RuleScript's core language can name: the JAR's JoinRelType has no LEFT_MARK (so RelRN/JSONSerializer cannot produce a kind the prover accepts), and the prover's fixed kind vocabulary has no mark-join/EXISTS operator, which extend_dsl_file cannot add since it can only touch the Java DSL layer. Reconstructing the marker from primitives would require an IS NOT NULL/EXISTS predicate the DSL doesn't expose or aggregate-algebra reasoning (count>0 ↔ ∃) that QED is explicitly stated not to have, and in any case the resulting expression would no longer be a pattern that matches a real backend mark-join plan, so a faithful port is genuinely out of reach.
+- Attempts used: 66
+- Last updated: 2026-10-14T06:13:41.367732+00:00
+- Reason / notes: The porter's encoding was verified faithful — the serialized JSON shows the identical uninterpreted symbols c1/c2 applied to the same join columns and the shared L/R scans in both queries — and the prover's rejection is pre-SMT (smt_duration:0, unify≈2µs, reproduced twice), i.e., a structural unification decision rather than an encoding or symbol-sharing bug. Any sound encoding of this rule necessarily rewrites the join predicate into an exclusive disjunction (one join summand with p∨q vs. a union of joins with p and q∧¬p), and their equivalence rests on the predicate-level Boolean identity p∨q = p + q∧¬p over independent uninterpreted symbols — exactly the class of predicate inference QED does not perform, since its SMT stage only verifies domain alignment of structurally aligned summands. No alternate faithful shape (cross-join plus filters, distinct union over unique scans) avoids that coefficient rewrite, and the non-exclusive split is unsound under bag semantics, so the UNSUPPORTED conclusion is sound. ```
 
 ### `Match` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/MatchRule.java
-- Attempts used: 7
-- Last updated: 2026-09-25T13:09:53.271933+00:00
-- Reason / notes: This rule is a pure identity transformation — `MatchRule` rebuilds a `LogicalMatch` field-for-field identical — so any faithful encoding must place a MATCH_RECOGNIZE node in both `before()` and `after()`, and QED has no semantics for that operator: it decides only bag-semantic equivalence with uninterpreted scalar functions, explicitly has no list/ordering model (the same reason Sort/Window/Sample are out), and the JSON bridge (`JSONSerializer.java`) has no `LogicalMatch` case, throwing in its default arm, so the unmodifiable Rust prover has no node it could interpret even if a `RelRN.match` builder and serializer case were added. The only degenerate workaround (e.g. introducing a fresh uninterpreted scan for the match output on both sides) would no longer express this rule — it would reduce to a vacuous `Scan = Scan` that says nothing about the Match operator's pattern, partitioning, or measures — so the porter's UNSUPPORTED conclusion and its stated fundamental limitation are correct.
+- Attempts used: 28
+- Last updated: 2026-10-14T06:37:54.537780+00:00
+- Reason / notes: Calcite's `LogicalMatch` is an ordering/frame-dependent CEP operator (pattern matching over an ordered stream with measures/interval), so it has no bag-semantic meaning — exactly the unmodeled class QED lists alongside Window/Sort. The Q-expression/JSON format has no `match` construct (JSONSerializer hits its `default -> throw` on `LogicalMatch`), and since QED interprets a fixed relational-operator set with no uninterpreted-relational-operator slot, there is no way to express a MATCH node in `before()`/`after()` — and we cannot modify the Rust prover to add one. MatchRule is a pure identity placeholder (rebuilds the same LogicalMatch from the same fields), so the rule's only content is `MATCH → MATCH`, which is neither expressible nor non-trivial here; a `scan → scan`-style stand-in would mis-model the rule rather than encode it. ```
 
 ### `MaterializedViewFilterScan` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/MaterializedViewFilterScanRule.java
-- Attempts used: 26
-- Last updated: 2026-09-25T13:14:53.773168+00:00
-- Reason / notes: The rewrite's soundness rests on the materialization invariant that the MV table's stored bag equals the result of its defining query over the base table, but QED decides equivalence by universally quantifying over all instantiations of uninterpreted table symbols whose only per-table facts are key uniqueness and row-level "guaranteed" predicates, so a cross-table content equality cannot be stated as a premise. Any encoding using distinct symbols for the base table and the MV is therefore refuted by a countermodel (e.g. an empty or differently-populated MV), while identifying the two symbols collapses to a vacuous identity that proves nothing about the actual transformation. This is a limitation of the fixed prover's premise language — no DSL extension can close it, since JSONSerializer carries no inter-table constraint and the Rust prover itself cannot be modified. ```
+- Attempts used: 58
+- Last updated: 2026-10-14T07:29:33.136374+00:00
+- Reason / notes: MaterializedViewFilterScan's soundness rests on the cross-table invariant that the MV scan's bag equals its defining query over the base table (e.g. bag(MV) = Filter(D, bag(base))), which QED's theory cannot state: every scan is an independent uninterpreted bag whose only declared properties are per-table primary keys and check predicates (the JSON format's per-table "key"/"guaranteed" fields — the full schema vocabulary JSONSerializer emits), so no relation between two distinct table symbols is expressible and `Filter(Q∧D, base) ≡ Filter(Q, MV)` is unprovable for arbitrary independent bags. The only provable single-table encoding (filter-merge: `Filter(Q∧D, base) ≡ Filter(Q, Filter(D, base))`) eliminates the MV table entirely and is therefore a different rule, not a special case of this one; the gap is a fundamental limitation of the prover's per-table theory, not a missing DSL builder, so no `extend_dsl_file` change (which is gated on the existing prover/JSON semantics) could close it. ```
 
 ### `MaterializedViewOnlyAggregate` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/materialize/MaterializedViewOnlyAggregateRule.java
-- Attempts used: 23
-- Last updated: 2026-09-25T13:16:56.757800+00:00
-- Reason / notes: The rule's soundness is a catalog-level invariant — the stored MV's bag must equal the evaluation of its defining plan over the base tables — i.e. a coupling between two uninterpreted scans, but the DSL/JSON format carries only per-table keys and per-row `guaranteed` constraints, with no cross-table "defined-as" hypothesis mechanism, and QED decides bag-equivalence universally over all instantiations of free symbols, so any encoding keeping the MV as a distinct `Scan` is unprovable; the only alternative that could be decided — inlining the view definition on both sides — erases the rule's identity (there is no precomputed artifact) and degenerates into a two-stage-aggregate identity, which QED also cannot use since it knows nothing about aggregate algebra beyond bag equality of inputs. This matches the fundamental limitation already confirmed for the sibling MaterializedViewOnlyFilter. ```
+- Attempts used: 28
+- Last updated: 2026-10-14T07:09:06.870671+00:00
+- Reason / notes: The rule's sole correctness premise is the registration-time invariant that a separately registered, externally refreshed MV table's contents equal its defining aggregate — a cross-table fact about a planner-registered artifact, not a relational-algebra identity QED can derive; QED treats the MV scan as an independent uninterpreted table, and the "guaranteed" constraints in the JSON format only carry single-table predicates, so no non-vacuous before/after pair (MV modeled as a distinct scan fails; modeling it as the same symbol degenerates the rule to the identity rewrite) can be proved. Its rollup/compensation paths independently require re-aggregation algebra (count→sum0, SUM/COUNT distribution through a finer-grained grouping) that QED explicitly does not model beyond bag equality of aggregate inputs, and the intermediate group-by changes that input bag — a fundamental limitation, not a DSL gap an extend_dsl_file attempt could meaningfully close. ```
 
 ### `MaterializedViewOnlyFilter` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/materialize/MaterializedViewOnlyFilterRule.java
-- Attempts used: 24
-- Last updated: 2026-09-25T13:22:57.107752+00:00
-- Reason / notes: The rule's soundness is exactly the catalog invariant that a materialized view's contents are maintained to equal its defining plan over the base tables — a cross-table "defined-as" hypothesis coupling two otherwise independent free table symbols — and QED decides bag-equivalence universally over *all* instantiations of free tables (schemas carry only per-table keys/constraints, no relational hypotheses between tables), so any after-side that keeps the MV as a distinct scan is not provably equivalent to the query over base tables. This is a limitation of the prover's theory, not of the DSL's surface: no `extend_dsl_file` change to RelRN/JSONSerializer can add an SMT assumption the fixed Rust prover does not read, and the JSON format has no cross-table defined-as field for it to consume. Inlining the MV's defining plan into both patterns would make something provable, but the "rule" degenerates into an ordinary logical rewrite over that plan (e.g. filter composition) with the precomputed artifact erased — i.e. the MV rule's actual content is lost, so UNSUPPORTED is the correct conclusion.
+- Attempts used: 9
+- Last updated: 2026-10-14T08:14:32.330254+00:00
+- Reason / notes: This is not an algebraic equivalence between two plans but a catalog-driven rewrite whose soundness rests on the external planner invariant that the registered MV table is a current materialization of its defining query (bag(MV) = bag(defineQuery(base tables))), and that invariant cannot be stated as a premise in QED's theory. Table scans are independent uninterpreted bags whose only declared properties are per-table primary keys and single-table check predicates (`key`/`guaranteed` in the JSON), and neither the RuleScript DSL nor the prover's JSON schema has any construct for a table-to-plan or cross-table identity — closing that gap would require changing the trusted Rust prover, which is off-limits, not a Java-side `extend_dsl_file` fix. So any encoding that keeps the MV as a distinct scan symbol is unprovable, while identifying the MV scan with the defining-subplan symbol degenerates the rule to a vacuous filter rearrangement; the porter's UNSUPPORTED conclusion and its stated reason are correct.
 
 ### `MaterializedViewOnlyJoin` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/materialize/MaterializedViewOnlyJoinRule.java
-- Attempts used: 23
-- Last updated: 2026-09-25T13:25:24.685346+00:00
-- Reason / notes: MaterializedViewOnlyJoin is a catalog-driven materialized-view rewrite, not a closed-form algebraic identity: its validity rests on the external fact that a stored MV table's contents are *defined* to equal a particular derived query (the matched join/input) together with predicate/column entailment between that MV's defining query and the join subtree. In RuleScript a `scan` is an atomic uninterpreted symbol with no definitional link to any derived relation, so QED treats the MV scan and the join input as independent symbols and — per its stated limitation of not reasoning about predicate entailment between independent symbols — cannot prove their equivalence; and because the "after" side depends on *which* MV matched and on a per-match column/predicate mapping, there is no single fixed before()/after() pattern pair whose bag-equivalence QED could universally establish, so even a narrower special case is not expressible.
+- Attempts used: 29
+- Last updated: 2026-10-14T07:24:13.593506+00:00
+- Reason / notes: The rewrite substitutes a query join subplan with a scan of a separately registered MV table (cross-joined with query-only tables), and its entire correctness rests on the external planner invariant that the MV table's contents equal its defining query — a cross-table identity between two independent uninterpreted relations. QED's table schema format only carries per-table keys and single-table "guaranteed" constraints (serialized in a Rex environment over that table's own row type), so the invariant cannot even be stated as a premise, and the SMT decision procedure over independent uninterpreted relations cannot derive it; identifying the MV scan with the subplan symbol degenerates the rule to the vacuous identity, so no non-trivial provable encoding exists. ```
 
 ### `MaterializedViewProjectAggregate` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/materialize/MaterializedViewProjectAggregateRule.java
-- Attempts used: 22
-- Last updated: 2026-09-25T13:35:24.805106+00:00
-- Reason / notes: The rewrite's soundness depends on the catalog's MV-maintenance invariant — the MV's stored bag equals its defining aggregate over the base tables — and RuleScript offers no way to constrain two distinct uninterpreted tables (same-name = same symbol is the only coupling, and reusing one scan would degenerate the rule into an identity), so `Scan("MV") ≡ Aggregate(Project(Scan("S")))` is genuinely false under QED's universal quantification rather than unprovable. Compounding this, the rule's rollup compensation (re-aggregating the MV, e.g. SUM-of-SUM over a coarser grouping) requires aggregate-algebraic identities that QED explicitly cannot model for uninterpreted aggregate symbols, so even a hypothetical table-invariant extension would not make the compensation provable; no narrower expressible special case preserves the rule's actual meaning. ```
+- Attempts used: 21
+- Last updated: 2026-10-14T07:31:54.849913+00:00
+- Reason / notes: The rule replaces Project(Aggregate(Scan T)) with a scan of the MV's physical table, and its soundness rests on an external database invariant — the registered MV table is maintained to equal the result of its defining aggregate — rather than on relational semantics. Under QED's model the MV table and the source table are independent uninterpreted relations, so universal quantification over arbitrary instantiations actively refutes Scan(MV) = Aggregate(Scan(T)); no encoding can bridge this (identifying the two tables would make the rule a vacuous identity, and table "guaranteed" constraints are per-row predicates, not inter-table equalities), and the rollup path independently requires re-aggregation algebra across granularities (e.g., sum-of-sums over a coarser grouping) that QED explicitly does not model. ```
 
 ### `MaterializedViewProjectFilter` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/materialize/MaterializedViewProjectFilterRule.java
-- Attempts used: 21
-- Last updated: 2026-09-25T13:34:37.975468+00:00
-- Reason / notes: An MV-substitution rewrite is sound only under the external, planner-maintained invariant that the MV table's contents equal its defining query over the base tables (plus freshness/lineage state), but in RuleScript every scan is an independent uninterpreted bag and QED decides unconditional equivalence under arbitrary instantiations of all table symbols — its JSON interface carries only per-table `guaranteed` constraints (e.g. the `unique` flag's key), with no premise/assumption channel for a cross-table equality between two scans. The rule file itself contains no fixed transformation (it merely matches `Project(Filter(...))` and delegates to `perform()`, which consults the planner's MV registry at match time), so any encoding either keeps the MV as a separate symbol (making the substitution non-equivalent under universal instantiation, hence unprovable) or reuses the base-table symbol (erasing the "materialized" relation and no longer expressing this rule). Since the gap lies in the unmodifiable, premise-free prover rather than in the Java DSL, `extend_dsl_file` cannot close it, and the porter's UNSUPPORTED conclusion — despite the transcript showing it never actually ran a candidate through QED — is the correct one. ```
+- Attempts used: 23
+- Last updated: 2026-10-14T07:41:51.928273+00:00
+- Reason / notes: The rule's before pattern (Project over Filter over base tables) and after pattern (projection/filter over the MV scan) are individually expressible, but the rewrite's soundness rests solely on the cross-table invariant bag(MV) = Project(Filter(..., base)) — that the maintained MV table's bag equals its defining query over the base tables. QED assigns every scan an independent uninterpreted bag, and the full schema vocabulary the serializer can emit (per-table "key" sets and "guaranteed" check predicates, each scoped to its own table's columns via a Rex env with that table's field-count delta) has no mechanism to relate two distinct table symbols or assert bag equality between them, so no DSL-level extension can supply the missing premise without modifying the trusted prover itself. The only encoding that would prove something would collapse the MV and base into a single shared scan symbol, which eliminates the rule's premise entirely and degenerates into an ordinary filter/predicate identity (a different rule), confirming UNSUPPORTED. ```
 
 ### `MaterializedViewProjectJoin` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/materialize/MaterializedViewProjectJoinRule.java
-- Attempts used: 21
-- Last updated: 2026-09-25T13:41:46.927750+00:00
-- Reason / notes: The rule's only non-trivial content is substituting a scan of a catalog-defined MV for the Project(Join) it materializes, and its soundness rests on the external catalog invariant that the MV table's contents equal its defining query (modulo freshness/delta in the union-rewriting variant); in QED's semantics a table scan is an uninterpreted symbol instantiable as any arbitrary relation, and neither RuleScript nor the immutable prover's JSON format has any facility to assert a definitional equality between a scan and a derived relation (nor any temporal/delta model), so no before()/after() pair — not even a narrower special case — would hold for all symbol instantiations. The only provable residue here (e.g., pushing a projection that references one join side through the join) is a different rule (ProjectJoinTranspose), not MV substitution.
+- Attempts used: 14
+- Last updated: 2026-10-14T07:39:51.724376+00:00
+- Reason / notes: The rule's soundness rests entirely on the planner-maintained invariant that the MV's physical table holds exactly the bag produced by its defining query — a cross-table identity between two independent uninterpreted relations. QED's schema language only carries per-table premises (keys and single-table "guaranteed" check predicates, which are per-tuple first-order properties that cannot even express multiset equality between two tables), and its SMT procedure treats every table as an independent uninterpreted bag, so it can neither assume nor derive that scan(MV) ≡ the defining Project(Join) over base tables. The only encoding that would make the prover succeed is one that inlines the defining query in place of the MV scan, which degenerates the rule into a vacuous identity and no longer expresses materialization; hence no non-vacuous encoding exists (matching the correctly-verified sibling rules). ```
 
 ### `MinusToDistinct` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/MinusToDistinctRule.java
-- Attempts used: 23
-- Last updated: 2026-09-25T13:48:08.071181+00:00
-- Reason / notes: The rule's after-pattern encodes set difference purely through cardinality — `COUNT() FILTER (branch=i)` per group, then a final `Filter(cnt0 > 0 AND cnt1 = 0)` — so proving equivalence requires the count algebra fact that a group's count is 0 iff no row from that branch is present and >0 iff one is, which QED explicitly does not have: it models every aggregate call, including COUNT, as an uninterpreted function of its input bag, and that lives in the fixed Rust prover, not the DSL. No faithful encoding sidesteps this — a faithful port must compare an aggregate output against 0/positivity against MINUS set-difference semantics, which is undecidable with uninterpreted aggregates (and filtered aggregates aren't even representable today: `RelRN.AggCall` has no filter field and `JSONSerializer` drops it, so extending the DSL would only serialize something the prover still can't interpret). The only provable variants are degenerate (e.g., identical inputs collapsing both sides to the empty relation, which validates none of the rule's actual logic) or a different rule entirely (an anti-join formulation, i.e. MinusToAntiJoin), so the porter's UNSUPPORTED conclusion is correct. ```
+- Attempts used: 10
+- Last updated: 2026-10-14T07:53:26.548802+00:00
+- Reason / notes: The rewrite's correctness rests entirely on reading membership off aggregate outputs — `COUNT() FILTER tag=i` > 0 / == 0 testing whether a grouped row came from each MINUS input — but QED models aggregate calls as uninterpreted functions of their input bag (special-casing only the COUNT(*)-vs-COUNT(col) non-NULL prefilter), so it can never connect those comparisons to set-difference membership. This is a fundamental prover limitation, not a missing builder: even adding a FILTER field to `RelRN.AggCall` (or re-encoding it as COUNT(CASE...)) would still leave the count values opaque, and no 2-branch special case can avoid the existence test, so no narrower provable encoding of this specific rule exists. ```
 
 ### `MinusToFilter` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/MinusToFilterRule.java
-- Attempts used: 22
-- Last updated: 2026-09-25T14:04:51.428969+00:00
-- Reason / notes: The rewrite MINUS(base, Filter(Q,base)) → distinct(Filter(NOT Q,base)) is valid only when the right-hand predicate Q is total, because under QED's 3-valued SQL semantics a row with Q=NULL is not in Filter(Q,·) and therefore survives the set-difference MINUS, while NOT Q evaluates to NULL (not TRUE) and is dropped by the rewritten filter. QED decides equivalence by quantifying over every instantiation of the uninterpreted symbol Q, so this NULL interpretation is a genuine counterexample the prover must report, not a sampling artifact. The DSL introduces all filter predicates as uninterpreted symbols with a hardcoded return type and provides no way to declare one total, so no non-degenerate special case closes the gap and the rule as stated is genuinely outside what QED can prove.
+- Attempts used: 45
+- Last updated: 2026-10-14T08:25:37.144556+00:00
+- Reason / notes: I independently verified the rewrite is mathematically sound, but any faithful encoding forces QED to relate its EXCEPT (set-minus) primitive to a group-all/distinct aggregate over a filtered scan, and both sides reduce to zero/positivity tests on semiring products of the form S·[predicate] (S·P_R = 0 on the before side, S·P_L·¬P_R > 0 from the distinct on the after side) — a zero-of-product / aggregate-algebra step beyond bag-equality that QED's semiring decision procedure cannot perform, and which no DSL extension or re-encoding can close since the prover itself is off-limits and the DSL already exposes every operator the rule needs. The porter's four fast, non-timed-out "not provable" results across the full encodable 2×2 space (plain vs filtered left × unique vs non-unique base) are consistent with this: even the unique-key variant still requires 0/1-multiplication facts under a support test, and the only distinct alternative (union(false, F, F)) serializes into QED's same "distinct" wrapper. ```
+
+### `ProjectJoinJoinRemove` — ⏭️ SKIPPED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/ProjectJoinJoinRemoveRule.java
+- Attempts used: 105
+- Last updated: 2026-10-14T09:26:22.814981+00:00
+- Reason / notes: The rewrite's row-level validity hinges on B's key being unique AND the top join condition referencing only the shared A-key column plus C (never B); proving that as a *bag* identity over a two-level nullable LEFT-join stack with a column-skipping Project sits outside QED's complete bag-semantic fragment (complete_fragment: false, rejected structurally in ~1–2 µs before SMT across four encodings that varied equi-vs-uninterpreted condition, B unique/non-unique, and projection shape), while the structurally identical stack under an Aggregate proves — so the wall is QED's own incomplete fragment for a bag Project atop a multi-level LEFT-join stack, not a DSL-expressibility gap or an uncorrected symbol mismatch (a name mismatch would instead yield an authoritative complete_fragment:true "not provable").
 
 ### `ProjectMeasure` — ⏭️ SKIPPED
 
@@ -1318,35 +1364,25 @@ Conclusion: every piece of LoptOptimizeJoinRule.java's actual mathematical conte
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/MeasureRules.java
 
 Note: MeasureRules.java defines multiple distinct rule variants as separate static nested classes. Implement specifically the `ProjectMeasureRule` variant (not AggregateMeasureRule, AggregateMeasure2Rule, FilterSortMeasureRule, ProjectSortMeasureRule, which are separate rules ported under their own spec names).
-- Attempts used: 21
-- Last updated: 2026-09-25T14:24:21.027654+00:00
-- Reason / notes: ProjectMeasureRule is sound only via Calcite's measure algebra — that M2X(M2V(E), SAME_PARTITION(g)) on a row of partition g equals E evaluated over that partition, so the outer SINGLE_VALUE over the group collapses to E's own aggregate — and QED models M2X, M2V, SAME_PARTITION, and SINGLE_VALUE as independent uninterpreted symbols with no axioms relating them to each other or to ordinary aggregates (e.g. SUM). The partition-scoped, window-like meaning of M2X is outside QED's bag-semantics model (the prover is fixed and has no such operator), so no encoding — down to the narrowest special case like E being a plain column over unique groups — can make the two sides theorems: SMT can always instantiate the uninterpreted symbols to a counterexample, and a builder-level DSL extension could not supply the missing measure axioms. ```
+- Attempts used: 41
+- Last updated: 2026-10-14T08:46:29.781104+00:00
+- Reason / notes: ProjectMeasureRule's rewrite (Aggregate(g, SINGLE_VALUE(d)) over a Project with d = M2X(V2M(e)) AS d) is only sound because of the measure-algebra identity M2X(V2M(x, SAME_PARTITION(g))) = x plus partition-constancy of measures, but in QED's model M2X/V2M/SAME_PARTITION are uninterpreted scalar symbols and SINGLE_VALUE is an uninterpreted aggregate known only up to bag equality of its input, so no RuleScript encoding or DSL builder extension (the format has no facility for function-level axioms) can make the SMT prover accept the equivalence for all instantiations.
 
 ### `ProjectMultiJoinMerge` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/ProjectMultiJoinMergeRule.java
-- Attempts used: 9
-- Last updated: 2026-09-25T14:30:13.306935+00:00
-- Reason / notes: The porter's analysis is correct: `RelOptUtil.projectMultiJoin` rebuilds the MultiJoin with every field identical except `projFields` (a `List<@Nullable ImmutableBitSet>`), which is pure planner metadata consumed later by decomposition heuristics (`LoptOptimizeJoinRule`) with zero effect on the node's rows or row type, so `Project(P, M) ⟹ Project(P, M')` is a metadata annotation, not a logical rewrite. RuleScript's core language has no notion of such per-operator planner metadata — not even an n-ary join with annotation hooks — so any faithful encoding makes `before()` and `after()` literally the same RelRN tree, a vacuous identity whose "proof" says nothing about the annotation's semantic inertness, and any non-trivial variant (e.g. actually pruning input columns) would assert a different rule than the one being ported. ```
+- Attempts used: 23
+- Last updated: 2026-10-14T08:43:38.385000+00:00
+- Reason / notes: Calcite's `ProjectMultiJoinMerge` leaves the MultiJoin's inputs, join conditions, row type, and even the top-level project (reused verbatim in `onMatch`, which is only valid because the multi-join output is unchanged) all identical — it merely fills in the per-input `projFields` bitmaps that downstream physical rules consult for column pruning, so the transformation is bag-identical by construction. QED's decision procedure quantifies only over the bag semantics of relational expressions and has no concept of such non-semantic optimizer metadata; the DSL has no `MultiJoin`/`projFields` construct, and `extend_dsl_file` cannot close this gap because the unmodifiable prover's Q-expression language has no field for an annotation with no semantic effect, so any faithful encoding collapses to a vacuous before≡after identity. The only alternative — interpreting `projFields` as real per-input projections — would be a different (pushdown) rule whose validity rests on a "J' is J restricted to a subset of columns" correspondence between uninterpreted predicates and field indices that QED fundamentally cannot express or infer.
 
 ### `ProjectOverSumToSum0` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/ProjectOverSumToSum0Rule.java
-- Attempts used: 18
-- Last updated: 2026-09-23T00:02:22.990569+00:00
-- Reason / notes: The rule's subject — `SUM(x) OVER <frame>` vs `SUM0(x) OVER <frame>` inside a project — is inherently a windowed aggregate, and QED's theory has no window/frame/ordering semantics at all (no window node in its Q-expression format, and a Calcite `RexOver` would mis-serialize as a plain scalar `RexCall` with partition/order/frame silently dropped), so the rule's shape cannot be faithfully encoded, not merely narrowed. The residual content — `SUM` ≡ `SUM0` — is an aggregate null/empty-handling algebra identity QED cannot know (aggregates are uninterpreted beyond input bag equality, and the identity is in fact false over a general bag), which the porter's frameless probe empirically confirmed with a clean, complete `provable: false` rather than a symbol-sharing bug. These are fundamental QED limitations (no list/ordering semantics for Window; no aggregate-function algebra), not a missing DSL builder that `extend_dsl_file` could close.
-
-### `ProjectReduceExpressions` — ⏭️ SKIPPED
-
-- Source backend: Apache Calcite
-- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/ReduceExpressionsRule.java
-
-Note: ReduceExpressionsRule.java defines multiple distinct rule variants as separate static nested classes. Implement specifically the `ProjectReduceExpressionsRule` variant (not CalcReduceExpressionsRule, FilterReduceExpressionsRule, JoinReduceExpressionsRule, WindowReduceExpressionsRule, which are separate rules ported under their own spec names).
-- Attempts used: 27
-- Last updated: 2026-09-25T14:42:08.155643+00:00
-- Reason / notes: ProjectReduceExpressions' actual transformation is constant-folding an operator on constant arguments (`f(consts)` → literal) and redundant-cast removal, both of which require the *evaluation/type* semantics of those operators; QED models every such operator as an uninterpreted function over integer-valued symbols, so neither `f(consts) ≡ literal` nor `cast(x) ≡ x` is a theorem in that model, and no DSL extension (even a literal builder) can change that. The only simplifications QED *can* prove (pure Boolean connectives AND/OR/NOT with TRUE/FALSE literals) are a degenerate side-effect of `simplifyPreservingType` on a projected Boolean, not the rule's constant-reduction purpose, and are already exercised by the sibling Filter variant — so a real attempt at the rule's canonical case would just come back not-provable.
+- Attempts used: 23
+- Last updated: 2026-10-14T09:04:32.594342+00:00
+- Reason / notes: The rewrite operates entirely on window aggregates (`SUM(x) OVER (frame)` → `SUM0(x) OVER (frame)`), and QED has no bag-semantic model for `Window` (listed with Sort/Limit/Offset/Sample), with no window node in its JSON format per `JSONSerializer.java` — a genuine prover-level gap no `extend_dsl_file` change can close, since the Rust prover is the fixed arbiter. Even abstracting away the OVER, `SUM` and `SUM0` would be two distinct uninterpreted aggregate symbols QED cannot algebraically relate, and the standalone rewrite is not universally valid in the first place: on an empty/all-NULL frame SUM yields NULL while SUM0 yields 0, a difference Calcite only reconciles through its SUM0-lowering (CASE/COALESCE) chain outside this rule's scope — so no honest encoding could be provable. ```
 
 ### `ProjectSortMeasure` — ⏭️ SKIPPED
 
@@ -1354,9 +1390,9 @@ Note: ReduceExpressionsRule.java defines multiple distinct rule variants as sepa
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/MeasureRules.java
 
 Note: MeasureRules.java defines multiple distinct rule variants as separate static nested classes. Implement specifically the `ProjectSortMeasureRule` variant (not AggregateMeasureRule, AggregateMeasure2Rule, ProjectMeasureRule, FilterSortMeasureRule, which are separate rules ported under their own spec names).
-- Attempts used: 25
-- Last updated: 2026-09-25T14:45:23.848625+00:00
-- Reason / notes: The rule rewrites Project-over-Sort into Project-over-Sort-over-Project, so both the before and after patterns structurally require a Sort node, but QED fundamentally does not model row-ordering/collation semantics — Sort has no bag-semantic meaning — and the DSL (RelRN) exposes no Sort builder, so no encoding, even one produced by extending the DSL, can be decided. The rule's genuine soundness additionally rests on the order-independence of Calcite's bespoke M2V operator, which QED can only see as an uninterpreted symbol, so even a Sort-free bag-encoding (which is just a trivially-true Project-Project fusion) would not faithfully verify this rule's ordered-list correctness. ```
+- Attempts used: 34
+- Last updated: 2026-10-14T09:34:24.957692+00:00
+- Reason / notes: The rule's only non-vacuous content is that re-emitting the Sort (identical sortExps/offset/fetch) below the inserted M2V projection preserves sort order and top-k/offset selection, plus that M2V's per-row value is order-independent — QED fundamentally has no ordering semantics (Sort/Limit/Offset have no bag meaning; the prover path treats LogicalSort as identity, so even a DSL Sort builder couldn't express the order claim), and M2V's measure-expansion row-wise behavior is bespoke operator semantics invisible behind an uninterpreted symbol. Any faithful encoding therefore must drop the Sort and reduces to the generic let-binding identity Project[x0, f(g(x2))] ≡ Project[x0, f(z)] over Project[x0, x1, g(x2)], which holds for arbitrary deterministic f, g and verifies nothing specific to this rule — a genuine QED limitation, not an encoding mistake the porter could fix. ```
 
 ### `ProjectToLogicalProjectAndWindow` — ⏭️ SKIPPED
 
@@ -1364,149 +1400,103 @@ Note: MeasureRules.java defines multiple distinct rule variants as separate stat
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/ProjectToWindowRule.java
 
 Note: ProjectToWindowRule.java defines multiple distinct rule variants as separate static nested classes. Implement specifically the `ProjectToLogicalProjectAndWindowRule` variant (not CalcToWindowRule, which are separate rules ported under their own spec names).
-- Attempts used: 9
-- Last updated: 2026-09-23T11:03:55.831842+00:00
-- Reason / notes: The rule's entire semantic content is that a windowed aggregate (RexOver) evaluated inline inside a Project yields the same per-row values as the same aggregate evaluated by a separate LogicalWindow node over the same input — i.e., partition/ordering-dependent window semantics, which QED explicitly does not model (Window has no bag-semantic meaning, and QED knows nothing about an aggregate's algebra beyond bag equality of its input). Any encoding in the core language either desugars the window on both sides (self-join back to a group-by), making before and after the identical tree so the proof is vacuous, or relates an opaque uninterpreted window function to a group-by/join construction, which QED cannot derive for uninterpreted symbols. This is a fundamental limitation on the prover side (no window semantics in the QED backend), not a missing DSL builder, so extend_dsl_file cannot close the gap and no non-trivial narrower special case of the rule's content is provable. ```
-
-### `ProjectWindowTranspose` — ⏭️ SKIPPED
-
-- Source backend: Apache Calcite
-- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/ProjectWindowTransposeRule.java
-- Attempts used: 12
-- Last updated: 2026-09-23T12:07:17.628951+00:00
-- Reason / notes: The rule's correctness rests entirely on Window semantics (one output row per input row, partition/order/frame-dependent values), but QED — the unmodifiable prover — has no window model and its JSON input language has no Window node (JSONSerializer's switch has no LogicalWindow case), so no faithful encoding exists. The only apparent special case (partition-wide aggregation via join+group-by) also fails: reconstructing per-row aggregate values requires an equi-join, but the DSL only offers uninterpreted join conditions with no equality operator, so the two sides' joins cannot be related. Substituting an Aggregate would collapse each partition to one row (wrong bag semantics) and prove only an unrelated column-pruning fact, and treating the window as an opaque scan discards the very relation the rule establishes (that the recomputed window over trimmed input matches the original).
+- Attempts used: 10
+- Last updated: 2026-10-14T09:16:06.262192+00:00
+- Reason / notes: This rule's payload is the identity between an inline `RexOver` (windowed aggregate) inside a `Project` and a separate `LogicalWindow` operator, but QED's Q-expression language contains no window operator (the serializer emits only scan/filter/project/join/correlate/group/union/intersect/except/sort), and window semantics require ordered-partition/frame (list) semantics plus the aggregate identity "per-partition aggregate joined back to each row equals the inline OVER value" — both things QED's bag semantics explicitly excludes, per its own limitations. Any encoding is forced to choose between (a) row-local uninterpreted functions, which makes the before-side window value an independent symbol the SMT solver cannot relate to the after-side group/join-back construction (a countermodel exists, as the porter observed), or (b) modeling both sides with the same group-by-then-join-back, which degenerates the rule into a vacuous identity that proves nothing about windows; even a DSL extension (e.g. scans with guaranteed constraints) cannot restore totality/cardinality for a window-relation symbol. Hence the porter's UNSUPPORTED verdict is correct, though its "group-by+join-back breaks cardinality" sub-point is imprecise (inner join-back on the group key is actually row-preserving) — the true blocker is the missing window/order semantics, which is a fundamental QED limitation, not a missed encoding.
 
 ### `ReduceDecimals` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/ReduceDecimalsRule.java
-- Attempts used: 23
-- Last updated: 2026-09-25T14:53:03.325905+00:00
-- Reason / notes: Every branch of ReduceDecimalsRule (scale alignment via ×10^k, decode/encode, ROUND_HALF_UP rounding through CASE, overflow checks, REINTERPRET∘REINTERPRET elimination) is only valid under a specific algebra between numeric operators — but QED encodes all scalar operators as uninterpreted symbols with no numeric-arithmetic axioms, so any instance of the rule, down to the simplest special cases like `REINTERPRET(REINTERPRET(x)) = x` or `CAST_dec→int(x) = DIV(x, 10^scale)`, asks the SMT solver to prove an identity between independent uninterpreted functions, which is genuinely invalid. This is a case of "an operator whose specific internal semantics QED cannot see through as an uninterpreted function": the rewrite's premise is the adapter's physical unscaled-BIGINT representation of DECIMAL — the exact reason Calcite itself deprecates the rule as producing non-logical plans — and closing it would require modifying the QED prover, not extending the DSL, so UNSUPPORTED is correct. ```
+- Attempts used: 22
+- Last updated: 2026-10-14T09:33:55.228310+00:00
+- Reason / notes: Every sub-rewrite in this rule — including the simplest one, `REINTERPRET(REINTERPRET(x)) → x` — rests on a value-level identity between decimal arithmetic and its unscaled-BIGINT expansion (10^scale scaling, ROUND_HALF_UP via CASE/DIVIDE_INTEGER, precision/overflow bounds, and the physical REINTERPRET type reinterpretation), while QED only supplies bag algebra over uninterpreted scalar symbols with every virtual type lowered to a plain integer and no arithmetic semantics on any operator. Consequently no faithful before/after pair is decidable: an honest encoding is either two independent uninterpreted terms (unprovable) or the identical term on both sides (degenerate, not a rule), and `extend_dsl_file` cannot close the gap because the unmodifiable prover would still treat any new CAST/REINTERPRET/arithmetic builders as uninterpreted black boxes, and encoding REINTERPRET as a bare type identity would silently alter the semantics rather than capture the rule. ```
 
 ### `SampleToFilter` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/SampleToFilterRule.java
-- Attempts used: 13
-- Last updated: 2026-09-23T13:57:18.351374+00:00
-- Reason / notes: The rule's only claimed equivalence, Sample(R) ≡ Filter(rand() < rate, R), is a probabilistic (Bernoulli) identity — both sides keep rows nondeterministically — while QED is a deterministic decision procedure over bag semantics with uninterpreted functions, in which Sample has no bag meaning at all (same no-semantics class as Sort/Limit/Window) and rand() admits no deterministic function-of-input reading. The two sides can therefore only be modeled as independent uninterpreted symbols (Sample-as-operator vs Filter(P,R), or P vs Q), whose equality QED cannot infer — the porter's probe confirmed this is unprovable — and extend_dsl_file cannot close the gap because no deterministic semantics exists to attach that would not simply hardcode the conclusion rather than prove it. ```
-
-### `SemiJoinRemove` — ⏭️ SKIPPED
-
-- Source backend: Apache Calcite
-- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/SemiJoinRemoveRule.java
-- Attempts used: 8
-- Last updated: 2026-09-25T14:56:45.529882+00:00
-- Reason / notes: `X SEMI JOIN Y ON c → X` is not a bag-semantic equivalence, and QED decides it over *every* instantiation of the uninterpreted symbols, so any countermodel — Y empty, or even a single X-row with no match under c (including with a true literal condition) — makes the universal proof impossible. The rule's soundness rests on Calcite's plan-global "advisory semi-join" precondition, i.e. the cross-table entailment that the semi-join's existence filter is the identity, which is precisely the predicate-inference/entailment between independent uninterpreted symbols QED cannot reason about, and the DSL/QED offer no side-condition or premise channel (table "guaranteed" constraints are row-level properties like uniqueness, which cannot express non-emptiness or full match coverage). So this is a genuine QED limitation, not an encoding mistake or a missing builder — no narrower non-degenerate special case is provable either. ```
+- Attempts used: 6
+- Last updated: 2026-10-14T09:37:22.283508+00:00
+- Reason / notes: Bernoulli `Sample`'s output is a random per-row selection, not a deterministic function of its input, so it has no bag semantics in QED's SMT model, and the rule's justification rests on statistical properties of `rand` (uniform in [0,1), independent across rows, true with probability exactly the sample rate) that a deterministic bag-equivalence prover neither models nor can verify. The only encodable surrogate — the sampler as an uninterpreted row predicate vs. the `rand(seed) < rate` filter as another independent uninterpreted predicate — is not universally equivalent, so QED would rightly refuse it, while sharing one predicate symbol would only prove the vacuous identity `Filter(P, R) ≡ Filter(P, R)`; even degenerate rate special cases are unprovable since QED cannot know the range or randomness of an uninterpreted `rand`, and the DSL/JSON layer exposes no Sample node that an extension could give meaningful (non-vacuous) semantics to.
 
 ### `SortJoinCopy` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/SortJoinCopyRule.java
-- Attempts used: 23
-- Last updated: 2026-09-25T15:05:27.550839+00:00
-- Reason / notes: SortJoinCopy's only semantic content is ordering — it copies the Sort (without offset/fetch) below each join input purely as a physical hint while leaving the outer Sort unchanged, so under QED's bag semantics, which explicitly do not model Sort/collation/limit/offset, both sides collapse to the identical join bag and the only expressible statement is the vacuous tautology Join(L,R) ≡ Join(L,R). That is a fundamental QED limitation on order semantics, not a missing DSL builder (a `sort()` builder via `extend_dsl_file` would still reduce to bag identity and prove nothing about the rule), consistent with the prior UNSUPPORTED verdict on the sibling rule SortJoinTranspose.
+- Attempts used: 8
+- Last updated: 2026-10-14T09:42:53.761677+00:00
+- Reason / notes: SortJoinCopyRule's entire contract is row-ordering: it decomposes the top Sort's collation across the join's two sides, consults "already sorted" metadata, and is only safe because the outer Sort is preserved to re-establish global order. QED models no ordering at all — Sort is a bag identity — so both sides erase to the identical Join bag and the only provable statement is the tautology Join ≡ Join; tellingly, QED would "prove" an unsound variant that drops the outer sort just as readily, so its verdict carries no information about this rule's real correctness. This is exactly the reference's explicit fundamental limitation (correctness fundamentally rests on Sort/row-ordering semantics), not a symbol-sharing bug or a mis-modeling a genuine attempt could fix. ```
 
 ### `SortJoinTranspose` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/SortJoinTransposeRule.java
-- Attempts used: 21
-- Last updated: 2026-09-25T15:13:09.714805+00:00
-- Reason / notes: The rule's soundness is fundamentally an ordering/top-N argument: replacing the join input L with just its first (offset+fetch) rows under the sort collation is only justified because every row of the final top (offset+fetch) window must originate from one of those rows. QED's decision procedure is universal bag equivalence and gives Sort/Limit/Offset no bag-semantic meaning, so the before side (Join(L, R)) and the after side (Join(topK(L), R)) are not bag-equal in general (each L row outside the top K drops its join-partner copies from the bag), and no special case can keep the row-dropping that makes the rule useful while staying bag-equivalent. Extending the DSL with a Sort builder would not close the gap either: the prover cannot reason about top-N semantics at all, and any bag-identity treatment of sort would reduce both sides to the identical join, yielding only a vacuous proof.
+- Attempts used: 23
+- Last updated: 2026-10-14T09:46:12.295272+00:00
+- Reason / notes: SortJoinTranspose is meaningful only through ordering semantics: the outer Sort/Offset/Fetch must be preserved while a derived Fetch/Limit is pushed into one join input. QED explicitly models queries with bag semantics and has no Sort/Limit/Offset/ordering semantics, so any encoding that removes those operators degenerates to the vacuous identity of the same join.
 
 ### `SortMerge` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/SortMergeRule.java
-- Attempts used: 21
-- Last updated: 2026-09-25T15:16:16.808073+00:00
-- Reason / notes: The rule's entire content is ordering/top-N composition — folding `Sort(fetch=t)` over `Sort(fetch=b)` into a single `Sort(fetch=min(t,b))` on the child's collation — and QED decides bag-semantic equivalence only: it has no model of Sort/Limit/Offset, and top-n under arbitrary (empty-collation) tie-breaking is not even a well-defined bag operation, so the identity is unprovable in principle rather than merely unencoded. Even the narrowest special case (two pure LIMITs with no order-by) reduces only to a subset/cardinality relationship, not a bag equality, and the min(t,b) fetch fold is a numeric relation between literals that the uninterpreted-symbol pattern language cannot express. Extending the DSL with a Sort builder would not help, since the immutable QED prover has no ordering semantics to check such a symbol against.
+- Attempts used: 9
+- Last updated: 2026-10-14T09:53:40.828071+00:00
+- Reason / notes: SortMerge's soundness is purely a top-N/row-position statement — it must know which rows each LIMIT keeps and, even in the degenerate sub-case where the outer fetch ≥ inner fetch (top sort is a no-op), that the inner `Limit B` node produces at most B rows — and QED's theory is bag-semantics only, explicitly without any model for the ordering semantics of Sort/Limit/Offset (qed.pdf §6.2), so the SMT solver has no algebraic relation to bridge. The gap is in the prover's semantics rather than a missing DSL builder (RelRN exposes no sort/limit and the Rust prover, the unchanging arbiter, has no ordering theory), so `extend_dsl_file` cannot close it; a "proof" obtained by erasing sorts to identity would only show identity = identity and would verify nothing about which rows survive, and no genuinely non-trivial special case of the min-of-fetches law exists within bag semantics.
 
 ### `SortProjectTranspose` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/SortProjectTransposeRule.java
-- Attempts used: 12
-- Last updated: 2026-09-25T15:20:51.457192+00:00
-- Reason / notes: SortProjectTranspose is an ordering claim end to end — its soundness (and its permutation/monotonic-cast side conditions on sort keys) exists solely to guarantee that `Project(P, Sort(C', X))` yields the same *ordered sequence* as `Sort(C, Project(P, X))` under the remapped collation, whereas QED only decides bag-semantic equivalence and explicitly has no model of Sort/Offset/Limit ordering (rulescript.pdf §7.1; qed.pdf §6.2). At the bag level both sides collapse to the same multiset of P applied to the input regardless of collation, so the best achievable encoding would prove a vacuous tautology and could never express or check the collation↔projection remapping or the side conditions — the `LogicalSort` case in JSONSerializer only shows the JSON can carry a sort node, not that the immutable prover models its ordering semantics, so this is a fundamental QED limitation, not a closable DSL gap. The porter's UNSUPPORTED verdict is therefore correct. ```
+- Attempts used: 9
+- Last updated: 2026-10-14T09:50:52.978317+00:00
+- Reason / notes: The rule's soundness is purely an order-preservation claim: a permutation (plus monotonicity-preserving casts) over a stream sorted by collation C yields the same row ordering — and, with offset/fetch, the same top-k row *selection* — as sorting the input by the remapped collation; the permutation guard and the monotonic-cast check exist only to protect this list-semantic invariant. QED verifies only bag equivalence, where Sort/Offset/Fetch carry no semantic content (sort reduces to identity), so any encoding of before/after collapses to the vacuous tautology Project(perm, R) ≡ Project(perm, R) — a statement that holds even for non-permutation projects and thus cannot certify the collation remapping the rule actually depends on. This is the documented fundamental limitation on row-ordering/top-k reasoning, not a missing DSL operator, so `extend_dsl_file` could not close the gap and the UNSUPPORTED verdict stands.
 
 ### `SortRemove` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/SortRemoveRule.java
-- Attempts used: 27
-- Last updated: 2026-09-25T15:41:10.755696+00:00
-- Reason / notes: SortRemoveRule is a physical-order (collation trait) rule, not a relational equivalence: its only precondition — the input's row order already satisfies the sort's collation — has no counterpart in QED's bag-semantic model, where no pattern can express ordering properties of a subplan, and the entire soundness content of the rule is that ordering guarantee. The porter's probe against the real prover was also the correct minimal test: an unconditional single-scan `Sort(R) → R` (one shared symbol, no predicates, so no name-mismatch or composition bug was possible) returned a genuine `provable: false` with no panic or timeout, confirming the limitation sits in the prover's treatment of ordering-semantic operators — something no further DSL extension can work around since the QED prover itself may not be modified — and the only remaining expressible special case (e.g. empty input) is vacuous, so no non-trivial encoding of this rule can exist. ```
+- Attempts used: 9
+- Last updated: 2026-10-14T09:55:13.183318+00:00
+- Reason / notes: SortRemoveRule is sound only under the non-bag premise that the child already emits rows in the Sort's collation (a planner trait fact), and QED decides only bag equivalence with no ordering semantics for Sort/Order By (qed.pdf §6.2), so the premise can neither be stated nor the redundancy checked. RuleScript's RRule has no guard/side-condition mechanism on uninterpreted children, and no bag property (e.g. key uniqueness on a scan) implies "already sorted", so no bag-semantic special case exists. Extending the DSL cannot close the gap because the missing ordering interpretation lives in the (unmodifiable) prover, not in the Java builders. ```
 
 ### `SortRemoveConstantKeys` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/SortRemoveConstantKeysRule.java
-- Attempts used: 9
-- Last updated: 2026-09-23T15:22:55.001936+00:00
-- Reason / notes: The rule's entire content is order-preserving — it drops (or deletes) sort keys whose columns are constant so the emitted row *sequence* is unchanged — but QED's bag model gives Sort no ordering (a Sort is bag-identical to its input), so any before/after pair collapses to the vacuous R = R and certifies nothing about the actual sort order. Compounding this, the rule's precondition (a key column is constant) is read from RelOptPredicateList.constantMap, i.e. it is predicate-inference over the input's pulled-up predicates, which QED explicitly cannot perform between independent uninterpreted symbols. Both are fundamental limitations of the prover's model (not missing DSL builders that extend_dsl_file could fix), so the porter's UNSUPPORTED call is correct. ```
+- Attempts used: 6
+- Last updated: 2026-10-14T09:57:23.026523+00:00
+- Reason / notes: The rule is sound only because dropping a sort key that the input's predicates prove constant preserves the output row *ordering* — and QED decides only bag equivalence, under which `Sort`/`Limit`/`Offset` carry no semantics at all, so both branches (partial key-dropping and full removal) reduce to bag tautologies like `R ≡ R` for any key set (e.g. `Sort([f1,f2], Filter(f1=c, R))` and `Sort([f2], Filter(f1=c, R))` are equal as bags even when f1 is *not* constant). `RelRN` exposes no order-carrying operator, and even if a `Sort` builder were added via `extend_dsl_file` (the serializer can carry collations, but the SMT encoding has no ordering model), the prover could only check the vacuous bag identity, not the order-preservation argument that constitutes the rule's entire correctness content. ```
 
 ### `SortRemoveDuplicateKeys` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/SortRemoveDuplicateKeysRule.java
-- Attempts used: 6
-- Last updated: 2026-09-25T15:25:02.183619+00:00
-- Reason / notes: The rule's soundness rests entirely on ordering semantics — that collation [k1, k2] induces the same row order as [k1] when k1 functionally determines k2 — and QED explicitly does not model Order By/Sort ordering semantics, operating in pure bag semantics (qed.pdf §6.1 limitations). Under bag semantics a Sort with any two collations over the same input is the identical bag, so any RuleScript encoding of before/after would be trivially true for arbitrary collations and verify none of the rule's content; the FD premise itself (mq.determines) is also beyond QED's reasoning (it cannot infer functional dependencies, and RelRN exposes no sort operator whose ordering the prover could compare). Adding a Sort builder via extend_dsl_file could not close this, since the gap is in the prover's semantics (which must not be modified), not in the DSL — making UNSUPPORTED the correct conclusion. ```
+- Attempts used: 10
+- Last updated: 2026-10-14T10:07:57.509072+00:00
+- Reason / notes: Both plans sort the same input, so their row bags are identical by construction; the rule's only non-trivial claim is that dropping a key `mq.determines` marks as functionally determined by earlier keys preserves the same row *order*, and QED has no ordering semantics for Sort (it reduces to its input bag-wise), so any encoding proves only a vacuous tautology. The `mq.determines` precondition is a content-dependent property the prover cannot even constrain, since proofs must hold for all instantiations of the uninterpreted table symbols. This is a fundamental QED limitation, not a DSL gap: the JSON serializer already carries `sort`, so a RelRN sort builder (via extend_dsl_file) would only enable vacuous proofs rather than close the missing ordering model, matching the verified AGREE skips for calcite SortRemove and datafusion DedupeSortExprs. ```
 
 ### `SortRemoveRedundant` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/SortRemoveRedundantRule.java
-- Attempts used: 8
-- Last updated: 2026-09-25T15:31:51.693816+00:00
-- Reason / notes: The rule's before-pattern is necessarily a Sort node (ORDER BY, ORDER BY+LIMIT, or pure LIMIT), and its correctness rests on ordered-result preservation, which QED cannot model — per qed.pdf §6.2 it is bag-semantic and has no Sort/Limit/Offset semantics, so the only checkable reading, bag(sort R) = bag R, is a trivial identity true for every R *without* the rule's precondition and would verify nothing of the rule's actual claim; separately, the rule's single soundness precondition — that the input's max row count (optimizer cardinality metadata) is ≤ 1 or ≤ the literal fetch — cannot be stated about an uninterpreted relation, since the DSL exposes no row-count/size constraint (the scan `unique` key flag only forces ≤1 row on a single-column scan, covering neither the general metadata bound nor the fetch-n case, and pure LIMIT is not even a bag identity when |R| > n). No `extend_dsl_file` can close the gap: RelRN has no Sort/Limit builder, and one that merely emits the JSON format's `LogicalSort` encoding would still be judged by the immutable prover, which lacks list semantics — a documented fundamental limitation, not a porter oversight.
+- Attempts used: 22
+- Last updated: 2026-10-14T10:06:16.526771+00:00
+- Reason / notes: The rewrite is conditional on a cost-model fact — the input's max row count being ≤ 1 (ORDER BY) or ≤ fetch (pure LIMIT) — and RuleScript patterns are unconditional before/after pairs with no hypothesis mechanism and no cardinality-bounded input (the `unique` flag encodes key/functional dependency, not a row bound), so any encoding that drops the precondition is simply unsound in general. Even the one structurally encodable instance, a Sort/Limit over the `empty` relation, is unprovable because QED assigns Sort/Limit/Offset no ordering or bag semantics at all — they are uninterpreted QOps whose outputs become unconstrained during normalization, making Sort(R) ≡ R reduce to "fresh unconstrained variable ≡ R". Adding a Sort builder via `extend_dsl_file` would not help, since the JSON format already carries sorts while the prover itself models them uninterpreted — the gap is a fundamental QED limitation, exactly the one the reference lists (Sort/Limit/Offset/Window/Sample have no bag-semantic meaning). ```
 
 ### `SortUnionTranspose` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/SortUnionTransposeRule.java
-- Attempts used: 8
-- Last updated: 2026-09-25T15:37:17.657164+00:00
-- Reason / notes: SortUnionTranspose's soundness is exactly the top-N order property that the first (offset+fetch) rows of each branch under the sort collation suffice for the final top-(offset,fetch) of the merged result — an ordering/top-k fact that QED's bag-semantic, uninterpreted-domain calculus has no way to express (qed.pdf lists list/ordering semantics as explicitly unsupported, and Sort/Offset/Fetch have no bag-semantic meaning). The DSL indeed exposes no Sort builder, and that is not a closable DSL gap: even a `sort` builder emitting JSONSerializer's existing LogicalSort form would hit a limitation on the prover side itself (the unmodifiable trusted arbiter has no ordering semantics), so at best both sides would collapse to the same bag and prove a vacuous identity that verifies nothing about which rows survive the push-down. ```
-
-### `SubQueryRemove` — ⏭️ SKIPPED
-
-- Source backend: Apache Calcite
-- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/SubQueryRemoveRule.java
-- Attempts used: 1
-- Last updated: 2026-09-24T01:47:17.360846+00:00
-- Reason / notes: Manually investigated by the harness operator, going further than the earlier automated verdict. SubQueryRemoveRule.java is 1488 lines dispatching on 6 sub-query kinds (SCALAR_QUERY, ARRAY/MAP/MULTISET_QUERY_CONSTRUCTOR, SOME, IN, EXISTS, UNIQUE); most genuinely need real aggregate-function algebra (SINGLE_VALUE, MIN/MAX, COUNT, three-valued CASE/null logic) that QED does not model. But the narrowest slice — rewriteExists' Logic.TRUE branch, i.e. Filter(EXISTS(sub), outer) as the sole filter condition, uncorrelated — only uses GROUP BY a constant marker column with ZERO aggregate calls to collapse the sub-query to at-most-one-row, exactly the same dedup-absorbs-duplication technique the already-proved AggregateJoinRemove relies on. So this specific slice looked genuinely tractable, and the earlier verdict's stated blocker (RexRN has no subquery node) is a real but CLOSABLE DSL gap, not a fundamental one — JSONSerializer.java already has a full RexSubQuery serialization branch.
-
-This was actually attempted: added RexRN.Exists(RelRN) — a small extend_dsl_file-style addition to RexRN.java constructing a genuine Calcite RexSubQuery.exists(...) — then encoded before() = Filter(EXISTS(sub), outer), after() = InnerJoin(outer, Aggregate(Project(TRUE, sub), groupKey=[0], no agg calls)) on a TRUE condition, mirroring rewriteExists' TRUE-logic branch line for line. This compiled clean and produced a structurally correct JSON (confirmed by inspecting it directly: the EXISTS operator carries a genuine nested 'query' sub-relation, exactly as JSONSerializer.java's RexSubQuery branch is designed to emit). But QED's own prover rejected it with provable=false and smt_duration=0 — rejected before real SMT solving even started, the same fast-rejection signature seen when an encoding falls outside the equivalence-class matcher's recognized shapes (as with the separately-investigated LoptOptimizeJoin). Checked the actual Rust prover source (qed-prover/src/pipeline/relation.rs:551): Expr::Op{rel: Some(_), ..} — i.e. any expression containing a nested sub-relation — is explicitly marked complete() = false, and such expressions are evidently not handled by the equivalence-class stage at all, independent of whether the underlying mathematical content (dedup-based cardinality collapse) is itself something QED can reason about in other contexts.
-
-Conclusion: the DSL-level gap (no subquery builder) is real but was successfully closed here. The deeper, genuinely fundamental blocker is that QED's decision procedure cannot reason about RexSubQuery-containing expressions at all, confirmed directly against the prover's own source, not inferred from a failed proof attempt alone. This applies to every sub-query kind this rule handles, not just EXISTS, so no sub-case of SubQueryRemove is provable with the current prover backend.
+- Attempts used: 5
+- Last updated: 2026-10-14T09:59:48.145088+00:00
+- Reason / notes: The rule’s correctness depends on row-order/top-N semantics: each union branch is capped at `offset + fetch` only because the outer `Sort` reorders and re-selects after merging. QED’s model is bag-semantic and has no meaningful `Sort`/`Limit`/`Offset` semantics, so this equivalence cannot be universally proven even if a Sort builder were added to the DSL.
 
 ### `TableScan` — ⏭️ SKIPPED
 
 - Source backend: Apache Calcite
 - Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/TableScanRule.java
-- Attempts used: 13
-- Last updated: 2026-09-23T13:33:24.157908+00:00
-- Reason / notes: TableScanRule's only non-trivial case (view expansion via `table.toRel`) asserts that a scanned table's contents equal the relational plan stored in its table metadata, and QED models every scan as an independent uninterpreted bag — RuleScript/JSON has no construct tying a table symbol to a defining plan (the "guaranteed" field carries only row-level predicates, not bag equality), so the required equivalence is fundamentally inexpressible/invisible to the prover, not a fixable symbol-sharing or DSL gap. The porter's concrete non-trivial encoding returned a definitive not-provable (complete fragment, no SMT timeout), and the only provable instance is the vacuous identity rewrite scan→scan, which captures none of the rule's actual transformation. ```
-
-### `UnionToValues` — ⏭️ SKIPPED
-
-- Source backend: Apache Calcite
-- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/UnionToValuesRule.java
-- Attempts used: 13
-- Last updated: 2026-09-23T15:48:48.067587+00:00
-- Reason / notes: UnionToValues is a constant-folding rule whose operand definition (a Union whose inputs are all Values) gives it no free relational or predicate symbols, and in the JSON/DSL model a `values` node is a closed bag of concrete literal rows — the DSL only exposes the empty values, and even a hypothetical `values(rows)` builder could only fix one ground instance, leaving nothing relational to universally quantify over. The rule's soundness rests on the engine-internal invariant that a Values computes exactly the bag of its hard-coded tuple list and that the rule's list concatenation/deduplication preserves it — a backend operator's bespoke internal semantics that QED takes as an axiom of its model rather than something it can verify, so any encodable "proof" would be a single closed bag equality (or, at best, a scalar-constant bag-identity checking QED's own model consistency) rather than a genuine proof of the rewrite.
-
-### `WindowReduceExpressions` — ⏭️ SKIPPED
-
-- Source backend: Apache Calcite
-- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/ReduceExpressionsRule.java
-
-Note: ReduceExpressionsRule.java defines multiple distinct rule variants as separate static nested classes. Implement specifically the `WindowReduceExpressionsRule` variant (not CalcReduceExpressionsRule, FilterReduceExpressionsRule, JoinReduceExpressionsRule, ProjectReduceExpressionsRule, which are separate rules ported under their own spec names).
-- Attempts used: 21
-- Last updated: 2026-09-25T15:46:06.074707+00:00
-- Reason / notes: The rule's before pattern is a LogicalWindow, but the core language has no Window operator (RelRN exposes only scan/filter/project/join/set-ops/aggregate) and QED's JSONSerializer has no case for LogicalWindow — it falls through to "Not implemented" — so the pattern cannot even be encoded. Window partition/order/frame semantics have no bag-semantic meaning in the unchangeable prover, and the rewrite's per-partition constant elimination (dropping constant partition/order keys and reducing window aggregate operands) is exactly the per-partition aggregate reasoning QED cannot perform, since it models aggregates only up to bag equality of their input. Extending the DSL cannot close this gap because the trusted Rust prover itself lacks window semantics, so no JSON node could carry them. ```
+- Attempts used: 24
+- Last updated: 2026-10-14T10:21:44.398788+00:00
+- Reason / notes: TableScanRule's entire correctness content is the identity "the bag of table V equals the relation produced by V's RelOptTable.toRel" (its view definition over *other* table symbols), and QED's semantics make every named table an independent uninterpreted bag whose only admissible side conditions are per-table key and check predicates (the JSON schema carries only "key"/"guaranteed" per table, with guaranteed predicates scoped to that table's own row) — there is no operator, constraint kind, or JSON construct in the DSL to assert a table-to-expression identity, so any encoding is either the vacuous base-table tautology Scan(T) = Scan(T) (proving nothing) or unprovable independent-symbol inequality. This is a fundamental limitation of the trusted prover's table model, not a missing Java-builder gap closable via extend_dsl_file, and even the degenerate alias-view special case (V = scan of B) still requires the same inexpressible cross-symbol bag equality.
 

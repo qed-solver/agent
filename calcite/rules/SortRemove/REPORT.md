@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 27  **Verification rounds used:** 2
+**Porter attempts used:** 9  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/SortRemoveRule.java
 
 **Verdict:** AGREE
 
-SortRemoveRule is a physical-order (collation trait) rule, not a relational equivalence: its only precondition — the input's row order already satisfies the sort's collation — has no counterpart in QED's bag-semantic model, where no pattern can express ordering properties of a subplan, and the entire soundness content of the rule is that ordering guarantee. The porter's probe against the real prover was also the correct minimal test: an unconditional single-scan `Sort(R) → R` (one shared symbol, no predicates, so no name-mismatch or composition bug was possible) returned a genuine `provable: false` with no panic or timeout, confirming the limitation sits in the prover's treatment of ordering-semantic operators — something no further DSL extension can work around since the QED prover itself may not be modified — and the only remaining expressible special case (e.g. empty input) is vacuous, so no non-trivial encoding of this rule can exist. ```
+SortRemoveRule is sound only under the non-bag premise that the child already emits rows in the Sort's collation (a planner trait fact), and QED decides only bag equivalence with no ordering semantics for Sort/Order By (qed.pdf §6.2), so the premise can neither be stated nor the redundancy checked. RuleScript's RRule has no guard/side-condition mechanism on uninterpreted children, and no bag property (e.g. key uniqueness on a scan) implies "already sorted", so no bag-semantic special case exists. Extending the DSL cannot close the gap because the missing ordering interpretation lives in the (unmodifiable) prover, not in the Java builders. ```

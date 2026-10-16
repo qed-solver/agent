@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache DataFusion
-**Porter attempts used:** 8  **Verification rounds used:** 1
+**Porter attempts used:** 28  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 
 
 **Verdict:** AGREE
 
-The rule is pure scalar CASE algebra whose correctness rests entirely on CASE's branch-selection semantics — a value-level ite (first-TRUE branch wins; false/NULL conditions fall through to the next branch/ELSE) — and QED's interpreted fragment has no ite: I independently verified `RexRN` offers only And/Or/Not/boolean literals plus uninterpreted `pred`/`proj` symbols, and `JSONSerializer` passes any scalar operator to the fixed Rust prover as a bare name that unmodeled operators receive uninterpreted treatment for, so a CASE minted via `extend_dsl_file` could never be universally equated with its then/else/NULL forms (e.g. `case(false,a,b) ≡ b` fails for an arbitrary function symbol). No relational reconstruction is faithful either: a Filter/Union re-encoding of branch selection drops NULL-condition rows that CASE would send to ELSE (unsound for the non-literal branches the rule preserves), and for the constant-condition branches the only interpretable "encoding" collapses to the already-rewritten relation, making the proof vacuous — the before side of every instance of the rule contains a CASE that nothing in the fragment can name, so no provable special case exists. The gap is therefore in the prover's fixed operator interpretations, which are off-limits to modify (extend_dsl_file only touches the Java builder/serializer layer), so the porter's UNSUPPORTED verdict is correct.
+The rule's validity rests entirely on CASE's first-true-branch selection semantics, and RuleScript's core language has no conditional/IF-THEN-ELSE construct, so the before-side CASE can only be expressed as a name-keyed uninterpreted predicate. QED by design treats uninterpreted predicate symbols as mutually independent (the "predicate inference/entailment between independent symbols" limitation), so no SMT proof can relate that opaque symbol to the AND/OR/NOT expansion built from other uninterpreted symbols — and this holds even under the rule's own non-nullable-condition guard that removes the 3VL divergence, since the CASE symbol's meaning simply isn't in the prover. Consequently no narrower special case is provable either: any before side containing the CASE symbol is equally invisible to QED, matching the AGREE-verified SKIPPED precedents for structurally identical CASE-branch rewrites.

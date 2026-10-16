@@ -1,13 +1,17 @@
 # NormalizeJoinNotAnyFilter
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 101  **Verification rounds used:** 6
+**Porter attempts used:** 0  **Verification rounds used:** 0
+**Scope detail:** an inner join whose ON clause is the single conjunct NOT (x = ANY(sub)), with x the first left column and sub a single-column relation
+
 
 ## Source rule (as given to the porter)
 
 ```
-Source: pkg/sql/opt/norm/rules/decorrelate.opt
+# Name: NormalizeJoinNotAnyFilter
+# Backend: CockroachDB
+# Source: pkg/sql/opt/norm/rules/decorrelate.opt
 
 NormalizeJoinNotAnyFilter is similar to NormalizeSelectNotAnyFilter, except
 that it operates on Not Any expressions within Join filters rather than Select
@@ -65,8 +69,43 @@ Extracted from `decorrelate.opt` (which defines multiple rules — implement spe
 ```
 ```
 
-## Independent verifier review
+## QED prover result
 
-**Verdict:** AGREE
-
-The rule's entire content is the semantic identity NOT(ANY(subq)) ≡ NOT(EXISTS(Select(subq, IsNot(ConstructAnyCondition,...)))), which rests on (a) three-valued-logic NULL handling ("a NULL return value is treated as False by the filter") that QED's bag-semantics decision procedure does not model, and (b) subquery operators ANY/EXISTS in the scalar/ON-condition position — neither exists in RuleScript's core language, so both sides would be distinct, unconnected uninterpreted symbols (ConstructAnyCondition being yet another opaque function) that QED has no algebraic definition linking, making equivalence genuinely undecidable rather than a missed encoding. ```
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": false,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 9561126
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 8427208
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 95083
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 636084
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 18618000
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 8501542
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 30158208
+  }
+}
+```

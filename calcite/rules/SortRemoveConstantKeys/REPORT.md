@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 9  **Verification rounds used:** 1
+**Porter attempts used:** 6  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/SortRemoveConstantKeysRu
 
 **Verdict:** AGREE
 
-The rule's entire content is order-preserving — it drops (or deletes) sort keys whose columns are constant so the emitted row *sequence* is unchanged — but QED's bag model gives Sort no ordering (a Sort is bag-identical to its input), so any before/after pair collapses to the vacuous R = R and certifies nothing about the actual sort order. Compounding this, the rule's precondition (a key column is constant) is read from RelOptPredicateList.constantMap, i.e. it is predicate-inference over the input's pulled-up predicates, which QED explicitly cannot perform between independent uninterpreted symbols. Both are fundamental limitations of the prover's model (not missing DSL builders that extend_dsl_file could fix), so the porter's UNSUPPORTED call is correct. ```
+The rule is sound only because dropping a sort key that the input's predicates prove constant preserves the output row *ordering* — and QED decides only bag equivalence, under which `Sort`/`Limit`/`Offset` carry no semantics at all, so both branches (partial key-dropping and full removal) reduce to bag tautologies like `R ≡ R` for any key set (e.g. `Sort([f1,f2], Filter(f1=c, R))` and `Sort([f2], Filter(f1=c, R))` are equal as bags even when f1 is *not* constant). `RelRN` exposes no order-carrying operator, and even if a `Sort` builder were added via `extend_dsl_file` (the serializer can carry collations, but the SMT encoding has no ordering model), the prover could only check the vacuous bag identity, not the order-preservation argument that constitutes the rule's entire correctness content. ```

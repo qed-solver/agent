@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 41  **Verification rounds used:** 3
+**Porter attempts used:** 25  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -170,4 +170,4 @@ Extracted from `window.opt` (which defines multiple rules — implement specific
 
 **Verdict:** AGREE
 
-The rule's soundness fundamentally depends on (1) ordering-sensitive LIMIT row selection (which n rows are kept depends on the sort order, not just the count), (2) the prefix-safety property of specific window functions (rank vs. avg), and (3) the interaction between the window's partition+ordering structure and the limit's ordering — all of which are outside QED's bag-semantic model, where Sort/Limit/Window have no definable meaning and uninterpreted functions cannot be related across different input subsets. No narrowing of assumptions (e.g., single partition, no ties) removes the need for the prover to reason about "the first k rows in order X" versus "an arbitrary subset of size k," so no encodable special case reduces to a decidable bag-equivalence claim. ```
+PushLimitIntoWindow's soundness rests entirely on two things QED's model categorically lacks: the row-ordering semantics of Limit/Sort (taking the first N rows under the window's segmented partition+ordering, so the one "cut off" partition must pass through as a *prefix*), and the prefix-safety property of specific window functions (rank() yes, avg() with an unbounded frame no) — a bespoke internal semantics of the operator that QED cannot see through as an uninterpreted function. QED only reasons about bag-equality of operator inputs, so it cannot know that W∘Limit = Limit∘W holds for a "prefix-safe" W; even if the DSL were extended to build Sort/Limit/Window shapes (the JSON serializer already carries LogicalSort), the prover would have to derive an identity between two distinct nestings of uninterpreted ordering-dependent operators, which is not a bag-algebra theorem and would simply fail. This is a genuine fundamental limitation of the model, not a missing encoding trick, so the porter's UNSUPPORTED conclusion is correct. ```

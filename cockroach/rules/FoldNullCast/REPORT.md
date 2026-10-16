@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 26  **Verification rounds used:** 2
+**Porter attempts used:** 51  **Verification rounds used:** 4
 
 ## Source rule (as given to the porter)
 
@@ -28,4 +28,4 @@ Extracted from `fold_constants.opt` (which defines multiple rules — implement 
 
 **Verdict:** AGREE
 
-FoldNullCast's validity rests entirely on the SQL-specific semantic that Cast propagates NULL (with the target type preserved) — a bespoke internal behavior of a specific scalar operator, which is exactly the kind of operator-internal semantics QED's theory of uninterpreted functions cannot model. Cast is expressible in RuleScript only as an uninterpreted projection symbol, and f(NULL) = NULL is not a first-order consequence for an uninterpreted function (nor could it be a sound global axiom, since such symbols must stand in for non-null-propagating functions like COALESCE), and the JSON format offers no mechanism for scalar-function side conditions — only table-level key/guaranteed constraints — so no `extend_dsl_file` extension can supply the missing axiom without altering the trusted prover. The observed refutation (a complete model in which the uninterpreted cast maps the null constant to a non-null value) is the expected outcome, confirming a genuine QED limitation rather than an encoding mistake.
+FoldNullCast's entire content is the scalar identity cast(NULL) = NULL, whose correctness rests on the internal null-preserving semantics of the cast operator — exactly the "operator whose specific internal semantics QED cannot see through as an uninterpreted function" limitation. QED's SMT theory treats casts as uninterpreted functions with no null-propagation axiom, so cast(NULL) = NULL is not a valid consequence for any instantiation (the porter's empirical provable=false on the structurally distinct Project(cast(null)) vs Project(null) encoding is consistent with this), and the only concrete-Cast route degenerates because Calcite constant-folds CAST(NULL AS T) to a typed null literal at pattern-construction time, yielding a vacuous X=X. No DSL extension can close this, since a cast builder would still serialize to an uninterpreted call and the missing fact lives in the unmodifiable prover's semantics, not in a missing builder. ```

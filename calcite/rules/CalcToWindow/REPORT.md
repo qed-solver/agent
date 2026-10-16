@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 61  **Verification rounds used:** 4
+**Porter attempts used:** 21  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -16,4 +16,4 @@ Note: ProjectToWindowRule.java defines multiple distinct rule variants as separa
 
 **Verdict:** AGREE
 
-The rule's entire semantic content is the evaluation semantics of the window operator (a Calc/Project containing a `RexOver` being equal to a pipeline containing a `LogicalWindow`), and window results are inherently order- and frame-dependent (partition keys, collation, ROWS/RANGE frames, functions like LAG/LEAD/ROW_NUMBER), whereas QED's bag-semantic SMT model has no notion of `Window` or any list/ordering operator and the Rust prover is the fixed, unmodifiable arbiter. Extending the DSL (a `RexOver` scalar builder, a `Window` rel builder, a `JSONSerializer` case) could at best emit a node kind QED has no semantics for, and encoding the window as an uninterpreted symbol or as a join-with-group-aggregate reduction would make the claim either vacuous (both sides sharing one opaque symbol) or a tautology, so the porter's UNSUPPORTED conclusion is correct.
+CalcToWindow's before pattern necessarily contains a RexOver window expression and its after pattern necessarily produces a LogicalWindow node, and QED's bag-semantic translation has no Window operator — a stated limitation, since window values depend on ordering/frames within a partition and have no bag-semantic meaning. No uninterpreted-symbol workaround captures the rule's actual content: a window function's value for a row depends on the whole partition, not the row, so row-local uninterpreted functions misrepresent the before side; modeling the entire window as an uninterpreted relation symbol reduces the rewrite to a tautological projection reshuffle (and the prover's fixed JSON/Q-expression format has no window construct for a DSL extension to target, e.g. JSONSerializer throws on LogicalWindow); and the group-by substitute emits one row per partition instead of the one row per input row this cardinality-preserving decomposition requires. ```

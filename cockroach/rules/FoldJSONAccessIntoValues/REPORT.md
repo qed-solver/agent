@@ -2,12 +2,13 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 41  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
 ```
-Source: pkg/sql/opt/norm/rules/project.opt
+# Name: FoldJSONAccessIntoValues
+# Backend: CockroachDB
+# Source: pkg/sql/opt/norm/rules/project.opt
 
 FoldJSONAccessIntoValues replaces a Values operator that has a single JSON
 column and at least one row with a new Values operator that has a column for
@@ -98,8 +99,6 @@ Extracted from `project.opt` (which defines multiple rules — implement specifi
 ```
 ```
 
-## Independent verifier review
+## Reason
 
-**Verdict:** AGREE
-
-FoldJSONAccessIntoValues is a constant-folding rule whose correctness depends on evaluating a JSON field-access operator (e.g. `cust->'id'`) over concrete JSON literals stored in a Values row to produce new literal values; QED's bag-semantic SMT theory treats every operator as an uninterpreted function with no algebraic axioms, so it cannot relate `jsonAccess(jsonLiteral, key)` to the extracted constant that the rewrite produces, making the before/after bags unprovable-equal for any faithful encoding. ```
+The rule unnests a single-column Values whose rows are JSON objects into one Values column per JSON key, and rewrites -> field accesses to read those columns. QED has no JSON object value and no key-addressed field access: Values content can only carry literal constants, and a JSON fetch is just an uninterpreted function of an opaque column. The new columns are derived from the keys and values inside each JSON document, which the DSL cannot express, so the after-side Values cannot be built from the before-side one. The only encoding the porter reached splits a Values into a union of single-row Values while the projection still reads the original column. That proves only that splitting a Values by rows commutes with a projection, which is unrelated to this rule, and the verifier rejected it for that reason. The key-presence guards (all referenced keys in the first row, all first-row keys in every row) cannot be stated either. Recorded as skipped rather than published as a proof of something else.

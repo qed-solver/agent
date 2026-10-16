@@ -76,7 +76,7 @@ import prompts
 import verifier_prompts
 import workspace
 from llm_client import (
-    AgentTurn, LLMClient, LLMError, ToolCall,
+    AgentTurn, Completion, LLMClient, LLMError, ToolCall,
     format_assistant_message, format_tool_results_message,
 )
 
@@ -286,7 +286,13 @@ def run_verifier(
         )
     messages = [{"role": "user", "content": prompt}]
     for attempt in range(1, MAX_DECISION_REQUESTS + 1):
-        completion = verifier_llm.complete_full(system, messages)
+        try:
+            completion = verifier_llm.complete_full(system, messages)
+        except LLMError as e:
+            if "maximum context length" not in str(e).lower():
+                raise
+            print(f"   [verifier] decision round {attempt}/{MAX_DECISION_REQUESTS} hit the context limit; counting as no verdict")
+            completion = Completion(content="", reasoning="", truncated=True)
         reply = completion.content
         if debug_dir is not None:
             dump_transcript_entry(

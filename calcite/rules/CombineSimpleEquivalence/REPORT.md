@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 6  **Verification rounds used:** 1
+**Porter attempts used:** 21  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/CombineSimpleEquivalence
 
 **Verdict:** AGREE
 
-The rule's soundness rests entirely on the Spool's producer→consumer binding — a sibling branch's `LogicalTableScan` must denote exactly the bag the `TableSpool` materialized — and QED's model cannot express that: its input format defines only independent base tables (with at most per-row scalar "guaranteed" constraints) over a fixed operator set (scan/values/filter/project/join/correlate/group/union/intersect/except/sort), with no let/define/spool operator that could tie an auxiliary table to a sub-expression's output. Since the QED prover itself is the unmodifiable arbiter and has no such semantics, no `RelRN`/`JSONSerializer` extension can close the gap — the consumer scan would remain an arbitrary table unrelated to the producer's output, so before/after cannot be shown bag-equivalent even in the narrowest special case (shared component = a plain scan, spool table still independent of the source table).
+The rewrite introduces a new spool table and then consumes it, but QED treats table scans as independent input bags with no let/view/spool binding tying a table's contents to the subplan that materializes it. Therefore the required materialization identity is outside QED's pure bag-semantics model, not just a missing builder or symbol-sharing bug.

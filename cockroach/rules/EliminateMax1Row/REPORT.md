@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 23  **Verification rounds used:** 2
+**Porter attempts used:** 24  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -32,4 +32,4 @@ $input
 
 **Verdict:** AGREE
 
-Max1Row is not a bag function — it is the identity only on inputs with at most one row and a runtime error otherwise — so it belongs to the row-count/Limit family that QED explicitly does not model, and it exists in neither the RelRN builders nor the prover's JSON vocabulary (the serializer's switch has no such node, and `extend_dsl_file` can only add builders over JSON the immutable Rust prover already understands, not new semantics). Furthermore, the rule is a conditional rewrite whose entire content is the `HasZeroOrOneRow` side condition, and `RRule` exposes only `before()`/`after()` with no assumption/guard channel, so the precondition must be satisfied structurally — but the core language's only "at most 1 row" shape is `.empty()` (exactly 0 rows; the `unique` scan flag is a distinct-key constraint, not a total row-count bound), which collapses the narrowest special case to a tautology that cannot even be written without the missing operator.
+Max1Row is an order-dependent LIMIT-1 operator ("keep the first row"), and QED's bag-semantic theory explicitly models no list/ordering semantics (Sort/Limit/Offset/Window/Sample are out of scope, and no such builder exists in RelRN), so the LHS can only be represented as an opaque uninterpreted symbol with no Max1Row(X)≡X axiom, making the equivalence unprovable even under any precondition. The HasZeroOrOneRow guard is a cardinality side condition the before/after pattern format cannot express — uninterpreted scans can't be constrained to ≤1 rows (the unique/key flag only gives functional dependency, not cardinality), and even the only structural 0-or-1-row shapes (Empty, or a no-group-key aggregate output) leave an uninterpreted Max1Row wrapper whose identity is unprovable, e.g. Max1Row(Empty)≢Empty. Dropping Max1Row from the encoding collapses the rule to the vacuous identity X≡X, and this is the identical blocker the sister rule EliminateLimit in the same .opt family hit and got an independent AGREE on — so a further attempt cannot yield a genuine, non-vacuous encoding. ```

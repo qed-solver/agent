@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 25  **Verification rounds used:** 2
+**Porter attempts used:** 34  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
@@ -16,4 +16,4 @@ Note: MeasureRules.java defines multiple distinct rule variants as separate stat
 
 **Verdict:** AGREE
 
-The rule rewrites Project-over-Sort into Project-over-Sort-over-Project, so both the before and after patterns structurally require a Sort node, but QED fundamentally does not model row-ordering/collation semantics — Sort has no bag-semantic meaning — and the DSL (RelRN) exposes no Sort builder, so no encoding, even one produced by extending the DSL, can be decided. The rule's genuine soundness additionally rests on the order-independence of Calcite's bespoke M2V operator, which QED can only see as an uninterpreted symbol, so even a Sort-free bag-encoding (which is just a trivially-true Project-Project fusion) would not faithfully verify this rule's ordered-list correctness. ```
+The rule's only non-vacuous content is that re-emitting the Sort (identical sortExps/offset/fetch) below the inserted M2V projection preserves sort order and top-k/offset selection, plus that M2V's per-row value is order-independent — QED fundamentally has no ordering semantics (Sort/Limit/Offset have no bag meaning; the prover path treats LogicalSort as identity, so even a DSL Sort builder couldn't express the order claim), and M2V's measure-expansion row-wise behavior is bespoke operator semantics invisible behind an uninterpreted symbol. Any faithful encoding therefore must drop the Sort and reduces to the generic let-binding identity Project[x0, f(g(x2))] ≡ Project[x0, f(z)] over Project[x0, x1, g(x2)], which holds for arbitrary deterministic f, g and verifies nothing specific to this rule — a genuine QED limitation, not an encoding mistake the porter could fix. ```

@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 24  **Verification rounds used:** 2
+**Porter attempts used:** 9  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/materialize/Materialized
 
 **Verdict:** AGREE
 
-The rule's soundness is exactly the catalog invariant that a materialized view's contents are maintained to equal its defining plan over the base tables — a cross-table "defined-as" hypothesis coupling two otherwise independent free table symbols — and QED decides bag-equivalence universally over *all* instantiations of free tables (schemas carry only per-table keys/constraints, no relational hypotheses between tables), so any after-side that keeps the MV as a distinct scan is not provably equivalent to the query over base tables. This is a limitation of the prover's theory, not of the DSL's surface: no `extend_dsl_file` change to RelRN/JSONSerializer can add an SMT assumption the fixed Rust prover does not read, and the JSON format has no cross-table defined-as field for it to consume. Inlining the MV's defining plan into both patterns would make something provable, but the "rule" degenerates into an ordinary logical rewrite over that plan (e.g. filter composition) with the precomputed artifact erased — i.e. the MV rule's actual content is lost, so UNSUPPORTED is the correct conclusion.
+This is not an algebraic equivalence between two plans but a catalog-driven rewrite whose soundness rests on the external planner invariant that the registered MV table is a current materialization of its defining query (bag(MV) = bag(defineQuery(base tables))), and that invariant cannot be stated as a premise in QED's theory. Table scans are independent uninterpreted bags whose only declared properties are per-table primary keys and single-table check predicates (`key`/`guaranteed` in the JSON), and neither the RuleScript DSL nor the prover's JSON schema has any construct for a table-to-plan or cross-table identity — closing that gap would require changing the trusted Rust prover, which is off-limits, not a Java-side `extend_dsl_file` fix. So any encoding that keeps the MV as a distinct scan symbol is unprovable, while identifying the MV scan with the defining-subplan symbol degenerates the rule to a vacuous filter rearrangement; the porter's UNSUPPORTED conclusion and its stated reason are correct.

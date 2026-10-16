@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 24  **Verification rounds used:** 2
+**Porter attempts used:** 26  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -28,4 +28,4 @@ Extracted from `scalar.opt` (which defines multiple rules — implement specific
 
 **Verdict:** AGREE
 
-This rule's validity rests entirely on CockroachDB's definitional axiom st_intersects(a,b) ≡ ¬st_disjoint(a,b), but RuleScript can only express these geo built-ins as distinct name-keyed uninterpreted symbols, and QED treats differently named operators as independent functions with no axiom mechanism to relate them — a gap in the fixed prover that no DSL extension can close. Since ¬P(x) ≡ Q(x) is false under some joint instantiation of independent P and Q (a row where P is true and Q is false), no encoding or narrower special case is universally valid, so the porter's UNSUPPORTED conclusion and reasoning are correct. ```
+The rule is purely scalar, and its entire validity rests on Cockroach's library identity st_intersects(args) ≡ ¬st_disjoint(args); in QED's model these are two independent uninterpreted symbols, so the faithful encoding (a Filter over a shared scan, which the porter compiled and ran to completion with no timeout) admits a genuine SMT countermodel, making provable=false the correct verdict rather than a symbol-naming or shape bug. The only route to a proof — postulating that identity as a table "guaranteed" constraint — would import the rule's own premise as an axiom, turning the verification circular, which is precisely the "bespoke internal semantics of a backend operator" limitation QED fundamentally cannot model, not a missing DSL capability worth extending.

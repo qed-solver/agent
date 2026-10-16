@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 41  **Verification rounds used:** 3
+**Porter attempts used:** 29  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -100,4 +100,4 @@ Extracted from `limit.opt` (which defines multiple rules — implement specifica
 
 **Verdict:** AGREE
 
-The rule's soundness rests entirely on ordering/list semantics — that Limit(A, n, ord) keeps A's first n rows in ord, that the join's output preserves left-row order so the outer limit's prefix rows all come from within the pushed-down limit's rows, and that the join preserves left rows — none of which QED can model, since it only decides bag-semantic equivalence where Sort/Limit/Offset have no meaning. Substituting an uninterpreted operator (or an uninterpreted left-only predicate) for the limit cannot salvage it: with Limit uninterpreted the two sides are different applications of opaque functions and SMT will refute them, and with a predicate p it would only prove σ_p(L⋈R) = σ_p(L)⋈R, which holds for every p and therefore verifies nothing about what a limit actually does. Extending the DSL can't close the gap either — JSONSerializer already serializes LogicalSort with limit/offset, so the missing semantics live in the unmodifiable prover itself — leaving no non-trivial special case (the only "special case" where the limit is a no-op reduces to a vacuous identity that is also inexpressible as a premise) for QED to decide. ```
+The rule's soundness rests entirely on ordered top-N semantics — that the outer Limit's selected rows must come from within the first-n left-input rows under the join's preservation guarantee — but QED models queries under pure bag semantics and treats Limit/Sort as uninterpreted QOps with no row-count, ordering, or top-N axioms (qed.pdf §6.2), so the before-side Limit(Join(L,R)) and after-side Limit(Join(Limit(L),R)) are structurally distinct uninterpreted applications that SMT can never equate; no non-vacuous special case reduces to a bag equality (the rule's own guards explicitly exclude the degenerate limit≥|L| case), and the gap is in the trusted prover's model rather than a missing DSL builder, since JSONSerializer already serializes LogicalSort's offset/limit fields which QED treats opaquely. ```

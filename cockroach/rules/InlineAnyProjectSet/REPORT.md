@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 41  **Verification rounds used:** 3
+**Porter attempts used:** 63  **Verification rounds used:** 5
 
 ## Source rule (as given to the porter)
 
@@ -58,4 +58,4 @@ Extracted from `scalar.opt` (which defines multiple rules — implement specific
 
 **Verdict:** AGREE
 
-The rule's core equivalence — `x OP ANY (unnest($arg))` ⟺ `AnyScalar(x, $arg) AND $arg IS NOT NULL` — depends on a list-valued scalar expanding into row values, i.e. the subquery's relation being exactly the elements of a list cell; QED's bag-of-tuples semantics over uninterpreted sorts has no list type or set-returning operator, and no Java-side DSL extension can supply that meaning since it would have to live in the fixed Rust prover. The NULL fixup (`AND $arg IS NOT NULL`) is itself 3-valued logic — NULL arg gives empty subquery → FALSE on the LHS vs AnyScalar → NULL on the RHS — while QED models only total, two-valued uninterpreted predicates with no NULL literal or IS/IS NOT primitive in the DSL. Moreover the LHS isn't even expressible: the DSL has no scalar-subquery builder (only relation-level Correlate), so Any/AnyScalar would have to be independent uninterpreted symbols that QED can never relate, making the equivalence undecidable rather than merely unproven. ```
+The rule's correctness rests on the bespoke relationship between `unnest` (array-element enumeration, NULL→empty) and `AnyScalar` (element-wise ANY, NULL array→NULL) under three-valued NULL semantics, but QED has no array/list type or ANY-over-subquery operator and models only bag semantics over uninterpreted symbols, so it cannot see that `scalar ANY (elements(arg))` entails `AnyScalar(scalar,arg) AND arg IS NOT NULL`. Every faithful encoding therefore either pre-bakes the RHS's AnyScalar into the LHS (a tautology verifying nothing) or models the subquery as a semi-join over an arbitrary uninterpreted element relation that the prover refutes by countermodel, and extending the DSL cannot close the gap since the missing algebra lives in the unchangeable prover, not the pattern builders.

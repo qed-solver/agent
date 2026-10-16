@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 13  **Verification rounds used:** 1
+**Porter attempts used:** 24  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/TableScanRule.java
 
 **Verdict:** AGREE
 
-TableScanRule's only non-trivial case (view expansion via `table.toRel`) asserts that a scanned table's contents equal the relational plan stored in its table metadata, and QED models every scan as an independent uninterpreted bag — RuleScript/JSON has no construct tying a table symbol to a defining plan (the "guaranteed" field carries only row-level predicates, not bag equality), so the required equivalence is fundamentally inexpressible/invisible to the prover, not a fixable symbol-sharing or DSL gap. The porter's concrete non-trivial encoding returned a definitive not-provable (complete fragment, no SMT timeout), and the only provable instance is the vacuous identity rewrite scan→scan, which captures none of the rule's actual transformation. ```
+TableScanRule's entire correctness content is the identity "the bag of table V equals the relation produced by V's RelOptTable.toRel" (its view definition over *other* table symbols), and QED's semantics make every named table an independent uninterpreted bag whose only admissible side conditions are per-table key and check predicates (the JSON schema carries only "key"/"guaranteed" per table, with guaranteed predicates scoped to that table's own row) — there is no operator, constraint kind, or JSON construct in the DSL to assert a table-to-expression identity, so any encoding is either the vacuous base-table tautology Scan(T) = Scan(T) (proving nothing) or unprovable independent-symbol inequality. This is a fundamental limitation of the trusted prover's table model, not a missing Java-builder gap closable via extend_dsl_file, and even the degenerate alias-view special case (V = scan of B) still requires the same inexpressible cross-symbol bag equality.

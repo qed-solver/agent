@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 6  **Verification rounds used:** 1
+**Porter attempts used:** 10  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -39,4 +39,4 @@ Extracted from `ordering.opt` (which defines multiple rules — implement specif
 
 **Verdict:** AGREE
 
-`SimplifyWithBindingOrdering` is a properties-only rewrite — it leaves `$binding` and `$main` untouched and only relaxes `WithPrivate.BindingOrdering` (a required row-ordering property derived from the input's functional dependencies), so the emitted bag is identical before and after and its entire correctness content is a statement about physical/required ordering. QED is a bag-semantics decision procedure with no notion of required row order (per the reference, `Sort`/`Limit`/`Offset`/`Window`/`Sample` carry no bag-semantic meaning), and the DSL exposes no `With`/let-binding operator nor any ordering operator, so any RuleScript encoding would collapse `before`/`after` to the same plan and prove only a tautology — the ordering-simplification content is genuinely unmodelable, not a gap a DSL extension could close.
+The rule's only effect is on `WithPrivate.BindingOrdering` — an ordering *requirement* (a physical property) on the CTE binding input — while the emitted row bag is the main query on both sides, so its real content (the functional-dependency claim that trailing sort columns are redundant once a leading column is unique) is a list/ordering-level property that QED's bag-semantics theory has no notion of (Sort/Limit/Offset carry no bag meaning, and no physical-property field exists in the QED JSON format). Any RuleScript encoding therefore degenerates to the vacuous identity With ≡ main, proving nothing about the rule; this is a fundamental prover-theory limitation, not a missing DSL builder, so extending the DSL cannot close it. ```

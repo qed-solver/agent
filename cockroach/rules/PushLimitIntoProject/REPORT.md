@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 22  **Verification rounds used:** 2
+**Porter attempts used:** 6  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -42,4 +42,4 @@ Extracted from `limit.opt` (which defines multiple rules — implement specifica
 
 **Verdict:** AGREE
 
-PushLimitIntoProject pushes an *ordered* Limit through a Project, and its validity rests entirely on the ordering machinery (the `OrderingCanProjectCols` guard and `PruneOrdering`), which guarantee the same rows survive on both sides; QED's bag semantics has no model for list/ordering (Sort/Limit/Offset carry no bag-semantic meaning), so with Limit treated as an uninterpreted operator the commutation `Limit(n, Project(f, R)) = Project(f, Limit(n, R))` has genuine SMT countermodels, and no DSL extension (e.g. a missing Sort/Limit builder) can supply the positional semantics to the trusted prover. The only encoding QED could certify is the vacuous identity-projection tautology, which does not port the rule's actual content, so the UNSUPPORTED conclusion is correct.
+The rule's soundness rests entirely on Limit's ordered-prefix semantics plus its side condition `OrderingCanProjectCols`: the top-N rows under an ordering that must be referable only through input columns have to survive projection unchanged. QED operates purely under bag semantics and has no model of Limit/Sort/Offset ordering at all (Limit is at best an uninterpreted QOp whose output is unconstrained by its input, under which L(π(R)) ≡ π(L(R)) is already false — rows that merge under π across the cut point yield different bags), and RRule's before/after pair has no mechanism to state the `OrderingCanProjectCols` guard, so the only provable encoding is the vacuous identity-projection degenerate. ```

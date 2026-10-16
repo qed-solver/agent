@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 101  **Verification rounds used:** 6
+**Porter attempts used:** 22  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -86,4 +86,4 @@ Extracted from `decorrelate.opt` (which defines multiple rules — implement spe
 
 **Verdict:** AGREE
 
-The rule's correctness rests entirely on matching runtime error behavior — Max1Row raises an error when its input exceeds one row, and EnsureDistinctOn raises an error when it detects duplicate key values in the join output — so the two sides are equivalent precisely in the sense that they error on the same instantiations and produce the same bag on the non-error instantiations. Neither Max1Row (an at-most-one-row cardinality constraint with error) nor EnsureDistinctOn (a uniqueness check with error) is expressible as a composition of the DSL's bag-semantic operators (scan/filter/project/join/aggregate), and QED's SMT-based decision procedure only compares bag contents for all instantiations, with no notion of runtime errors, row-count limits, or error-condition matching. Any encoding that strips the error semantics reduces Max1Row to a plain input and EnsureDistinctOn to a GroupBy, which are not bag-equivalent when the input has more than one row, so QED would correctly report non-provability; there is no non-vacuous encoding of this rule within the core language. ```
+The rule's only non-vacuous content is the coincidence of error behavior — Max1Row aborts when a correlated subquery instance holds >1 row, while EnsureDistinctOn aborts when a left-key group holds >1 row — plus the ≤1-row-per-group invariant that makes both collapse to the same cross-join; QED's semiring model has no error semantics, no Max1Row/EnsureDistinctOn operators it can see through as uninterpreted symbols, and no way to assume the ≤1-row cardinality precondition since it decides unconditional universal bag equality. Hence any faithful encoding is refutable (QED instantiates the two distinct error operators differently), while the only provable encoding is the vacuous tautology Join(left,input) ≡ Project(Join(EnsureKey(left),input)) after erasing both operators to identity — a genuine QED limitation, not a missing DSL builder a Max1Row constructor could close.

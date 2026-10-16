@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 23  **Verification rounds used:** 2
+**Porter attempts used:** 21  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -23,4 +23,4 @@ Extracted from `cycle.opt` (which defines multiple rules — implement specifica
 
 **Verdict:** AGREE
 
-The rule rewrites between two parameterizations of a test-only leaf operator with no input, so its entire validity rests on the operator's internal, stipulated semantics that its output does not depend on the boolean parameter — a "bespoke internal semantics" of an uninterpreted operator that QED fundamentally cannot reason about: the only leaf forms QED's model admits are uninterpreted scans (where the same symbol reduces the rule to the vacuous identity X = X, and distinct symbols are unrelated bags QED correctly refuses to equate) or concrete `values` (where a "proof" would require hard-coding the False ≡ True conclusion into the encoding). Since QED's JSON format offers no leaf relation form that carries a scalar parameter, and the prover itself is off-limits, this is a genuine QED limitation rather than a closable DSL gap — no alternative encoding yields a non-vacuous, non-circular proof. ```
+This is a test-only, cycle-inducing rewrite for `NormCycleTestRel`, an operator with no defined evaluation semantics, so its only semantic content is `f(False) = f(True)` for an uninterpreted function `f` applied to two distinct boolean constants. QED is a sound bag-equivalence prover that models uninterpreted operators as arbitrary functions, and `f(a) = f(b)` for `a ≠ b` is not a theorem (a countermodel exists), so no faithful relational encoding — e.g. `Project(f(False))` vs `Project(f(True))` over a scan — can be proved equivalent unless the operator is misencoded as argument-ignoring, which would no longer be this rule. There is genuinely no correctness property for QED to establish, and `extend_dsl_file` cannot help because the blocker is the rule's lack of a semantic equivalence, not a missing operator. ```

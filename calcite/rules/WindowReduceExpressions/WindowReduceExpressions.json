@@ -1,0 +1,114 @@
+{
+  "help" : [ "LogicalJoin(condition=[=($0, $2)], joinType=[inner])\n  LogicalTableScan(table=[[B]])\n  LogicalAggregate(group=[{0}], f=[f($1)])\n    LogicalProject(col-B-0=[$0], $f1=[false])\n      LogicalTableScan(table=[[B]])\n", "LogicalJoin(condition=[=($0, $2)], joinType=[inner])\n  LogicalTableScan(table=[[B]])\n  LogicalAggregate(group=[{0}], f=[f($1)])\n    LogicalProject(col-B-0=[$0], $f1=[false])\n      LogicalTableScan(table=[[B]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER", "INTEGER" ],
+    "nullable" : [ true, true ],
+    "name" : "B",
+    "guaranteed" : [ ],
+    "fields" : [ "col-B-0", "col-B-1" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 2,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "="
+      },
+      "left" : {
+        "scan" : 0
+      },
+      "kind" : "INNER",
+      "right" : {
+        "group" : {
+          "keys" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          } ],
+          "function" : [ {
+            "distinct" : false,
+            "type" : "INTEGER",
+            "operand" : [ {
+              "column" : 1,
+              "type" : "BOOLEAN"
+            } ],
+            "operator" : "f",
+            "ignoreNulls" : false
+          } ],
+          "source" : {
+            "project" : {
+              "source" : {
+                "scan" : 0
+              },
+              "target" : [ {
+                "column" : 0,
+                "type" : "INTEGER"
+              }, {
+                "type" : "BOOLEAN",
+                "operand" : [ ],
+                "operator" : "false"
+              } ]
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 2,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "="
+      },
+      "left" : {
+        "scan" : 0
+      },
+      "kind" : "INNER",
+      "right" : {
+        "group" : {
+          "keys" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          } ],
+          "function" : [ {
+            "distinct" : false,
+            "type" : "INTEGER",
+            "operand" : [ {
+              "column" : 1,
+              "type" : "BOOLEAN"
+            } ],
+            "operator" : "f",
+            "ignoreNulls" : false
+          } ],
+          "source" : {
+            "project" : {
+              "source" : {
+                "scan" : 0
+              },
+              "target" : [ {
+                "column" : 0,
+                "type" : "INTEGER"
+              }, {
+                "type" : "BOOLEAN",
+                "operand" : [ ],
+                "operator" : "false"
+              } ]
+            }
+          }
+        }
+      }
+    }
+  } ]
+}

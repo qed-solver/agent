@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 8  **Verification rounds used:** 1
+**Porter attempts used:** 22  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/SortRemoveRedundantRule.
 
 **Verdict:** AGREE
 
-The rule's before-pattern is necessarily a Sort node (ORDER BY, ORDER BY+LIMIT, or pure LIMIT), and its correctness rests on ordered-result preservation, which QED cannot model — per qed.pdf §6.2 it is bag-semantic and has no Sort/Limit/Offset semantics, so the only checkable reading, bag(sort R) = bag R, is a trivial identity true for every R *without* the rule's precondition and would verify nothing of the rule's actual claim; separately, the rule's single soundness precondition — that the input's max row count (optimizer cardinality metadata) is ≤ 1 or ≤ the literal fetch — cannot be stated about an uninterpreted relation, since the DSL exposes no row-count/size constraint (the scan `unique` key flag only forces ≤1 row on a single-column scan, covering neither the general metadata bound nor the fetch-n case, and pure LIMIT is not even a bag identity when |R| > n). No `extend_dsl_file` can close the gap: RelRN has no Sort/Limit builder, and one that merely emits the JSON format's `LogicalSort` encoding would still be judged by the immutable prover, which lacks list semantics — a documented fundamental limitation, not a porter oversight.
+The rewrite is conditional on a cost-model fact — the input's max row count being ≤ 1 (ORDER BY) or ≤ fetch (pure LIMIT) — and RuleScript patterns are unconditional before/after pairs with no hypothesis mechanism and no cardinality-bounded input (the `unique` flag encodes key/functional dependency, not a row bound), so any encoding that drops the precondition is simply unsound in general. Even the one structurally encodable instance, a Sort/Limit over the `empty` relation, is unprovable because QED assigns Sort/Limit/Offset no ordering or bag semantics at all — they are uninterpreted QOps whose outputs become unconstrained during normalization, making Sort(R) ≡ R reduce to "fresh unconstrained variable ≡ R". Adding a Sort builder via `extend_dsl_file` would not help, since the JSON format already carries sorts while the prover itself models them uninterpreted — the gap is a fundamental QED limitation, exactly the one the reference lists (Sort/Limit/Offset/Window/Sample have no bag-semantic meaning). ```

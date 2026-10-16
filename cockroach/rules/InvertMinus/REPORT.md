@@ -1,8 +1,10 @@
 # InvertMinus
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** FULL
 **Source backend:** CockroachDB
-**Porter attempts used:** 24  **Verification rounds used:** 2
+**Porter attempts used:** 66  **Verification rounds used:** 4
+**Scope detail:** package org.qed.RRuleInstances;
+
 
 ## Source rule (as given to the porter)
 
@@ -27,6 +29,47 @@ Extracted from `numeric.opt` (which defines multiple rules — implement specifi
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-In RuleScript, scalar operators like `Minus` and `UnaryMinus` are expressed as uninterpreted projection symbols (`RexRN.Proj` wrapping a `SqlOperator`), and QED's SMT theory (equality + uninterpreted functions + bag counts) carries no arithmetic axioms connecting distinct function symbols, so the identity `UnaryMinus(Minus(a,b)) = Minus(b,a)` is not a theorem — a countermodel exists where the two uninterpreted functions are independently defined. No DSL extension can close this gap because the missing knowledge lives in the prover's theory (the JSON format only supports table-level "guaranteed" constraints, not function-level algebraic axioms), and the prover is the unmodifiable trusted arbiter. ```
+before() = Project[UNARY_MINUS(MINUS(a,b))] and after() = Project[MINUS(b,a)] over a shared, universally-quantified 2-column scan with independent fields a and b — a non-vacuous, structurally faithful rendering of `UnaryMinus(Minus $left $right) => Minus $right $left` using the actual MINUS/UNARY_MINUS operators and no symbol-sharing shortcut. The same-type INTEGER columns and the unexpressed CanConstructBinary guard (a meta-level type-constructibility check, tautological for same-type operands) cannot narrow the proven claim, since QED maps all types into one integer theory (per RelType.java's ground-truth note), so the proved identity ∀a,b: -(a-b) = b-a is exactly the rule's full value-level content, making SCOPE: FULL honest. ```
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": true,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 9253832
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 37817667
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 1724708
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 395083
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 19964459
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 37910916
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 74509292
+  }
+}
+```

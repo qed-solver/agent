@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 25  **Verification rounds used:** 2
+**Porter attempts used:** 45  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
@@ -60,4 +60,4 @@ Extracted from `comp.opt` (which defines multiple rules — implement specifical
 
 **Verdict:** AGREE
 
-The rule's correctness depends on the inverse relationship between CockroachDB's two timezone overloads (timezone(zone, TIMESTAMP) ↔ timezone(zone, TIMESTAMPTZ)), which is a bespoke algebraic property of a backend-specific operator; QED models all non-built-in operators as uninterpreted functions with no axiom mechanism, and no encoding (shared or independent symbols) can make cmp(f(z,x), c) ⟺ cmp(x, g(z,c)) provable without asserting f∘g = id, which the DSL cannot express and the Rust prover cannot be modified to accept. ```
+The rule is a purely scalar rewrite whose validity depends on the two timezone overloads being mutual (order-preserving) inverses, but QED treats timezone and the comparison operators as uninterpreted symbols with no inverse/monotonicity axioms, so it correctly finds counter-instances and no non-vacuous encoding of any of Eq/Ge/Gt/Le/Lt is provable. The only constraint channel in the JSON is the per-table `guaranteed` field (row-level predicates over a single table's columns via QedTable.getConstraints()), which cannot express a first-order axiom over scalar function symbols, and RRule exposes no rule-level axiom API. Since the trusted Rust prover is unmodifiable, extending the DSL alone cannot supply the missing function axioms, so the limitation is fundamental, not a porter error. ```

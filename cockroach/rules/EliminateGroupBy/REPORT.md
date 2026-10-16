@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 30  **Verification rounds used:** 2
+**Porter attempts used:** 46  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
@@ -54,4 +54,4 @@ Extracted from `groupby.opt` (which defines multiple rules — implement specifi
 
 **Verdict:** AGREE
 
-EliminateGroupBy's entire soundness rests on the algebraic identity "AggAnyNotNull/ConstNotNull over a ≤1-row group returns that row's value (or NULL)", i.e. relating an aggregate output column to a plain field — in QED, aggregate calls are serialized as uninterpreted operator names (via `genericAggregateOp` in `Aggregate.semantics()`) and are only equated when they share a name over provably-equal group bags, so the prover has no axiom connecting `f({(k,x)})` to `x`, exactly the aggregate-algebra limitation QED's own evaluation documents ("knows nothing about a specific aggregate function's algebra beyond bag equality of its input"). This is a limitation of the unmodifiable Rust prover, not a missing DSL builder: the JSON format only carries an aggregate's name/operands, so `extend_dsl_file` cannot add a "sole-value" aggregate or its axiom, and no alternative encoding can remove the uninterpreted aggregate from the before side, which the rule defines. The porter's most-faithful instance (single-column unique scan, key = grouping key = aggregated value) is therefore the maximal encodable case, and its genuine `provable: false` verdict confirms the rule is outside QED's reach.
+QED encodes group-by aggregate calls as uninterpreted operators whose only equational power is bag-equality of their inputs, and it has no axiom that AnyNotNullAgg/ConstAgg over a strict-key (singleton) group collapses to the identity on its element — which is exactly the identity this rule needs, since the after() side removes the aggregate entirely, leaving a bare column that no bag-equality argument can equate to an opaque F(bag) (the EliminateAggDistinctForKeys precedent confirms QED's aggregate reasoning stops at bag-vs-set input equality). So every instance with at least one aggregate call is unprovable for a fundamental prover limitation, not a missing DSL builder that extend_dsl_file could supply (the JSON format only carries operator names, and the prover is the unmodifiable arbiter), while the only provable degenerate instance — zero aggregates over a unique-key scan — reduces to exactly the already-proven cockroach EliminateDistinct (strict-key GroupBy ⇒ Project) shape. ```

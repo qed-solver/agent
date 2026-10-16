@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 44  **Verification rounds used:** 3
+**Porter attempts used:** 16  **Verification rounds used:** 5
 
 ## Source rule (as given to the porter)
 
@@ -30,4 +30,4 @@ Extracted from `scalar.opt` (which defines multiple rules — implement specific
 
 **Verdict:** AGREE
 
-The rule's only non-trivial content is that a constant array and a tuple packaging the same elements denote the same operands for ANY — a definitional identity between two CockroachDB value constructors, which QED's Q-expression language cannot express: it has no array/tuple value constructors, no list semantics, and no axioms relating container terms. Consequently every encoding collapses to a trichotomy — expand both sides to the element-wise OR / semi-join over a shared symbol (structurally identical, vacuous), or keep the array and tuple as distinct uninterpreted symbols (SMT countermodel, unprovable) — and no narrower special case escapes this, since even the one-element instance is definitionally an identity; the missing container-value semantics lives in the fixed prover's value language, not in a shape a `RelRN`/`RexRN` extension could add.
+The rule is a scalar representation normalization whose soundness rests on a backend-specific collection semantic — that a constant array and the element-wise constant tuple built from it denote interchangeable collections for an element-wise ANY comparison — and QED's Q-expression format has no array/tuple *value* type (only scalar literals, column refs, and uninterpreted calls) and no axiom linking a const array to its tuple conversion. The DSL's `Any`/`ArrayConst`/`TupleConst` all desugar to the identical Or-of-element-comparisons, so before and after collapse to the same Q-expression (a vacuous P=P that checks nothing about the transformation); keeping the two constants as distinct terms instead yields two unrelated uninterpreted constants the SMT solver cannot equate. No `extend_dsl_file` can close this because the Rust prover's Q format is fixed and cannot be given array/tuple value semantics, so the rule is genuinely outside what RuleScript+QED can prove non-vacuously. ```

@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 21  **Verification rounds used:** 2
+**Porter attempts used:** 9  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/SortMergeRule.java
 
 **Verdict:** AGREE
 
-The rule's entire content is ordering/top-N composition — folding `Sort(fetch=t)` over `Sort(fetch=b)` into a single `Sort(fetch=min(t,b))` on the child's collation — and QED decides bag-semantic equivalence only: it has no model of Sort/Limit/Offset, and top-n under arbitrary (empty-collation) tie-breaking is not even a well-defined bag operation, so the identity is unprovable in principle rather than merely unencoded. Even the narrowest special case (two pure LIMITs with no order-by) reduces only to a subset/cardinality relationship, not a bag equality, and the min(t,b) fetch fold is a numeric relation between literals that the uninterpreted-symbol pattern language cannot express. Extending the DSL with a Sort builder would not help, since the immutable QED prover has no ordering semantics to check such a symbol against.
+SortMerge's soundness is purely a top-N/row-position statement — it must know which rows each LIMIT keeps and, even in the degenerate sub-case where the outer fetch ≥ inner fetch (top sort is a no-op), that the inner `Limit B` node produces at most B rows — and QED's theory is bag-semantics only, explicitly without any model for the ordering semantics of Sort/Limit/Offset (qed.pdf §6.2), so the SMT solver has no algebraic relation to bridge. The gap is in the prover's semantics rather than a missing DSL builder (RelRN exposes no sort/limit and the Rust prover, the unchanging arbiter, has no ordering theory), so `extend_dsl_file` cannot close it; a "proof" obtained by erasing sorts to identity would only show identity = identity and would verify nothing about which rows survive, and no genuinely non-trivial special case of the min-of-fetches law exists within bag semantics.

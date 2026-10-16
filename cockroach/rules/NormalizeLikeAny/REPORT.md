@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 29  **Verification rounds used:** 2
+**Porter attempts used:** 24  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -46,4 +46,4 @@ Extracted from `select.opt` (which defines multiple rules — implement specific
 
 **Verdict:** AGREE
 
-The rule's entire semantic content is the axiom that the pattern '%' matches every non-NULL string, i.e. that `LIKE(x, '%')` ≡ `x IS NOT NULL`. In QED's translation both expressions become independent uninterpreted predicate symbols over the same scan, and QED's SMT theory has no string/glob reasoning to connect them — this is the explicitly stated limitation that QED "can't reason about predicate inference/entailment between independent symbols." No DSL extension can close this gap because the missing knowledge is a theory axiom in the (unmodifiable) prover, not a missing operator shape. ```
+The rule's entire semantic content is the equivalence `x LIKE '%' ≡ x IS NOT NULL`, which rests on string/glob theory (that the pattern '%' matches exactly the non-NULL strings). QED serializes `LIKE` to an uninterpreted predicate by name with no string/glob theory and treats `IS NOT NULL` as an independent symbol, so an SMT model can make the two sides diverge (e.g. a row where `like(x,'%')` is true while x is NULL, or a non-NULL x where `like` is false); no DSL extension can supply the missing glob axiom to the fixed Rust prover. This matches the verified precedent for the related `CollapseRepeatedLikePatternWildcards` and `LikeSimplification` rules, and no non-trivial encoding avoids the gap (a non-nullable column makes `IS NOT NULL` a tautology while leaving the uninterpreted `LIKE` unconstrained, so that degenerate case is unprovable too). ```

@@ -1,5 +1,5 @@
 {
-  "help" : [ "LogicalFilter(condition=[h($1)])\n  LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])\n    LogicalTableScan(table=[[L]])\n    LogicalFilter(condition=[=($cor0.col-L, $0)])\n      LogicalTableScan(table=[[R]])\n", "LogicalFilter(condition=[h($0)])\n  LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])\n    LogicalTableScan(table=[[L]])\n    LogicalFilter(condition=[=($cor0.col-L, $0)])\n      LogicalTableScan(table=[[R]])\n" ],
+  "help" : [ "LogicalFilter(condition=[=($0, $2)])\n  LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])\n    LogicalTableScan(table=[[L]])\n    LogicalFilter(condition=[=($0, $cor0.col-L)])\n      LogicalTableScan(table=[[R]])\n", "LogicalFilter(condition=[=($0, $2)])\n  LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])\n    LogicalTableScan(table=[[L]])\n    LogicalFilter(condition=[=($0, $1)])\n      LogicalTableScan(table=[[R]])\n" ],
   "schemas" : [ {
     "types" : [ "INTEGER" ],
     "nullable" : [ true ],
@@ -8,11 +8,11 @@
     "fields" : [ "col-L" ],
     "key" : [ ]
   }, {
-    "types" : [ "INTEGER" ],
-    "nullable" : [ true ],
+    "types" : [ "INTEGER", "INTEGER" ],
+    "nullable" : [ true, true ],
     "name" : "R",
     "guaranteed" : [ ],
-    "fields" : [ "col-R" ],
+    "fields" : [ "col-R-0", "col-R-1" ],
     "key" : [ ]
   } ],
   "queries" : [ {
@@ -20,10 +20,13 @@
       "condition" : {
         "type" : "BOOLEAN",
         "operand" : [ {
-          "column" : 1,
+          "column" : 0,
+          "type" : "INTEGER"
+        }, {
+          "column" : 2,
           "type" : "INTEGER"
         } ],
-        "operator" : "h"
+        "operator" : "="
       },
       "source" : {
         "correlate" : {
@@ -36,10 +39,10 @@
               "condition" : {
                 "type" : "BOOLEAN",
                 "operand" : [ {
-                  "column" : 0,
+                  "column" : 1,
                   "type" : "INTEGER"
                 }, {
-                  "column" : 1,
+                  "column" : 0,
                   "type" : "INTEGER"
                 } ],
                 "operator" : "="
@@ -59,8 +62,11 @@
         "operand" : [ {
           "column" : 0,
           "type" : "INTEGER"
+        }, {
+          "column" : 2,
+          "type" : "INTEGER"
         } ],
-        "operator" : "h"
+        "operator" : "="
       },
       "source" : {
         "correlate" : {
@@ -73,10 +79,10 @@
               "condition" : {
                 "type" : "BOOLEAN",
                 "operand" : [ {
-                  "column" : 0,
+                  "column" : 1,
                   "type" : "INTEGER"
                 }, {
-                  "column" : 1,
+                  "column" : 2,
                   "type" : "INTEGER"
                 } ],
                 "operator" : "="

@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 41  **Verification rounds used:** 3
+**Porter attempts used:** 81  **Verification rounds used:** 5
 
 ## Source rule (as given to the porter)
 
@@ -72,4 +72,4 @@ Extracted from `project.opt` (which defines multiple rules — implement specifi
 
 **Verdict:** AGREE
 
-The rule's validity rests on evaluating tuple-field accesses (e.g. `(tup).@1`) over *constant* tuple literals and baking the resulting components into new constant rows of the replacement Values, but QED's object language only has flat rows over uninterpreted sorts (`RelType.VarType` all serialize to the single "INTEGER" sort, and `JSONSerializer` has no product/record type), so a tuple column, its `@i` access operators, and the before/after row constants are all mutually unrelated uninterpreted symbols — QED has no axiom that `access_i(<tuple-const>) = <component-const>`, which no `extend_dsl_file` can add since that axiom must live in the fixed prover's SMT translation (a Values-with-expressions encoding only yields the trivially true identity, not the rule). This is precisely the "operator whose specific internal semantics QED cannot see through as an uninterpreted function" limitation, and the porter's diagnosis of the missing composite sort / component-extraction semantics is accurate.
+The rule's correctness rests on tuple-component semantics — that a Values' single tuple column and its unnested sibling columns denote the same data reorganized (sibling j = the j-th component of the tuple) — which is precisely the backend definition of UnnestTuplesFromValues/FoldTupleColumnAccess, a data transformation rather than an operator rearrangement over fixed data that QED normally proves. QED's flat-scalar theory has no record type or constructor/destructor law to equate a tuple column with its components, so the only encodable proof hard-wires the sibling cells as the access expressions, thereby assuming the very fact the rule is meant to establish. This is a genuine limitation of QED's scalar theory (no tuple algebra / no way to relate two relations by a data-rewriting function), not a symbol-sharing bug or modeling slip a further attempt could fix. ```

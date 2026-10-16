@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 26  **Verification rounds used:** 2
+**Porter attempts used:** 22  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/SpatialRules.java
 
 **Verdict:** AGREE
 
-FilterHilbert's soundness is exactly the concrete spatial/Hilbert-curve fact — that every point within distance d of a constant geometry has a HilbertCurve2D(8) index inside the BETWEEN ranges computed from the buffered envelope (plus the ST_DWithin degenerate cases: negative distance ⟹ FALSE, zero distance ⟹ equality) — and in RuleScript ST_DWithin, HILBERT, ST_Point and the range predicate can only be introduced as independent uninterpreted symbols, with no arithmetic, ordering, or axiom mechanism in the core language that could express the coverage implication "DWithin(g,p,d) ∧ h=HILBERT(lon,lat) ⟹ h∈ranges". That implication is refutable by a trivial SMT countermodel (make the range predicate false on a row where DWithin holds), and the only DSL extension that would make it provable is asserting the rule's own geometric claim as an axiom, which would be circular rather than a proof — this is precisely the "backend operator's bespoke internal semantics / no predicate inference between independent symbols" limitation, so the porter's UNSUPPORTED verdict is correct. ```
+The rule's soundness is exactly the entailment "under h = HILBERT(lon, lat), ST_DWithin/ST_Contains(g, ST_Point(lon, lat), d) ⇒ (h BETWEEN c1 AND c2 OR ...)", which holds only because of Calcite's Java-side knowledge of HilbertCurve2D's index ranges and ST_Buffer geometry — none of which appear in the relational expression. In any RuleScript encoding, ST_DWithin, ST_Point, HILBERT, ST_Buffer, and the spatial predicate are all independent uninterpreted symbols to QED, so the added range conjunct is not validly implied for all instantiations (SMT will model lon/lat with the equality h = HILBERT(lon,lat) true while the spatial predicate holds and h falls outside the range), making the faithful encoding correctly unprovable. No DSL extension can close this because QED's fixed prover cannot be taught bespoke spatial/Hilbert-curve operator semantics (and the prover itself must not be modified), and every sub-case (zero-distance → equality, negative-distance → false) rests on the same internal operator semantics.

@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 22  **Verification rounds used:** 2
+**Porter attempts used:** 45  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/MinusToFilterRule.java
 
 **Verdict:** AGREE
 
-The rewrite MINUS(base, Filter(Q,base)) → distinct(Filter(NOT Q,base)) is valid only when the right-hand predicate Q is total, because under QED's 3-valued SQL semantics a row with Q=NULL is not in Filter(Q,·) and therefore survives the set-difference MINUS, while NOT Q evaluates to NULL (not TRUE) and is dropped by the rewritten filter. QED decides equivalence by quantifying over every instantiation of the uninterpreted symbol Q, so this NULL interpretation is a genuine counterexample the prover must report, not a sampling artifact. The DSL introduces all filter predicates as uninterpreted symbols with a hardcoded return type and provides no way to declare one total, so no non-degenerate special case closes the gap and the rule as stated is genuinely outside what QED can prove.
+I independently verified the rewrite is mathematically sound, but any faithful encoding forces QED to relate its EXCEPT (set-minus) primitive to a group-all/distinct aggregate over a filtered scan, and both sides reduce to zero/positivity tests on semiring products of the form S·[predicate] (S·P_R = 0 on the before side, S·P_L·¬P_R > 0 from the distinct on the after side) — a zero-of-product / aggregate-algebra step beyond bag-equality that QED's semiring decision procedure cannot perform, and which no DSL extension or re-encoding can close since the prover itself is off-limits and the DSL already exposes every operator the rule needs. The porter's four fast, non-timed-out "not provable" results across the full encodable 2×2 space (plain vs filtered left × unique vs non-unique base) are consistent with this: even the unique-key variant still requires 0/1-multiplication facts under a support test, and the only distinct alternative (union(false, F, F)) serializes into QED's same "distinct" wrapper. ```

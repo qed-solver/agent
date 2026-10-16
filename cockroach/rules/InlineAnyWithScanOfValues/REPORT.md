@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 41  **Verification rounds used:** 3
+**Porter attempts used:** 32  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
@@ -48,4 +48,4 @@ Extracted from `scalar.opt` (which defines multiple rules — implement specific
 
 **Verdict:** AGREE
 
-QED's contract is to prove the two patterns equivalent for *every* instantiation of their uninterpreted symbols, and it has no facility for definitional side-conditions. This rule is only sound under the premise that the CTE `W` is *defined as* a specific constant VALUES — i.e., that the `WithScan(W)` symbol equals that Values expression — but QED's table model (an uninterpreted scan plus only per-row "guaranteed" constraints such as keys/uniqueness) cannot express "this scan's rows are exactly these constants", so QED will always admit an instantiation where `Scan(W) ≠` the inlined Values, making before and after non-equivalent. Hence the blocker is in QED's semantics rather than the DSL surface, and adding a scalar ANY/IN subquery operator or a Values-with-constants operator via `extend_dsl_file` could not close the gap. ```
+The rule's only semantic content is substituting a CTE reference (WithScan) for its defining VALUES expression — i.e., a let-binding of a named relation to a relational expression. QED's semantics (and the JSON format its immutable Rust prover accepts, as mirrored by JSONSerializer's node set) has no construct for a defined/aliased relation: every named relation is an uninterpreted source whose contents can be neither defined by nor proven equal to any expression, so any encoding is either the same symbol on both sides (before ≡ after, vacuous) or two independent sources for which the equivalence is not a universal theorem. No Java-side DSL extension (e.g., adding a `Values` builder, which the JSON format already carries) can close the gap, because the missing piece is let-binding semantics inside the trusted, unmodifiable prover — making this a genuine QED limitation rather than a symbol-sharing bug or a missed encoding. ```

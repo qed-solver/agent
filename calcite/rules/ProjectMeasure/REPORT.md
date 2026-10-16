@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 21  **Verification rounds used:** 2
+**Porter attempts used:** 41  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
@@ -16,4 +16,4 @@ Note: MeasureRules.java defines multiple distinct rule variants as separate stat
 
 **Verdict:** AGREE
 
-ProjectMeasureRule is sound only via Calcite's measure algebra — that M2X(M2V(E), SAME_PARTITION(g)) on a row of partition g equals E evaluated over that partition, so the outer SINGLE_VALUE over the group collapses to E's own aggregate — and QED models M2X, M2V, SAME_PARTITION, and SINGLE_VALUE as independent uninterpreted symbols with no axioms relating them to each other or to ordinary aggregates (e.g. SUM). The partition-scoped, window-like meaning of M2X is outside QED's bag-semantics model (the prover is fixed and has no such operator), so no encoding — down to the narrowest special case like E being a plain column over unique groups — can make the two sides theorems: SMT can always instantiate the uninterpreted symbols to a counterexample, and a builder-level DSL extension could not supply the missing measure axioms. ```
+ProjectMeasureRule's rewrite (Aggregate(g, SINGLE_VALUE(d)) over a Project with d = M2X(V2M(e)) AS d) is only sound because of the measure-algebra identity M2X(V2M(x, SAME_PARTITION(g))) = x plus partition-constancy of measures, but in QED's model M2X/V2M/SAME_PARTITION are uninterpreted scalar symbols and SINGLE_VALUE is an uninterpreted aggregate known only up to bag equality of its input, so no RuleScript encoding or DSL builder extension (the format has no facility for function-level axioms) can make the SMT prover accept the equivalence for all instantiations.

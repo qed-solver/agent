@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 42  **Verification rounds used:** 3
+**Porter attempts used:** 45  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
@@ -73,4 +73,4 @@ Extracted from `decorrelate.opt` (which defines multiple rules — implement spe
 
 **Verdict:** AGREE
 
-The before pattern's right input is literally `Limit($input, Const 1, $ordering)`, and the after pattern's `DistinctOn` selects rows via an ordering-dependent `First`/`Const` aggregate over `MakeGrouping(KeyCols, $ordering)`; both sides rest on list/ordering semantics (first-row selection and limit-1 cardinality) that QED explicitly does not model, so neither the Limit node nor the order-dependent group-by-First can be faithfully expressed or proven — this is a fundamental QED limitation, not a missing builder.
+TryDecorrelateLimitOne's correctness is precisely the identity "top-1 row of each left row's matches under collation O" (Limit 1 + ordering) = "first row of each group under the same collation O" (DistinctOn + FirstAgg), and both sides are order-dependent selections with no bag-semantic meaning — QED decides equivalence only on bag semantics with uninterpreted bag functions, and per the reference, Sort/Limit/Offset/Window have no semantics there (a Java-side builder added via extend_dsl_file could not change the unmodifiable Rust prover). "Pick one row from a group" is not a function of the group's bag, so FirstAgg/ConstAgg cannot be modeled as uninterpreted aggregates (QED knows no aggregate algebra), and any encoding is either unprovable (Limit and DistinctOn as independent uninterpreted symbols) or tautological (collapsing both sides into one shared symbol); there is no order-independent special case that is both valid and expressible, since even the unordered "arbitrary row" variant is not a deterministic bag operation. ```

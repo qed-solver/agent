@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 6  **Verification rounds used:** 1
+**Porter attempts used:** 8  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -40,4 +40,4 @@ Extracted from `with.opt` (which defines multiple rules — implement specifical
 
 **Verdict:** AGREE
 
-The rule's precondition is a set of subplan cardinality side conditions (HasBoundedCardinality) and its effect is a backend marker operator that changes operator *properties*, not the produced relation — RuleScript's before/after patterns can only express row-level relational structure, with no mechanism to state cardinality-bound side conditions on subexpressions or to capture property propagation at all. Additionally, the operators the rule manipulates are outside QED's model: RecursiveCTE/fixpoint has no bag-semantic meaning, and Limit is explicitly among the operators QED cannot reason about, so neither side of the rewrite is encodable; extend_dsl_file cannot close this gap because the trusted Rust prover (off-limits for modification) has no Q-expression semantics for recursion or ordering/limit. ```
+ApplyLimitToRecursiveCTEScan is a pure optimizer-metadata rule — it only re-derives and re-attaches a bounded-cardinality property to the recursive CTE's working-table binding, leaving the output bag of rows identical before and after — and it operates on Optgen-custom operators (RecursiveCTE, WithScan, FakeRel) where a recursive CTE is a fixed point that cannot be written as a finite relational-algebra pattern in the core language. RuleScript/QED has no representation of cardinality/row-count bounds (a `Scan` only carries a `unique` key flag), and QED does not model the ordering/`Limit` (list) semantics the "limit that applies to all iterations" bound depends on, so the rule's distinguishing content is unrepresentable and any before/after pair QED could even accept would be vacuous. ```

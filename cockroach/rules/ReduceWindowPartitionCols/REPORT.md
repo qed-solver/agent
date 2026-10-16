@@ -1,13 +1,17 @@
 # ReduceWindowPartitionCols
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 29  **Verification rounds used:** 2
+**Porter attempts used:** 0  **Verification rounds used:** 0
+**Scope detail:** the window is modeled as one uninterpreted per-partition aggregate function joined back to its input, and the functional dependency is the syntactic one where the redundant partition column is an uninterpreted function f of the retained partition column k
+
 
 ## Source rule (as given to the porter)
 
 ```
-Source: pkg/sql/opt/norm/rules/window.opt
+# Name: ReduceWindowPartitionCols
+# Backend: CockroachDB
+# Source: pkg/sql/opt/norm/rules/window.opt
 
 ReduceWindowPartitionCols reduces a set of partition columns to a simpler form
 using FDs. Window partition columns are redundant if they are functionally
@@ -40,8 +44,43 @@ Extracted from `window.opt` (which defines multiple rules — implement specific
 ```
 ```
 
-## Independent verifier review
+## QED prover result
 
-**Verdict:** AGREE
-
-The rule's correctness rests on functional-dependency inference — that partitioning by (k, f(k)) induces the same partitions as partitioning by k — which QED cannot derive because it models aggregation opaquely per key tuple and has no attribute/FD reasoning (the porter's minimal GroupBy(k,f(k))-vs-GroupBy(k) probe, which is semantically valid since f is a deterministic uninterpreted function, is rejected before SMT even runs). Independently, the Window operator itself (especially with ORDER BY clauses and frames, as the sibling rules in window.opt show) has no bag-semantic model in QED, and no Java-side DSL extension can add that reasoning to the unmodifiable prover core. ```
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": false,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 21247790
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 31800417
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": true,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 164250
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 1150209
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 39798875
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 32381666
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 76089583
+  }
+}
+```

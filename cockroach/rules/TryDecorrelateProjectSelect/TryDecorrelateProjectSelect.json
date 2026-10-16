@@ -1,5 +1,5 @@
 {
-  "help" : [ "LogicalJoin(condition=[on_cond($0, $1)], joinType=[left])\n  LogicalTableScan(table=[[L]])\n  LogicalProject(col-R-1=[$1])\n    LogicalFilter(condition=[select_filter($0)])\n      LogicalTableScan(table=[[R]])\n", "LogicalProject(col-L=[$0], col-R-1=[$2])\n  LogicalJoin(condition=[AND(on_cond($0, $2), select_filter($1))], joinType=[left])\n    LogicalTableScan(table=[[L]])\n    LogicalTableScan(table=[[R]])\n" ],
+  "help" : [ "LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0}])\n  LogicalTableScan(table=[[L]])\n  LogicalProject($f0=[proj($0)])\n    LogicalFilter(condition=[select($cor0.col-L, $0)])\n      LogicalTableScan(table=[[R]])\n", "LogicalProject(col-L=[$0], $f0=[$1])\n  LogicalJoin(condition=[select($0, $2)], joinType=[left])\n    LogicalTableScan(table=[[L]])\n    LogicalProject($f0=[proj($0)], col-R=[$0])\n      LogicalTableScan(table=[[R]])\n" ],
   "schemas" : [ {
     "types" : [ "INTEGER" ],
     "nullable" : [ true ],
@@ -8,26 +8,15 @@
     "fields" : [ "col-L" ],
     "key" : [ ]
   }, {
-    "types" : [ "INTEGER", "INTEGER" ],
-    "nullable" : [ true, true ],
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
     "name" : "R",
     "guaranteed" : [ ],
-    "fields" : [ "col-R-0", "col-R-1" ],
+    "fields" : [ "col-R" ],
     "key" : [ ]
   } ],
   "queries" : [ {
-    "join" : {
-      "condition" : {
-        "type" : "BOOLEAN",
-        "operand" : [ {
-          "column" : 0,
-          "type" : "INTEGER"
-        }, {
-          "column" : 1,
-          "type" : "INTEGER"
-        } ],
-        "operator" : "on_cond"
-      },
+    "correlate" : {
       "left" : {
         "scan" : 0
       },
@@ -41,8 +30,11 @@
                 "operand" : [ {
                   "column" : 0,
                   "type" : "INTEGER"
+                }, {
+                  "column" : 1,
+                  "type" : "INTEGER"
                 } ],
-                "operator" : "select_filter"
+                "operator" : "select"
               },
               "source" : {
                 "scan" : 1
@@ -50,8 +42,12 @@
             }
           },
           "target" : [ {
-            "column" : 1,
-            "type" : "INTEGER"
+            "type" : "INTEGER",
+            "operand" : [ {
+              "column" : 1,
+              "type" : "INTEGER"
+            } ],
+            "operator" : "proj"
           } ]
         }
       }
@@ -63,31 +59,35 @@
           "condition" : {
             "type" : "BOOLEAN",
             "operand" : [ {
-              "type" : "BOOLEAN",
-              "operand" : [ {
-                "column" : 0,
-                "type" : "INTEGER"
-              }, {
-                "column" : 2,
-                "type" : "INTEGER"
-              } ],
-              "operator" : "on_cond"
+              "column" : 0,
+              "type" : "INTEGER"
             }, {
-              "type" : "BOOLEAN",
-              "operand" : [ {
-                "column" : 1,
-                "type" : "INTEGER"
-              } ],
-              "operator" : "select_filter"
+              "column" : 2,
+              "type" : "INTEGER"
             } ],
-            "operator" : "AND"
+            "operator" : "select"
           },
           "left" : {
             "scan" : 0
           },
           "kind" : "LEFT",
           "right" : {
-            "scan" : 1
+            "project" : {
+              "source" : {
+                "scan" : 1
+              },
+              "target" : [ {
+                "type" : "INTEGER",
+                "operand" : [ {
+                  "column" : 0,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "proj"
+              }, {
+                "column" : 0,
+                "type" : "INTEGER"
+              } ]
+            }
           }
         }
       },
@@ -95,7 +95,7 @@
         "column" : 0,
         "type" : "INTEGER"
       }, {
-        "column" : 2,
+        "column" : 1,
         "type" : "INTEGER"
       } ]
     }

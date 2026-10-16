@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 88  **Verification rounds used:** 5
+**Porter attempts used:** 44  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
@@ -38,4 +38,4 @@ Extracted from `comp.opt` (which defines multiple rules — implement specifical
 
 **Verdict:** AGREE
 
-The rule's entire correctness rests on the semantic identity "tuple equality = conjunction of element-wise equalities," but QED has no tuple/row type (all types flatten to INTEGER) and no defined tuple-equality operator, so the left-hand `(a,b,c)=(x,y,z)` can only be introduced as an uninterpreted predicate symbol that the SMT solver cannot see through as element-wise equality. I independently checked the DSL source and found no alternate encoding that avoids this: modeling the tuples as separate multi-column relations makes the before-side join condition already element-wise (identical to the after, a tautology rather than the rule), and `extend_dsl_file` can only add another uninterpreted symbol since defining tuple-equality semantics would require modifying the trusted prover. This falls squarely under the documented QED limitation of being unable to reason about a backend operator's bespoke internal semantics as an uninterpreted function, so the UNSUPPORTED claim is sound. ```
+The rule's soundness rests on tuple extensionality — pack(a,b,c)=pack(x,y,z) ⟺ a=x ∧ b=y ∧ c=z — but QED's theory is equality over uninterpreted symbols with every uninterpreted type flattened to an opaque INTEGER atom (per RelType.java), with no product type and no extensionality/injectivity axiom for uninterpreted functions or predicates. Any RuleScript encoding therefore either uses independent symbols (an uninterpreted tuple-equality predicate vs. a conjunction of field equalities), which QED can refute with a countermodel, or reuses a single symbol for both sides, which is a vacuous identity rather than the rule; closing the gap would require adding an extensionality axiom to the Rust prover's theory, which is off-limits (extend_dsl_file can only add Java builders serializing into the prover's existing JSON, not new theory axioms). ```

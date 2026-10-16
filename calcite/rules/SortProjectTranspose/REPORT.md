@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 12  **Verification rounds used:** 1
+**Porter attempts used:** 9  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/SortProjectTransposeRule
 
 **Verdict:** AGREE
 
-SortProjectTranspose is an ordering claim end to end — its soundness (and its permutation/monotonic-cast side conditions on sort keys) exists solely to guarantee that `Project(P, Sort(C', X))` yields the same *ordered sequence* as `Sort(C, Project(P, X))` under the remapped collation, whereas QED only decides bag-semantic equivalence and explicitly has no model of Sort/Offset/Limit ordering (rulescript.pdf §7.1; qed.pdf §6.2). At the bag level both sides collapse to the same multiset of P applied to the input regardless of collation, so the best achievable encoding would prove a vacuous tautology and could never express or check the collation↔projection remapping or the side conditions — the `LogicalSort` case in JSONSerializer only shows the JSON can carry a sort node, not that the immutable prover models its ordering semantics, so this is a fundamental QED limitation, not a closable DSL gap. The porter's UNSUPPORTED verdict is therefore correct. ```
+The rule's soundness is purely an order-preservation claim: a permutation (plus monotonicity-preserving casts) over a stream sorted by collation C yields the same row ordering — and, with offset/fetch, the same top-k row *selection* — as sorting the input by the remapped collation; the permutation guard and the monotonic-cast check exist only to protect this list-semantic invariant. QED verifies only bag equivalence, where Sort/Offset/Fetch carry no semantic content (sort reduces to identity), so any encoding of before/after collapses to the vacuous tautology Project(perm, R) ≡ Project(perm, R) — a statement that holds even for non-permutation projects and thus cannot certify the collation remapping the rule actually depends on. This is the documented fundamental limitation on row-ordering/top-k reasoning, not a missing DSL operator, so `extend_dsl_file` could not close the gap and the UNSUPPORTED verdict stands.

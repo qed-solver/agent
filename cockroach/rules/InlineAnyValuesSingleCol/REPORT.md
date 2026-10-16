@@ -1,8 +1,10 @@
 # InlineAnyValuesSingleCol
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 41  **Verification rounds used:** 3
+**Porter attempts used:** 48  **Verification rounds used:** 3
+**Scope detail:** modeled with a 1-column uninterpreted input relation and a concrete 2-row, 1-column Values, with the comparison fixed to EQUALS and encoded as a single column equality under a SEMI JOIN, rather than as a general uninterpreted Any/Tuple operator.
+
 
 ## Source rule (as given to the porter)
 
@@ -26,6 +28,47 @@ Extracted from `scalar.opt` (which defines multiple rules — implement specific
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-The rule rewrites a subquery-based `x op ANY (VALUES (c1),(c2),…)` into a scalar `x op ANY (c1,c2,…)` — an identity that rests entirely on (1) the specific constant tuples inside the `Values` and (2) the backend-defined scalar semantics of `Any`/`AnyScalar`. RuleScript has no way to express constant relations or numeric literals (scans are uninterpreted; only boolean literals exist), and QED's bag-semantics SMT core cannot see into or relate backend-specific scalar operators, so no non-vacuous encoding is possible. ```
+The proved equivalence is genuine and non-vacuous — S SEMI JOIN the concrete 2-row values bag {(1),(3)} on S.c0 = V.c0 is the exact relational meaning of `x = ANY (VALUES (1),(3))`, and its equivalence to the inlined filter `S.c0 = 1 OR S.c0 = 3` is the rule's core invariant, with the constants correctly shared (if the Values literals and the filter literals had not unified, QED's SMT check would have refuted the equivalence rather than proving it). The hard-coded EQUALS comparison and 2-row values list are genuine, specifically-named restrictions of this encoding (RuleScript's fixed-shape patterns cannot quantify over the values-list length, and inlining inherently requires concrete constants), and the file's SCOPE: PARTIAL line declares them precisely, making this a faithful, non-degenerate special instance of the rule rather than a misleading full-generality claim.
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": false,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 8935582
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 35928750
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 1113625
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 431708
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 21415958
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 35966916
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 72862959
+  }
+}
+```

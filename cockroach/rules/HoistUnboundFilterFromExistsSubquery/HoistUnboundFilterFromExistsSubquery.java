@@ -1,42 +1,51 @@
-// SCOPE: PARTIAL — the outer-bound condition is modeled as a global (0-ary) boolean symbol rather than a genuinely correlated reference into the outer row (RuleScript has no correlated-subquery-inside-EXISTS construct), which is a faithful narrower instance since the identity EXISTS(sigma_{c AND phi}(R)) = c AND EXISTS(sigma_phi(R)) holds for any c not depending on R's rows, regardless of what c itself depends on
 package org.qed.RRuleInstances;
 
-import kala.collection.Seq;
+import com.google.common.collect.ImmutableSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexSubQuery;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.qed.RRule;
 import org.qed.RelRN;
-import org.qed.RexRN;
 import org.qed.RuleBuilder;
 
+// SCOPE: PARTIAL — an EXISTS filter over a subquery whose filter has exactly one outer-only conjunct (an uninterpreted predicate of the first outer column) and one inner-only conjunct, over single-column relations
 public record HoistUnboundFilterFromExistsSubquery() implements RRule {
-    record Exists(RelRN input) implements RexRN {
+    static final RelRN input = RelRN.scan("Input", "V");
+    static final RelRN inner = RelRN.scan("Inner", "W");
+
+    private record ExistsSelect(RelRN outer, RelRN sub, boolean hoisted) implements RelRN {
         @Override
-        public RexNode semantics() {
-            return RexSubQuery.exists(input.semantics());
+        public RelNode semantics() {
+            var b = RuleBuilder.create();
+            var rb = b.getRexBuilder();
+            RelNode l = outer.semantics();
+            RelNode r = sub.semantics();
+            var unboundOp = b.genericPredicateOp("unbound", true);
+            var boundOp = b.genericPredicateOp("bound", true);
+            var corrId = b.getCluster().createCorrel();
+            var corrVar = rb.makeCorrel(l.getRowType(), corrId);
+            RexNode unbound = rb.makeCall(unboundOp, rb.makeFieldAccess(corrVar, 0));
+            RexNode bound = rb.makeCall(boundOp, rb.makeInputRef(r, 0));
+            if (!hoisted) {
+                RexNode both = rb.makeCall(SqlStdOperatorTable.AND, unbound, bound);
+                RexNode ex = RexSubQuery.exists(LogicalFilter.create(r, both));
+                return LogicalFilter.create(l, ex, ImmutableSet.of(corrId));
+            }
+            RexNode ex = RexSubQuery.exists(LogicalFilter.create(r, bound));
+            RexNode outerUnbound = rb.makeCall(unboundOp, rb.makeInputRef(l, 0));
+            return LogicalFilter.create(l, rb.makeCall(SqlStdOperatorTable.AND, ex, outerUnbound), ImmutableSet.of(corrId));
         }
     }
 
-    static final RelRN outer = RelRN.scan("Outer", "Outer_Type");
-    static final RelRN innerInput = RelRN.scan("Inner", "Inner_Type");
-
-    // "unboundCond": a condition that depends only on the outer row, modeled
-    // as a global (0-ary) boolean symbol — the same symbol either way it's
-    // used, whether folded into the subquery's filter or pulled out to the
-    // outer filter.
-    static final RexRN unboundCond = new RexRN.Pred(
-            RuleBuilder.create().genericPredicateOp("unbound_cond", false), Seq.empty());
-    static final RexRN otherPred = innerInput.pred("other_cond");
-
     @Override
     public RelRN before() {
-        RelRN filteredInner = innerInput.filter(RexRN.and(unboundCond, otherPred));
-        return outer.filter(new Exists(filteredInner));
+        return new ExistsSelect(input, inner, false);
     }
 
     @Override
     public RelRN after() {
-        RelRN filteredInner = innerInput.filter(otherPred);
-        return outer.filter(RexRN.and(new Exists(filteredInner), unboundCond));
+        return new ExistsSelect(input, inner, true);
     }
 }

@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 22  **Verification rounds used:** 2
+**Porter attempts used:** 21  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -42,4 +42,4 @@ Extracted from `limit.opt` (which defines multiple rules — implement specifica
 
 **Verdict:** AGREE
 
-FoldLimits reduces to the identity Limit(Limit(R, n_in, ord_in), n_out, ord_out) ≡ Limit(R, n_out, ord_in) under n_out ≤ n_in and ord_in ⇒ ord_out, and its entire correctness rests on ordered positional row selection ("first k rows in ordering o") plus the ordering-implication relation. QED decides equivalence over bag semantics and, per its own stated limitations, does not model list/ordering semantics (Sort/Limit/Offset/Window/Sample have no bag-semantic meaning), and the core language exposes no Limit operator at all; modeling Limit as an uninterpreted operator would strip away exactly the row-retention/ordering axioms the identity needs, and it is not valid for an arbitrary uninterpreted operator (QED would find a countermodel), with no relational sub-identity to factor out since both sides terminate in a single limit over the same base input — so the SKIPPED EliminateLimit/EliminateOffset precedents correctly apply.
+FoldLimits is only sound because Limit sorts its input by the named ordering and takes the first n rows, and the guard (inner ordering implies outer ordering) makes the outer re-sort a no-op — i.e., its correctness rests entirely on ordering and row-count semantics that QED explicitly does not model (Sort/Limit/Offset carry no bag-semantic meaning and are treated as uninterpreted operators with no axioms). With Limit uninterpreted, SMT can assign different results to Limit applied at different nesting depths, so even the narrowest special case (Limit(n, Limit(n, X, o)) ≈ Limit(n, X, o)) is refutable, and the OrderingImplies / constant-comparison guards have no footing in the prover at all. Closing this would require adding ordering/count axioms to the QED prover itself — the unchangeable arbiter — so no DSL encoding or extend_dsl_file addition (e.g., a Limit builder feeding JSONSerializer's existing sort form) can make the identity provable. ```

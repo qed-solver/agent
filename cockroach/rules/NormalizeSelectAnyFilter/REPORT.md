@@ -1,13 +1,17 @@
 # NormalizeSelectAnyFilter
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 103  **Verification rounds used:** 6
+**Porter attempts used:** 0  **Verification rounds used:** 0
+**Scope detail:** the ANY comparison is fixed to equality (x = ANY(sub), i.e. IN) over a single-column subquery, and the filter holds only the ANY conjunct
+
 
 ## Source rule (as given to the porter)
 
 ```
-Source: pkg/sql/opt/norm/rules/decorrelate.opt
+# Name: NormalizeSelectAnyFilter
+# Backend: CockroachDB
+# Source: pkg/sql/opt/norm/rules/decorrelate.opt
 
 NormalizeSelectAnyFilter rewrites an Any expression that is a top-level
 conjunct in Select filters, turning it into an Exists expression. Any can be
@@ -68,8 +72,43 @@ Extracted from `decorrelate.opt` (which defines multiple rules — implement spe
 ```
 ```
 
-## Independent verifier review
+## QED prover result
 
-**Verdict:** AGREE
-
-The rule's correctness rests entirely on SQL three-valued/NULL logic: `x op ANY (…)` can evaluate to NULL (no TRUE, at least one UNKNOWN) while `EXISTS (…)` is never NULL, and it is precisely the Select filter's drop-NULL-as-false behavior (plus both being TRUE iff some `x op v` is TRUE) that equates the two conjuncts. QED models predicates as total, two-valued, NULL-free uninterpreted functions, so in its bag semantics both `Any` and `Exists` lower to the identical semi-join `R ⋉ S ON (x op v)` — there is no NULL to drop and no distinct scalar-subquery-vs-exists semantics to capture, making any RuleScript encoding a vacuous `before() == after()` identity rather than a real proof. This is a fundamental QED modeling limitation (no three-valued logic, no Any/Exists/subquery operator with bespoke NULL handling), not a DSL gap closable via extend_dsl_file. ```
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": false,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 9276793
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 37963708
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 1102250
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 492250
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 23359834
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 38074375
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 77046833
+  }
+}
+```

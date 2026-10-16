@@ -1,8 +1,10 @@
 # PushAssignmentCastsIntoValues
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 92  **Verification rounds used:** 5
+**Porter attempts used:** 104  **Verification rounds used:** 6
+**Scope detail:** input Values is modeled as an uninterpreted relation and the casted values rows as an equivalent inner projection layer (core language has no expression-row Values), with the other projection a constant.
+
 
 ## Source rule (as given to the porter)
 
@@ -118,6 +120,47 @@ Extracted from `project.opt` (which defines multiple rules — implement specifi
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-The rule's after-side requires a `Values` operator whose row cells are non-literal expressions (the pushed-in assignment casts), but QED's substrate is Calcite, whose `LogicalValues`/`RelBuilder.values` and the QED JSON `values` format (and its `RexLiteral`-casting deserializer) only admit constant rows — there is no operator for expression-bearing Values, and the unmodifiable QED prover cannot interpret such cells. This is a hard substrate representation limit, not a missing DSL builder: keeping the after-side Values literal-only breaks equivalence (cast(l) ≠ l), and no representable narrower special case exists because the expression-in-a-values-cell is precisely the unencodable core of the transformation.
+The encoding faithfully mirrors the rule's structure in a non-degenerate special case: an uninterpreted single-column Values, one uninterpreted cast projection moved from the outer project into the base relation (modeled as an inner projection layer, since the DSL has no expression-row Values), and one independent constant projection carried through both sides with matching output column order — and before() and after() are structurally distinct, so the proof establishes a genuine projection-commutation/bag-preservation claim rather than a vacuous identity. The source rule's guards (cast source not referenced by other projections, not a passthrough column, at least one pushable cast) are enforced by the encoding's shape, so no precondition is silently dropped, and the PARTIAL scope line honestly names the 1-column/constant-other restriction.
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": true,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 382667
+  }
+}
+```

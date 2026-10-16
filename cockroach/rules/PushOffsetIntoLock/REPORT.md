@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 21  **Verification rounds used:** 2
+**Porter attempts used:** 26  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
@@ -34,4 +34,4 @@ Extracted from `limit.opt` (which defines multiple rules — implement specifica
 
 **Verdict:** AGREE
 
-The rule's central operator, Offset, is precisely one of the list/ordering operators that QED explicitly does not model (qed.pdf §6.2: Sort/Limit/Offset/Window/Sample have no bag-semantic meaning), so no DSL extension can give the prover anything to decide over a plan containing Offset, and the only encodable variant (re-modeling Offset/Lock as uninterpreted filters) would prove a different, vacuous fact (filter commutativity) rather than PushOffsetIntoLock. Compounding this, the rule's validity guard (Lock must not use a SKIP LOCKED wait policy) and its actual purpose (fewer rows locked) depend on Lock's side-effectful, backend-internal semantics, which a bag-equivalence prover cannot express or verify as an uninterpreted symbol. Consequently no genuine non-degenerate special case exists, since Offset has no meaning at all without ordering. ```
+Offset's meaning — dropping the first k rows of a given ordering — is exactly the list/ordering semantics QED's bag-semantic decision procedure does not model, and that is a limitation of the (unmodifiable) prover, not a DSL gap that `extend_dsl_file` could close; the rule's soundness additionally rests on the backend-specific fact that a non-SKIP-LOCKED Lock passes every input row through, so modeling Lock honestly as an uninterpreted row-dropping bag function makes the commutation `Offset∘Lock = Lock∘Offset` refutable (suffix-of-filtered ≠ filter-of-suffix), while the only model under which it holds (row-identity) collapses the rule to the degenerate `Offset(x) = Offset(x)`. No non-degenerate, semantically honest encoding exists for QED to prove.

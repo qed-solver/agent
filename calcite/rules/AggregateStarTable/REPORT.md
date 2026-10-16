@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 9  **Verification rounds used:** 1
+**Porter attempts used:** 7  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/AggregateStarTableRule.j
 
 **Verdict:** AGREE
 
-This rule is a materialization substitution, not a relational identity: it replaces Aggregate(Scan(starTable)) with a Scan of a *separate* pre-aggregated table (optionally topped by a roll-up Aggregate or a reordering Project), and its soundness rests entirely on the planner lattice guaranteeing that the pre-aggregated table's rows equal the aggregation of the star table — a cross-table content invariant QED cannot express, since each scan is an independent uninterpreted relation whose schema carries only types, keys, and per-row guaranteed predicates (no builder or JSON field can relate one table's contents to another's, and the immutable prover has no such mechanism). The roll-up branch independently requires concrete SUM/COUNT roll-up aggregate algebra ("sum of sums = sum") that QED explicitly does not model for uninterpreted aggregate functions. The porter's diagnosis is correct and confirmed empirically: the two tables must be distinct symbols in any faithful encoding, the hint's fixable causes (name mismatch, missing composition, key/flag) genuinely don't apply, and the complete, non-timed-out `provable: false` run shows the gap is fundamental — and no narrower non-vacuous special case exists because the aggregate→scan-of-different-table substitution is the rule itself. ```
+Every branch of this rule (exact match, roll-up, or measure reordering) rewrites `Aggregate(base)` into a plan over a *different* scan whose equality to the base table's aggregation is an external lattice/catalog invariant, not an operator semantics — and QED's verdict is an *unconditional* bag-equivalence over independently-instantiated uninterpreted relations, whose only admitted side information is per-table keys and per-table first-order `guaranteed` check constraints, so the second-order premise "materialized table = aggregation of base table" cannot be expressed or accepted (extending `RelRN`/`JSONSerializer` can't help, since that premise would require semantics only the unmodifiable Rust prover could provide). Moreover, the roll-up branch additionally depends on aggregate roll-up algebra (e.g. sum-of-sums), which QED explicitly does not model, so no narrower sub-case of the rule is provable without the invariant — the porter's UNSUPPORTED verdict is correct.

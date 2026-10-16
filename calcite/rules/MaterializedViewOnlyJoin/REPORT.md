@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 23  **Verification rounds used:** 2
+**Porter attempts used:** 29  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/materialize/Materialized
 
 **Verdict:** AGREE
 
-MaterializedViewOnlyJoin is a catalog-driven materialized-view rewrite, not a closed-form algebraic identity: its validity rests on the external fact that a stored MV table's contents are *defined* to equal a particular derived query (the matched join/input) together with predicate/column entailment between that MV's defining query and the join subtree. In RuleScript a `scan` is an atomic uninterpreted symbol with no definitional link to any derived relation, so QED treats the MV scan and the join input as independent symbols and — per its stated limitation of not reasoning about predicate entailment between independent symbols — cannot prove their equivalence; and because the "after" side depends on *which* MV matched and on a per-match column/predicate mapping, there is no single fixed before()/after() pattern pair whose bag-equivalence QED could universally establish, so even a narrower special case is not expressible.
+The rewrite substitutes a query join subplan with a scan of a separately registered MV table (cross-joined with query-only tables), and its entire correctness rests on the external planner invariant that the MV table's contents equal its defining query — a cross-table identity between two independent uninterpreted relations. QED's table schema format only carries per-table keys and single-table "guaranteed" constraints (serialized in a Rex environment over that table's own row type), so the invariant cannot even be stated as a premise, and the SMT decision procedure over independent uninterpreted relations cannot derive it; identifying the MV scan with the subplan symbol degenerates the rule to the vacuous identity, so no non-trivial provable encoding exists. ```

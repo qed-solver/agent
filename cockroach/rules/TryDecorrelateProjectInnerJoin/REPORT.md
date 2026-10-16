@@ -2,21 +2,79 @@
 
 **Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 72  **Verification rounds used:** None
-**Scope detail:** LEFT outer join with INNER inner join over single-column L/IL/IR and one 2-arg computed projection f
+**Porter attempts used:** 72  **Verification rounds used:** 5
+**Scope detail:** plain (non-Apply) LEFT/INNER joins over 1-col INTEGER scans; right Project is [pass, pass, f(pass, pass)]; on/innerOn/f uninterpreted
 
 
 ## Source rule (as given to the porter)
 
 ```
-Decorrelates by hoisting an InnerJoin's filter from below a LeftJoin/Project combo, merging it into the LeftJoin condition.
+Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+TryDecorrelateProjectInnerJoin tries to decorrelate by hoisting the filter of
+an InnerJoin operator that sits below a LeftJoin/Project operator combo. The
+Project operator itself can't be reordered above the LeftJoin like it can in
+the InnerJoin case. However, the InnerJoin filter can be merged with the
+LeftJoin filter, which is enough to decorrelate in several useful cases. This
+rule works similarly to TryDecorrelateProjectSelect.
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `TryDecorrelateProjectInnerJoin`, not the other rules in that file):
+
+```
+# TryDecorrelateProjectInnerJoin tries to decorrelate by hoisting the filter of
+# an InnerJoin operator that sits below a LeftJoin/Project operator combo. The
+# Project operator itself can't be reordered above the LeftJoin like it can in
+# the InnerJoin case. However, the InnerJoin filter can be merged with the
+# LeftJoin filter, which is enough to decorrelate in several useful cases. This
+# rule works similarly to TryDecorrelateProjectSelect.
+[TryDecorrelateProjectInnerJoin, Normalize, HighPriority]
+(LeftJoinApply
+    $left:*
+    $right:(Project
+        $join:(InnerJoin | InnerJoinApply
+            $innerLeft:*
+            $innerRight:*
+            $innerOn:* &
+                ^(FiltersBoundBy
+                    $innerOn
+                    (OutputCols2 $innerLeft $innerRight)
+                )
+            $innerPrivate:*
+        )
+        $projections:*
+        $passthrough:*
+    )
+    $on:*
+    $private:*
+)
+=>
+(Project
+    (LeftJoinApply
+        $left
+        (Project
+            ((OpName $join)
+                $innerLeft
+                $innerRight
+                []
+                $innerPrivate
+            )
+            $projections
+            (UnionCols $passthrough (OutputCols $join))
+        )
+        (ConcatFilters $on $innerOn)
+        $private
+    )
+    []
+    (OutputCols2 $left $right)
+)
+```
 ```
 
 ## Independent verifier review
 
 **Verdict:** CONFIRMED
 
-The automated porter's candidate was actually correct -- it originally landed as FAILED only because the independent verifier's LLM response got truncated at the token limit mid-reply and was conservatively (and incorrectly) treated as REJECTED since it couldn't be parsed, not because of any real flaw, and the 6th forced round then ran out with no more retries. Manually reviewed the candidate line-by-line against the source .opt pattern: it correctly models the ConcatFilters merge (innerOn gets AND'd into the outer LeftJoin's on-condition, matching argument order to before()'s on/innerOn calls), the UnionCols passthrough widening (IR gets added to the pushed Project's passthrough on the after side, needed so innerOn can reference it once re-evaluated at the outer join), and the final Project correctly restricting back to the original output columns. Same accepted narrowing precedent as TryDecorrelateSelect/TryDecorrelateProjectSelect: on/innerOn are modeled as uncorrelated predicates (the FiltersBoundBy/outer-cols guard is a firing heuristic, not a soundness precondition). Re-ran try_rule fresh (provable=true, complete_fragment=false -- real SMT engagement) and verified non-vacuous with a negative control that breaks the UnionCols widening (drops IR from the after-side passthrough, so innerOn can't be faithfully re-evaluated) -- correctly fails to prove.
+The encoding exactly mirrors the rule's shape — LEFT(L, Project(InnerJoin(IL, IR, innerOn)), on) rewritten to LEFT(L, Project(InnerJoin(IL, IR, true)), on ∧ innerOn) — with correct symbol sharing (L/IL/IR/on/innerOn/f shared precisely as the rule's bindings, and the FiltersBoundBy precondition enforced structurally since innerOn can only reference inner-join columns), and the proof is non-vacuous because the plans genuinely differ and the row-correspondence (identical matched multisets and identical left-join no-match cases) is a real identity. The PARTIAL tag is honest and specific (1-column INTEGER scans, plain non-Apply joins, fixed [pass, pass, f] projection shape; Apply/correlation is fundamentally unmodelable in QED), and the omitted outer identity-Project in the after-side is semantically inert, so the proved algebraic core is exactly the source rule's transformation.
 
 ## QED prover result
 
@@ -27,34 +85,34 @@ The automated porter's candidate was actually correct -- it originally landed as
   "complete_fragment": false,
   "equiv_class_duration": {
     "secs": 0,
-    "nanos": 15616960
+    "nanos": 17145585
   },
   "equiv_class_timed_out": false,
   "smt_duration": {
     "secs": 0,
-    "nanos": 13283166
+    "nanos": 43155333
   },
   "smt_timed_out": false,
   "nontrivial_perms": false,
   "translate_duration": {
     "secs": 0,
-    "nanos": 156250
+    "nanos": 1068916
   },
   "normal_duration": {
     "secs": 0,
-    "nanos": 1293625
+    "nanos": 1311708
   },
   "stable_duration": {
     "secs": 0,
-    "nanos": 30184667
+    "nanos": 37432417
   },
   "unify_duration": {
     "secs": 0,
-    "nanos": 13437292
+    "nanos": 43492375
   },
   "total_duration": {
     "secs": 0,
-    "nanos": 47355792
+    "nanos": 98127333
   }
 }
 ```

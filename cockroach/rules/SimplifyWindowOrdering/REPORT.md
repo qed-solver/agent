@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 21  **Verification rounds used:** 2
+**Porter attempts used:** 24  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -42,4 +42,4 @@ Extracted from `window.opt` (which defines multiple rules — implement specific
 
 **Verdict:** AGREE
 
-The rule's entire content is rewriting the window's ORDER BY (private) clause, and its soundness rests on intra-partition *ordering* semantics — that ordering by (a,b) and by (a) induce the same relative row order once b is FD-determined by (partition, a). RuleScript's core language has no Window/ordering operator, and QED explicitly has no list/ordering semantics (Sort/Window/Sample carry no bag-semantic meaning), so any bag-level encoding of the window makes before() and after() collapse to the identical pattern. The remaining gap is also fundamental: the FD premise itself is an entailment over uninterpreted columns QED cannot derive (its only input-FD mechanism is the single-column `unique` scan flag, which can't express "b is determined by partition + a"), so even a special-case encoding would leave an unprovable, unstateable justification. ```
+The rule's sole change is the window's ordering/private data, and its entire justification is that the simplified ordering induces the same intra-partition row order, hence the same frame boundaries and window-function values — a purely ordering-dependent fact, while QED's bag semantics deliberately model no list/order meaning for Sort/Limit/Window (per qed.pdf's own evaluation), and the trusted Rust prover cannot be modified to add such semantics (the DSL has no Window builder and the JSON format has no window form to feed it). Any non-vacuous encoding would have to show W(I,F,p) ≡ W(I,F,p') for two *distinct* orderings p and p': either assume that equivalence (proving only the trivial identity of identical terms), or leave both orderings as distinct uninterpreted values with no ordering/FD axioms QED can use (unprovable), and even expanding a single window function like rank() into self-join/aggregates over an order predicate would still require predicate-entailment reasoning between order relations that QED explicitly cannot perform. So the porter's UNSUPPORTED conclusion is sound — this is a fundamental QED limitation, not a missing builder to close with extend_dsl_file. ```

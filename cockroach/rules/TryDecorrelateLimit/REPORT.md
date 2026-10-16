@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 41  **Verification rounds used:** 3
+**Porter attempts used:** 25  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -68,4 +68,4 @@ Extracted from `decorrelate.opt` (which defines multiple rules — implement spe
 
 **Verdict:** AGREE
 
-The rewrite replaces an ordered LIMIT with a row_number() window plus a rowNum <= limit filter, so correctness depends on which row occurrences are selected under a given ordering. QED only reasons about bag semantics and gives Sort/Limit/Window no ordering algebra, so no RuleScript encoding can prove the required row-selection equivalence even if Limit/Window builders were added. ```
+TryDecorrelateLimit's entire correctness claim is the order-based equivalence "first n rows of the right input per the given ordering (LIMIT)" ≡ "rows of the right input with ROW_NUMBER() (computed in that ordering) ≤ n", and QED only decides bag-semantic equivalence — it has no model for the ordering semantics of Sort/Limit/Offset/Window at all (a documented limitation, confirmed by the "List semantic" failure category in QED's own Calcite/CockroachDB evaluation in qed.pdf). No non-vacuous special case rescues it: without ordering, "the first n rows" (even for n=1) is undefined over a bag, so the best available encodings either model LIMIT and ROW_NUMBER() as independent uninterpreted functions (identity then unprovable) or collapse them into one symbol (tautological, proving nothing about the actual operators). The gap sits in the unmodifiable QED prover itself rather than in a missing DSL builder, so extending RelRN/RexRN could not make this rule decidable. ```

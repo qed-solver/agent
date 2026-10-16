@@ -1,0 +1,91 @@
+{
+  "help" : [ "LogicalFilter(condition=[NOT(IN($0, {\nLogicalTableScan(table=[[Sub]])\n}))])\n  LogicalTableScan(table=[[Input]])\n", "LogicalFilter(condition=[NOT(EXISTS({\nLogicalFilter(condition=[OR(=($cor0.col-Input, $0), IS NULL(=($cor0.col-Input, $0)))])\n  LogicalTableScan(table=[[Sub]])\n}))], variablesSet=[[$cor0]])\n  LogicalTableScan(table=[[Input]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Sub",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Sub" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Input",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Input" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "filter" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "query" : {
+            "scan" : 0
+          },
+          "type" : "BOOLEAN",
+          "operand" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          } ],
+          "operator" : "IN"
+        } ],
+        "operator" : "NOT"
+      },
+      "source" : {
+        "scan" : 1
+      }
+    }
+  }, {
+    "filter" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "query" : {
+            "filter" : {
+              "condition" : {
+                "type" : "BOOLEAN",
+                "operand" : [ {
+                  "type" : "BOOLEAN",
+                  "operand" : [ {
+                    "column" : 0,
+                    "type" : "INTEGER"
+                  }, {
+                    "column" : 1,
+                    "type" : "INTEGER"
+                  } ],
+                  "operator" : "="
+                }, {
+                  "type" : "BOOLEAN",
+                  "operand" : [ {
+                    "type" : "BOOLEAN",
+                    "operand" : [ {
+                      "column" : 0,
+                      "type" : "INTEGER"
+                    }, {
+                      "column" : 1,
+                      "type" : "INTEGER"
+                    } ],
+                    "operator" : "="
+                  } ],
+                  "operator" : "IS NULL"
+                } ],
+                "operator" : "OR"
+              },
+              "source" : {
+                "scan" : 0
+              }
+            }
+          },
+          "type" : "BOOLEAN",
+          "operand" : [ ],
+          "operator" : "EXISTS"
+        } ],
+        "operator" : "NOT"
+      },
+      "source" : {
+        "scan" : 1
+      }
+    }
+  } ]
+}

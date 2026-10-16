@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 22  **Verification rounds used:** 2
+**Porter attempts used:** 10  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -63,4 +63,4 @@ Extracted from `with.opt` (which defines multiple rules — implement specifical
 
 **Verdict:** AGREE
 
-The operator being rewritten on both sides is a `RecursiveCTE` (a recursive fixpoint), which has no bag-semantic/Q-expression translation in the Rust prover and no counterpart in the RelRN core language, and the added `Limit`/`EmptyOrdering` falls squarely under QED's explicit non-modeling of Limit/ordering semantics. Independently, the rule's validity rests on the `CanAddRecursiveLimit`/`HasBoundedCardinality`/`GetLimitFromCardinality` cardinality side-condition, which QED cannot express; even abstracting the unbounded recursive branch to an opaque relation R, the claimed identity `Limit(R, N) ≡ R` holds only when |R| ≤ N rather than universally, so the prover (which checks all instantiations) would correctly refute it. Thus neither a full nor any narrower special case is encodable, confirming the porter's UNSUPPORTED claim. ```
+The rule's before-side `RecursiveCTE` is a least fixed point over a working table — no finite bag-semiring expression and no core-language operator can represent it, and no `extend_dsl_file` builder could help since QED itself (the unmodifiable arbiter) has no fixed-point semantics to check it against. Its side conditions (`HasBoundedCardinality`, `CanAddRecursiveLimit`) are row-count bounds on whole relations, which the DSL cannot express — uninterpreted symbols are only row-level predicates/projections/functions, with no cardinality-constraint mechanism. And the introduced `Limit` has no bag semantics in QED: its safety as a no-op rests entirely on the inexpressible "never exceeds N rows" row-count argument, so any encodable before/after pair would either omit the limit/fixed point (collapsing to a vacuous identity) or be unencodable — the porter's UNSUPPORTED conclusion is correct.

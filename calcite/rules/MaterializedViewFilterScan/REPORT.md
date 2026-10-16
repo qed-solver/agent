@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 26  **Verification rounds used:** 2
+**Porter attempts used:** 58  **Verification rounds used:** 4
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/MaterializedViewFilterSc
 
 **Verdict:** AGREE
 
-The rewrite's soundness rests on the materialization invariant that the MV table's stored bag equals the result of its defining query over the base table, but QED decides equivalence by universally quantifying over all instantiations of uninterpreted table symbols whose only per-table facts are key uniqueness and row-level "guaranteed" predicates, so a cross-table content equality cannot be stated as a premise. Any encoding using distinct symbols for the base table and the MV is therefore refuted by a countermodel (e.g. an empty or differently-populated MV), while identifying the two symbols collapses to a vacuous identity that proves nothing about the actual transformation. This is a limitation of the fixed prover's premise language — no DSL extension can close it, since JSONSerializer carries no inter-table constraint and the Rust prover itself cannot be modified. ```
+MaterializedViewFilterScan's soundness rests on the cross-table invariant that the MV scan's bag equals its defining query over the base table (e.g. bag(MV) = Filter(D, bag(base))), which QED's theory cannot state: every scan is an independent uninterpreted bag whose only declared properties are per-table primary keys and check predicates (the JSON format's per-table "key"/"guaranteed" fields — the full schema vocabulary JSONSerializer emits), so no relation between two distinct table symbols is expressible and `Filter(Q∧D, base) ≡ Filter(Q, MV)` is unprovable for arbitrary independent bags. The only provable single-table encoding (filter-merge: `Filter(Q∧D, base) ≡ Filter(Q, Filter(D, base))`) eliminates the MV table entirely and is therefore a different rule, not a special case of this one; the gap is a fundamental limitation of the prover's per-table theory, not a missing DSL builder, so no `extend_dsl_file` change (which is gated on the existing prover/JSON semantics) could close it. ```

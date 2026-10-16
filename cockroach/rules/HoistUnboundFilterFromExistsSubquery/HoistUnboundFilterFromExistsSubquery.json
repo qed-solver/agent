@@ -1,5 +1,5 @@
 {
-  "help" : [ "LogicalFilter(condition=[EXISTS({\nLogicalFilter(condition=[AND(unbound_cond(), other_cond($0))])\n  LogicalTableScan(table=[[Inner]])\n})])\n  LogicalTableScan(table=[[Outer]])\n", "LogicalFilter(condition=[AND(EXISTS({\nLogicalFilter(condition=[other_cond($0)])\n  LogicalTableScan(table=[[Inner]])\n}), unbound_cond())])\n  LogicalTableScan(table=[[Outer]])\n" ],
+  "help" : [ "LogicalFilter(condition=[EXISTS({\nLogicalFilter(condition=[AND(unbound($cor0.col-Input), bound($0))])\n  LogicalTableScan(table=[[Inner]])\n})], variablesSet=[[$cor0]])\n  LogicalTableScan(table=[[Input]])\n", "LogicalFilter(condition=[AND(EXISTS({\nLogicalFilter(condition=[bound($0)])\n  LogicalTableScan(table=[[Inner]])\n}), unbound($0))], variablesSet=[[$cor0]])\n  LogicalTableScan(table=[[Input]])\n" ],
   "schemas" : [ {
     "types" : [ "INTEGER" ],
     "nullable" : [ true ],
@@ -10,9 +10,9 @@
   }, {
     "types" : [ "INTEGER" ],
     "nullable" : [ true ],
-    "name" : "Outer",
+    "name" : "Input",
     "guaranteed" : [ ],
-    "fields" : [ "col-Outer" ],
+    "fields" : [ "col-Input" ],
     "key" : [ ]
   } ],
   "queries" : [ {
@@ -24,15 +24,18 @@
               "type" : "BOOLEAN",
               "operand" : [ {
                 "type" : "BOOLEAN",
-                "operand" : [ ],
-                "operator" : "unbound_cond"
+                "operand" : [ {
+                  "column" : 0,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "unbound"
               }, {
                 "type" : "BOOLEAN",
                 "operand" : [ {
                   "column" : 1,
                   "type" : "INTEGER"
                 } ],
-                "operator" : "other_cond"
+                "operator" : "bound"
               } ],
               "operator" : "AND"
             },
@@ -62,7 +65,7 @@
                   "column" : 1,
                   "type" : "INTEGER"
                 } ],
-                "operator" : "other_cond"
+                "operator" : "bound"
               },
               "source" : {
                 "scan" : 0
@@ -74,8 +77,11 @@
           "operator" : "EXISTS"
         }, {
           "type" : "BOOLEAN",
-          "operand" : [ ],
-          "operator" : "unbound_cond"
+          "operand" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          } ],
+          "operator" : "unbound"
         } ],
         "operator" : "AND"
       },

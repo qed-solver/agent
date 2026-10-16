@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 22  **Verification rounds used:** 2
+**Porter attempts used:** 8  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -35,4 +35,4 @@ $result
 
 **Verdict:** AGREE
 
-FoldCast's RHS is a value produced by *evaluating* the cast operator on a constant input, but in RuleScript a cast can only be modeled as an uninterpreted function symbol, and QED has no axiom relating cast(c, T) to any folded result — unlike FoldNotFalse, where NOT and the boolean literals are genuinely interpreted. The rule's side conditions are equally inexpressible: the pattern language has no way to state "input is a constant" (IsConstValueOrGroupOfConstValues), no Let-binder to carry the computed ($result, $ok) pair into the RHS, and no literal/constant constructors at all. So the only provable encoding is the vacuous identity with the same cast symbol on both sides; this rests on the operator's bespoke evaluation semantics that QED fundamentally cannot see through, not on a missed encoding trick. ```
+FoldCast's claim is that `cast(const) = folded_literal`, and its correctness rests entirely on the cast operator's value-producing semantics — semantics that exist nowhere in the stack: the DSL exposes no cast construct (the only value-transforming symbols are uninterpreted `Proj` functions), and QED's prover treats every function symbol as uninterpreted with all virtual types erased to INTEGER, so `f(c) = c'` is not SMT-valid for any uninterpreted `f` and literal `c'`. The only typecheckable encodings are vacuous: omitting the cast leaves both sides as the identical literal 0 after type erasure (proving an artifact, not the rule), and keeping an uninterpreted same-type cast still yields the underivable `f(0) = 0` — so no genuine non-trivial special case exists. Consequently `extend_dsl_file` cannot close the gap either: any new `cast` builder would still serialize to an uninterpreted operator for which the fixed Rust prover has no axioms.

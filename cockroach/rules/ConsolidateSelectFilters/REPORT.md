@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 43  **Verification rounds used:** 3
+**Porter attempts used:** 32  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
@@ -50,4 +50,4 @@ Extracted from `select.opt` (which defines multiple rules — implement specific
 
 **Verdict:** AGREE
 
-The rule's entire semantic content is that CockroachDB's `Range` predicate is a transparent wrapper over its inner conjunction (Range(e) ≡ e in filter context); in RuleScript, `Range` can only be introduced as an uninterpreted predicate symbol, and QED fundamentally cannot prove an uninterpreted symbol equivalent to its argument, and the JSON/DSL format has no channel for operator axioms (the "guaranteed" field only attaches to base-table scans, and RelRN/RexRN/JSONSerializer carry no operator-axiom construct), so extending the DSL cannot supply the required transparency axiom without modifying the trusted prover. Any encoding that drops `Range` collapses the rule to nested-filter AND merging — i.e. the already PROVED FULL FilterMerge — so there is no genuine non-trivial PARTIAL fallback to port. ```
+ConsolidateSelectFilters is a pure representational rewrite whose sole correctness claim is that CockroachDB's Range scalar is evaluation-transparent to its inner And (both the constraint builder and Eval delegate to t.And) — an axiom about a backend operator's internal semantics, not a relational-algebraic fact. QED quantifies universally over uninterpreted symbols with no mechanism for definitional axioms, so an encoding with an uninterpreted Range predicate is genuinely unprovable, and the only encodable variant (modeling Range as the And it is) collapses before() and after() into the same plan, reducing the "proof" to a vacuous identity that certifies nothing about the backend rule. A DSL extension cannot close this gap, since QED's serialization/prover has no notion of a "defined" symbol — the port is blocked by the stated limitation that QED cannot see through an operator's bespoke internal semantics. ```

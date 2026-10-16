@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 21  **Verification rounds used:** 2
+**Porter attempts used:** 6  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -26,4 +26,4 @@ Extracted from `numeric.opt` (which defines multiple rules — implement specifi
 
 **Verdict:** AGREE
 
-The rule's correctness rests on the numeric identity "floor division by 1 is the identity function" (plus a value-preserving cast), but RuleScript can only express `floor_div` and `cast` as uninterpreted generic projection operators, and QED's SMT encoding has no integer-arithmetic axioms connecting those fresh uninterpreted function symbols to the literal 1 — so `floor_div(x, 1) = x` (or `= cast(x)`) is false in some interpretations and any faithful encoding (projection, predicate, or join-based) is refuted by a countermodel. A genuine `try_rule` attempt (e.g. `scan.project(floor_div(col, 1))` vs `scan.project(col)`) would return not-provable for the same reason the porter cited, and the gap is not closable by `extend_dsl_file` (the DSL also lacks an integer-literal builder, but that is secondary — the fundamental wall is QED treating scalar arithmetic operators as uninterpreted functions). ```
+The rule's correctness rests on the numeric identity floor_div(x, 1) = x plus the semantics of the int→int cast, but QED's fixed theory (equality, uninterpreted functions, order, addition, ite) contains no division or cast algebra, so `FloorDiv` and `Cast` can only be entered as uninterpreted symbols and no encoding yields a valid relation between floorDiv(x,1) and cast(x,τ) — the only equality-based encoding available (filtering/joining on the terms being equal) is circular, since it assumes exactly the identity the rule claims and QED cannot do entailment between independent uninterpreted symbols. This is compounded by RexRN.Const hardcoding literal 0 (the constant 1 cannot be named at all), and closing it is impossible via extend_dsl_file because the missing axioms live in the QED prover's theory, not the Java DSL — the same fundamental limitation that correctly caused FoldDivOne to be skipped. ```

@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 6  **Verification rounds used:** 1
+**Porter attempts used:** 10  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: core/src/main/java/org/apache/calcite/rel/rules/SortRemoveDuplicateKeysR
 
 **Verdict:** AGREE
 
-The rule's soundness rests entirely on ordering semantics — that collation [k1, k2] induces the same row order as [k1] when k1 functionally determines k2 — and QED explicitly does not model Order By/Sort ordering semantics, operating in pure bag semantics (qed.pdf §6.1 limitations). Under bag semantics a Sort with any two collations over the same input is the identical bag, so any RuleScript encoding of before/after would be trivially true for arbitrary collations and verify none of the rule's content; the FD premise itself (mq.determines) is also beyond QED's reasoning (it cannot infer functional dependencies, and RelRN exposes no sort operator whose ordering the prover could compare). Adding a Sort builder via extend_dsl_file could not close this, since the gap is in the prover's semantics (which must not be modified), not in the DSL — making UNSUPPORTED the correct conclusion. ```
+Both plans sort the same input, so their row bags are identical by construction; the rule's only non-trivial claim is that dropping a key `mq.determines` marks as functionally determined by earlier keys preserves the same row *order*, and QED has no ordering semantics for Sort (it reduces to its input bag-wise), so any encoding proves only a vacuous tautology. The `mq.determines` precondition is a content-dependent property the prover cannot even constrain, since proofs must hold for all instantiations of the uninterpreted table symbols. This is a fundamental QED limitation, not a DSL gap: the JSON serializer already carries `sort`, so a RelRN sort builder (via extend_dsl_file) would only enable vacuous proofs rather than close the missing ordering model, matching the verified AGREE skips for calcite SortRemove and datafusion DedupeSortExprs. ```

@@ -1,8 +1,10 @@
 # PruneMutationFetchCols
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 7  **Verification rounds used:** 2
+**Porter attempts used:** 5  **Verification rounds used:** 1
+**Scope detail:** the mutation's input has exactly two columns of which only the first is in the needed FetchCols, and the mutation's output is an uninterpreted per-row function of exactly that needed column (its other children — unique checks, fk checks, remaining private data — are held fixed)
+
 
 ## Source rule (as given to the porter)
 
@@ -47,6 +49,47 @@ Extracted from `prune_cols.opt` (which defines multiple rules — implement spec
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-The rule only mutates the DML operator's private `FetchCols` metadata (a set of column indices the mutation fetches) while holding `$input`, `$uniqueChecks`, `$fkChecks` structurally identical and inserting no `Project`, so its before/after are relationally identical and its entire correctness content — "dropping never-used fetch columns preserves the mutation's behavior" — lives in CockroachDB's bespoke `CanPruneMutationFetchCols`/`NeededMutationFetchCols` operator-internal semantics. RuleScript's core language is a query-focused relational algebra with no mutation (`Update`/`Upsert`/`Delete`) operator and no notion of operator private metadata, and even modeling the mutation as an uninterpreted function wouldn't help: QED has no axiom making that function insensitive to pruning of unused fetch columns, so it would treat it as an arbitrary black box and could not prove `M(input, F) = M(input, F∩Needed)` — a fundamental bag-semantic limitation, not a DSL gap `extend_dsl_file` could close.
+before() (scan(I0,I1) → M(I0)) and after() (scan(I0,I1) → project(I0) → M(I0')) are structurally different and correctly share the M operator and input scan, so the proof covers the rule's genuine crux — a mutation whose output depends only on the needed FetchCols is unchanged when unneeded fetched columns are dropped — with that precondition faithfully encoded by construction (M takes only the needed column), the only provable form given QED's inability to reason about entailment between independent symbols. The exactly-two-columns/one-needed restriction is an honest, specific, minimal non-degenerate special case (declared in the SCOPE line), and the unchanged other children (unique checks, fk checks, fixed private data) are soundly absorbed into the held-fixed uninterpreted M, matching the source rewrite which alters only the FetchCols.
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": true,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 372458
+  }
+}
+```

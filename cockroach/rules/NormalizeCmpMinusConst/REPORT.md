@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 21  **Verification rounds used:** 2
+**Porter attempts used:** 22  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -53,4 +53,4 @@ Extracted from `comp.opt` (which defines multiple rules — implement specifical
 
 **Verdict:** AGREE
 
-The rule's validity rests on the ordered-arithmetic identity (a − c₁) cmp c₂ ⟺ a cmp (c1 + c2), which QED cannot derive because it models Plus/Minus and the comparison operators as uninterpreted symbols with no additive algebra, no typed integer constants, and no way to fold c1 + c2 into a concrete value — an SMT countermodel (arbitrary interpretations of the uninterpreted functions/predicate) breaks the equivalence for any encoding. Closing the gap would require the prover itself to interpret these operators arithmetically, which is off-limits (the QED prover is unchangeable), and the side guards (overflow policy, overload/volatility checks, foldability) are equally backend-specific and unmodelable. ```
+The rewrite's validity rests on the value-level algebraic identity (x − c1) OP c2 ⟺ x OP (c2 + c1), but in QED the Minus, Plus, and comparison operators are all uninterpreted function/predicate symbols with no axioms, and the prover's JSON format offers no way to declare group/inverse/order properties over function symbols, so SMT cannot derive the required predicate entailment for any of Eq/Ge/Gt/Le/Lt. No relational embedding (e.g., the two filters over a shared scan) or specialization to particular constants can escape this, since even degenerate instances need facts like minus(x,0)=x, and the FoldBinary/ArithmeticErrorsOnOverflow guards are backend value-domain semantics (overflow behavior) that QED's abstract uninterpreted model does not represent at all — this is a fundamental QED limitation, not a missing DSL builder.

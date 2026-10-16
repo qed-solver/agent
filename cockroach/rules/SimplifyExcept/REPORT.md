@@ -1,8 +1,10 @@
 # SimplifyExcept
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 42  **Verification rounds used:** 3
+**Porter attempts used:** 14  **Verification rounds used:** 1
+**Scope detail:** 2-input, single-column, same row type, identity column mapping, with the left input a base scan declared unique (has a strict key).
+
 
 ## Source rule (as given to the porter)
 
@@ -26,6 +28,47 @@ Extracted from `set.opt` (which defines multiple rules — implement specificall
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-SimplifyExcept's after-side operator is EXCEPT ALL (bag-difference), and QED's model contains no bag-variant MINUS: its `except` node is interpreted set-semantically, the Java builder `minus(true, ...)` produces a LogicalMinus that JSONSerializer cannot even serialize (its `except` emission is guarded on `!minus.all`, so the all=true case falls through to "Not implemented"), and bag-difference is not definable from QED's available operators (bag-union/join/project/filter + distinct + set-intersect/set-minus + uninterpreted aggregates), since it requires per-tuple count arithmetic (count_L − min(count_L, count_R)) that QED's uninterpreted-aggregate model cannot express. The rule's precondition (strict key on the left) is expressible via `scan(id, ty, unique=true)` keyed tables, so the constraint side is not the blocker — the missing after-side operator is a fundamental prover limitation that no `extend_dsl_file` edit can close (the Rust prover is fixed, and serializing bag-minus as `except` would unsoundly turn the rule into a trivial identity). The provable neighborhood the porter found (unique-left ⟹ Except ≡ AntiJoin) is a genuinely different rewrite, so giving up on this specific set→bag operator conversion is the correct call.
+before() correctly encodes set EXCEPT (`minus(all=false)`), and although after() uses an ANTI join rather than the source's `ExceptAll` (bag MINUS is unmodelable by QED's serializer, which only handles the set variant), the two are semantically identical under the encoded `HasStrictKey` precondition (unique left scan), so the proof captures the rule's actual claim — "no de-duplication step needed, output is left rows absent from right" — as a stronger, genuine universal statement that is non-vacuous (multiplicities diverge if the left key is dropped, e.g. L=[a,a], R=[b]). The two scans are properly independent symbols sharing a type (as required by minus compatibility), the key precondition is present, and the SCOPE: PARTIAL line honestly and specifically lists the real restrictions (single column, identity colmap, left a declared-unique scan).
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": false,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 8133916
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 25844125
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 1008708
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 566750
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 20908625
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 25953084
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 62428750
+  }
+}
+```

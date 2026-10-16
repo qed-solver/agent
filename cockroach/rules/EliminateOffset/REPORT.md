@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 25  **Verification rounds used:** 2
+**Porter attempts used:** 22  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -26,4 +26,4 @@ $input
 
 **Verdict:** AGREE
 
-EliminateOffset's entire content is that skipping 0 rows is the identity, which is purely a row-ordering/list-semantic fact, and QED explicitly does not model ordering semantics — `Sort`/`Limit`/`Offset` have no bag-semantic meaning, and Offset is only an uninterpreted operator with no axioms (qed.pdf §3.1/§6.2). Hence `Offset(input) ≡ input` is unentailed for every input, including any degenerate special case, because the node being deleted is itself the unconstrained uninterpreted symbol that can't be factored out of both sides. The missing Offset builder in `RelRN` is a DSL gap, but closing it via `extend_dsl_file` (the JSON `sort` node with `offset` is already serializable) would not change the verdict, since the limitation sits in the prover's semantics, not the builder surface. ```
+QED models Offset as an uninterpreted QOp with no algebraic axioms (per qed.pdf §6.2, which states it does not support queries using Limit/Offset/Order By ordering semantics), so the rule's only content — that offsetting by zero is the identity — is not an SMT consequence; a countermodel where the uninterpreted Offset function discards rows even at 0 is available to the solver. No DSL extension can close this gap, since the missing piece is a prover-side axiom for Offset (and the prover is the trusted, unmodifiable arbiter; the existing `LogicalSort` case in `JSONSerializer` only covers serialization, not semantics). The rule also has no bag-semantic residue: with the unmodelable Offset removed from both sides, only the vacuous identity `input = input` remains, so there is no non-trivial special case to prove — consistent with the prior Spark `EliminateOffsets` skip for the same reason. ```

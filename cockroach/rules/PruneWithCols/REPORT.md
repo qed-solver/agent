@@ -1,8 +1,10 @@
 # PruneWithCols
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 22  **Verification rounds used:** 2
+**Porter attempts used:** 21  **Verification rounds used:** 2
+**Scope detail:** the With's input is fixed to a single column with exactly one uninterpreted projection expression and one passthrough column; the original rule applies at any arity
+
 
 ## Source rule (as given to the porter)
 
@@ -40,6 +42,47 @@ Extracted from `prune_cols.opt` (which defines multiple rules — implement spec
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-The rule's only semantic content is relocating a Project across a `With` (CTE/let-binding) node, and QED's relational language — the fixed set of node types serialized for the Rust prover (scan, values, filter, project, join, correlate, group, union, intersect, except, sort) — has no With/let-binding operator, which `JSONSerializer.java` confirms; no Java-side `extend_dsl_file` addition can introduce a node the unmodifiable prover would interpret. Modeling With as row-transparent identity collapses before and after to the *same* plan (tautology), and any stand-in wrapper (e.g. a true-join against a one-row relation) would only certify a different rule about a different operator, not PruneWithCols. The gap is a fundamental absence of the operator from the prover's language — not a missing DSL builder — so UNSUPPORTED is correct. ```
+The encoding faithfully mirrors PruneWithCols's shape — before() is Project([Expr(c0), c0]) above the 1-column identity standing in for the pass-through With, after() is the 2-column identity (same With) above the same project pushed below the scan — and the trees are structurally different (Expr outer vs. inner), so the proof is not vacuous. The uninterpreted Expr and scan symbols are correctly shared, the identity modeling of With matches the source rule's own justification, and the PARTIAL scope line accurately and specifically states the 1-column / 1-expression / 1-passthrough restriction, which is a genuine non-degenerate special case limited by the DSL's inability to express arbitrary-length sequences of distinct uninterpreted projections.
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": true,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 314792
+  }
+}
+```

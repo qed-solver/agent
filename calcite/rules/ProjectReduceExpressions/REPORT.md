@@ -1,8 +1,10 @@
 # ProjectReduceExpressions
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** Apache Calcite
-**Porter attempts used:** 27  **Verification rounds used:** 2
+**Porter attempts used:** 21  **Verification rounds used:** 2
+**Scope detail:** the project expression is FALSE AND an uninterpreted predicate, reduced to the constant FALSE
+
 
 ## Source rule (as given to the porter)
 
@@ -14,6 +16,47 @@ Note: ReduceExpressionsRule.java defines multiple distinct rule variants as sepa
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-ProjectReduceExpressions' actual transformation is constant-folding an operator on constant arguments (`f(consts)` → literal) and redundant-cast removal, both of which require the *evaluation/type* semantics of those operators; QED models every such operator as an uninterpreted function over integer-valued symbols, so neither `f(consts) ≡ literal` nor `cast(x) ≡ x` is a theorem in that model, and no DSL extension (even a literal builder) can change that. The only simplifications QED *can* prove (pure Boolean connectives AND/OR/NOT with TRUE/FALSE literals) are a degenerate side-effect of `simplifyPreservingType` on a projected Boolean, not the rule's constant-reduction purpose, and are already exercised by the sibling Filter variant — so a real attempt at the rule's canonical case would just come back not-provable.
+This is a genuine, non-vacuous special case of the real rule: ProjectReduceExpressionsRule's simplification pass (RexSimplify.simplifyPreservingType) does in fact rewrite a project expression like FALSE AND P(x) to the literal FALSE, and QED can only prove Project([FALSE ∧ P]) ≡ Project([FALSE]) by using its actual three-valued AND semantics (had AND been modeled as uninterpreted, the proof would fail), so the result is not trivial. Nothing is illegitimately hard-coded: the predicate P is uninterpreted (no concrete "x > 5" baked in), the same Source symbol is correctly shared between before() and after(), and the source rule carries no side preconditions (no keys/NOT NULL) that the encoding silently drops — the matchNullability cast the real rule would add is semantically inert on a literal. The narrowing to a purely-logical constant is forced by QED's inability to evaluate concrete operator algebra (the full rule's constant folding of e.g. 1+2 is a fundamental QED limitation, not a missing DSL feature), and the SCOPE: PARTIAL line states the assumption accurately and specifically. ```
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": true,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 351667
+  }
+}
+```

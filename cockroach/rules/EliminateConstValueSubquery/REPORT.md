@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 24  **Verification rounds used:** 2
+**Porter attempts used:** 66  **Verification rounds used:** 4
 
 ## Source rule (as given to the porter)
 
@@ -30,4 +30,4 @@ $value
 
 **Verdict:** AGREE
 
-The rule's LHS is a scalar subquery wrapping a single-row constant VALUES, and QED's prover cannot represent or reason about a scalar term that embeds a nested sub-relation (the scalar-subquery operator) — the porter confirmed this with a real experiment: a subquery builder was added, compiled, and serialized a genuine nested `query` node, yet the encoding still returned `provable=false` with `smt_duration=0` (fast-rejected before SMT), proving it is a prover limitation, not a closable DSL gap. Independently, the core language has no non-bool constant literal (needed for the RHS `$value`) and no non-empty VALUES builder (needed for the LHS single-row constant), so the rule can't even be written down. Taken together this is a genuine QED/DSL boundary (bespoke scalar-subquery semantics + scalar constant folding), so no faithful encoding can be made provable. ```
+The rule's soundness rests entirely on the evaluation semantics of the value-returning UNIQUE scalar-subquery operator (a single-row constant VALUES body must evaluate to exactly that constant), and QED's formalization gives concrete semantics only to the cardinality-based EXISTS subquery operator (JExists(Q) = Σ‖JQK‖); a value-returning UNIQUE subquery is an uninterpreted higher-order operator in the semiring Q-expression model that the prover cannot see through, since bag/multiplicity semantics cannot express "return the value of the unique row." Any faithful encoding of this rule must name that subquery operator (the relational core language has no substitute for it), so the failure is a genuine QED limitation rather than an encoding bug — the BOOLEAN-vs-INTEGER type mismatch the porter observed is a secondary blemish of their attempt, not the cause.

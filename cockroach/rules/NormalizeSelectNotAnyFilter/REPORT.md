@@ -1,13 +1,17 @@
 # NormalizeSelectNotAnyFilter
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 43  **Verification rounds used:** 3
+**Porter attempts used:** 0  **Verification rounds used:** 0
+**Scope detail:** the ANY comparison is fixed to equality (NOT (x = ANY(sub)), i.e. NOT IN) over a single-column subquery, and the filter holds only the NOT ANY conjunct
+
 
 ## Source rule (as given to the porter)
 
 ```
-Source: pkg/sql/opt/norm/rules/decorrelate.opt
+# Name: NormalizeSelectNotAnyFilter
+# Backend: CockroachDB
+# Source: pkg/sql/opt/norm/rules/decorrelate.opt
 
 NormalizeSelectNotAnyFilter rewrites a Not Any expression that is a top-level
 conjunct in Select filters, turning it into a Not Exists expression. Not Any
@@ -73,8 +77,43 @@ Extracted from `decorrelate.opt` (which defines multiple rules — implement spe
 ```
 ```
 
-## Independent verifier review
+## QED prover result
 
-**Verdict:** AGREE
-
-The rule's correctness hinges on the specific three-valued-logic evaluation semantics of the SQL `ANY` operator (its NULL propagation and empty-set behavior), which is a bespoke operator internal that QED's bag-semantic SMT prover does not model—QED only interprets EXISTS/UNIQUE subqueries, so `Any` must remain an uninterpreted symbol with no axiomatic link to `Exists`, making the defining identity `NOT ANY ≡ NOT EXISTS(… IS NOT FALSE)` underivable regardless of encoding.
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": false,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 8222664
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 7484291
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 54084
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 407042
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 16027791
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 7565250
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 26235542
+  }
+}
+```

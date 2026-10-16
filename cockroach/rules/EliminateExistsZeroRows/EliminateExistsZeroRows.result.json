@@ -4,7 +4,7 @@
   "complete_fragment": false,
   "equiv_class_duration": {
     "secs": 0,
-    "nanos": 55208
+    "nanos": 111709
   },
   "equiv_class_timed_out": false,
   "smt_duration": {
@@ -15,15 +15,15 @@
   "nontrivial_perms": false,
   "translate_duration": {
     "secs": 0,
-    "nanos": 32916
+    "nanos": 1033125
   },
   "normal_duration": {
     "secs": 0,
-    "nanos": 165000
+    "nanos": 256417
   },
   "stable_duration": {
     "secs": 0,
-    "nanos": 2282459
+    "nanos": 9099000
   },
   "unify_duration": {
     "secs": 0,
@@ -31,6 +31,6 @@
   },
   "total_duration": {
     "secs": 0,
-    "nanos": 4527542
+    "nanos": 25094166
   }
 }

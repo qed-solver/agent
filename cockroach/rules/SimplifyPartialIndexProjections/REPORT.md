@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 21  **Verification rounds used:** 2
+**Porter attempts used:** 84  **Verification rounds used:** 6
 
 ## Source rule (as given to the porter)
 
@@ -67,4 +67,4 @@ Extracted from `mutation.opt` (which defines multiple rules — implement specif
 
 **Verdict:** AGREE
 
-The rule operates on CockroachDB's `Update` mutation operator (absent from QED's query-algebra model) under a side condition that is a structural/schema-level column-set analysis (`ColsAreEmpty(SimplifiablePartialIndexProjectCols(...))`), not a data-level relational predicate; no DSL extension can close this gap because QED's SMT prover reasons exclusively over bag-semantic query plans with uninterpreted functions and has no notion of DML side effects or plan-metadata column-set reasoning, so the constant-folding obligation (projected partial-index flag → `false`) is fundamentally unexpressible and unprovable in this framework. ```
+The rewrite is conditional on a static column-set side condition (the UPDATE writes none of the partial index's or predicate's columns), which RuleScript cannot express — QED decides bag equality over all instantiations of the uninterpreted symbols with no mechanism for side conditions — and with that guard dropped the rewrite is not bag-equivalent, since rows satisfying the partial predicate project (true,true) before but (false,false) after. The two outputs are interchangeable only inside CockroachDB's Mutation operator, whose put-XOR-del change detection treats pointwise-equal put/del as a no-op: that is a backend operator's bespoke internal semantics, and the DSL has no Update/Mutation operator QED could reason about — and any `extend_dsl_file` operator carrying that put/del-no-op property would axiomatize the very claim to be proved, so no faithful, non-vacuous encoding exists. ```

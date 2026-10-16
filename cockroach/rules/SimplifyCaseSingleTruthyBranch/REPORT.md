@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 25  **Verification rounds used:** 2
+**Porter attempts used:** 45  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
@@ -56,4 +56,4 @@ Extracted from `select.opt` (which defines multiple rules — implement specific
 
 **Verdict:** AGREE
 
-The rule's soundness rests entirely on the three-valued branch-selection semantics of the CASE operator (in a filter, CASE TRUE WHEN cond THEN TRUE ELSE {FALSE|NULL} END keeps a row iff cond is TRUE), but QED's interpreted scalar fragment contains only the boolean connectives/literals — ite appears only as their internal 3VL encoding, not as a nameable operator — so any faithful before-side encoding must serialize CASE as an uninterpreted operator symbol, and SMT cannot equate Filter(case(cond), R) with Filter(cond, R): an uninterpreted function admits countermodels (e.g. mapping a non-TRUE cond to TRUE) that SMT can refute no assumption away. This is the "backend operator's specific internal semantics" limitation, not a DSL gap — an `extend_dsl_file` constructor could only emit another operator name the fixed Rust prover treats as uninterpreted, so no faithful encoding (or narrower special case, since even a non-NULL cond can't be named through the operator) can make the proof go through. ```
+The rule's soundness rests entirely on the CASE operator's branch-selection/3-valued semantics (`CASE WHEN c THEN true ELSE false/NULL END` retains a row iff `c` is true), but QED's interpreted scalar fragment only models the connectives and literals (AND/OR/NOT/TRUE/FALSE) — a CASE call, which every instance of this rule necessarily carries on the before side, down to the narrowest special cases, serializes via the `Rex` visitor as a name-keyed call that the fixed Rust prover treats as an uninterpreted function, so the before predicate has no modeled relation to `cond` and no universal SMT proof exists. No `extend_dsl_file` change on the Java side can close the gap, since operator interpretation is keyed by name inside the immutable prover, and this matches the AGREE-verified SKIPPED precedents for the same rule family (datafusion `CaseFirstBranchAlwaysTrue`, cockroach `EliminateCaseTrailingFalsyBranch`). ```

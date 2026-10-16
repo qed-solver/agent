@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache Calcite
-**Porter attempts used:** 9  **Verification rounds used:** 1
+**Porter attempts used:** 10  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -16,4 +16,4 @@ Note: ProjectToWindowRule.java defines multiple distinct rule variants as separa
 
 **Verdict:** AGREE
 
-The rule's entire semantic content is that a windowed aggregate (RexOver) evaluated inline inside a Project yields the same per-row values as the same aggregate evaluated by a separate LogicalWindow node over the same input — i.e., partition/ordering-dependent window semantics, which QED explicitly does not model (Window has no bag-semantic meaning, and QED knows nothing about an aggregate's algebra beyond bag equality of its input). Any encoding in the core language either desugars the window on both sides (self-join back to a group-by), making before and after the identical tree so the proof is vacuous, or relates an opaque uninterpreted window function to a group-by/join construction, which QED cannot derive for uninterpreted symbols. This is a fundamental limitation on the prover side (no window semantics in the QED backend), not a missing DSL builder, so extend_dsl_file cannot close the gap and no non-trivial narrower special case of the rule's content is provable. ```
+This rule's payload is the identity between an inline `RexOver` (windowed aggregate) inside a `Project` and a separate `LogicalWindow` operator, but QED's Q-expression language contains no window operator (the serializer emits only scan/filter/project/join/correlate/group/union/intersect/except/sort), and window semantics require ordered-partition/frame (list) semantics plus the aggregate identity "per-partition aggregate joined back to each row equals the inline OVER value" — both things QED's bag semantics explicitly excludes, per its own limitations. Any encoding is forced to choose between (a) row-local uninterpreted functions, which makes the before-side window value an independent symbol the SMT solver cannot relate to the after-side group/join-back construction (a countermodel exists, as the porter observed), or (b) modeling both sides with the same group-by-then-join-back, which degenerates the rule into a vacuous identity that proves nothing about windows; even a DSL extension (e.g. scans with guaranteed constraints) cannot restore totality/cardinality for a window-relation symbol. Hence the porter's UNSUPPORTED verdict is correct, though its "group-by+join-back breaks cardinality" sub-point is imprecise (inner join-back on the group key is actually row-preserving) — the true blocker is the missing window/order semantics, which is a fundamental QED limitation, not a missed encoding.

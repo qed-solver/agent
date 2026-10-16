@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 41  **Verification rounds used:** 3
+**Porter attempts used:** 101  **Verification rounds used:** 6
 
 ## Source rule (as given to the porter)
 
@@ -151,4 +151,4 @@ Extracted from `set.opt` (which defines multiple rules — implement specificall
 
 **Verdict:** AGREE
 
-The rule's after side is a DistinctOn that dedups on a strict subset of columns (the key) while retaining all output columns, i.e. an arbitrary "ConstAgg" selection of the non-key values per key group, and no operator in QED's prover language has those semantics: the set-family operators (distinct/union/intersect/except) only dedup on the whole row, and GroupBy's non-key outputs are uninterpreted aggregates that QED is told nothing about beyond bag equality of their inputs, so no expression can stand in for the dedup side and be tied to the row values. This gap sits in the fixed prover's JSON operator set — JSONSerializer can carry scan/filter/project/join/correlate/group/union(+distinct)/intersect/except/sort and nothing that serializes a subset-key dedup — rather than in the Java builder layer, so extend_dsl_file cannot bridge it, and any "encoding" that avoids the operator (e.g. set ops on the same bag) would only re-prove a tautology without exercising the key→all-columns functional dependency the rule actually rests on.
+The rule's RHS requires DistinctOn/ConstAgg to return non-key values that are functionally determined by the grouping key, but QED treats aggregate calls as uninterpreted and provides no representative-value or non-table-level FD axioms. Even in PK special cases, the unconstrained aggregate output cannot be tied to the original union's non-key columns, so the exact transformation is not provable in RuleScript/QED. ```

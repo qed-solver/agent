@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 23  **Verification rounds used:** 2
+**Porter attempts used:** 24  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -26,4 +26,4 @@ Extracted from `numeric.opt` (which defines multiple rules — implement specifi
 
 **Verdict:** AGREE
 
-The rule's correctness rests entirely on scalar arithmetic axioms — the right-identity law 1·x = x and value-preservation of the cast — but QED's SMT encoding lowers Mult and Cast to uninterpreted functions (with no arithmetic axioms anywhere in the prover; the only interpreted scalar logic is boolean connectives/equality), so the required statement ∀x. Mult(1, x) = Cast(x) has a trivial countermodel and no DSL extension can help, since the trusted Rust prover's encoding cannot be changed and adding a numeric literal to the DSL would still leave both operators uninterpreted. The only provable "encoding" would be a vacuous one (reusing a single symbol on both sides, or reinterpreting the rule as a boolean AND-with-TRUE identity), neither of which is a faithful port of the numeric rule — the same fundamental limitation that justifies the SKIPPED status of the structurally identical siblings FoldMultOne and FoldDivOne. ```
+FoldOneMult is a purely scalar normalization whose only semantic content is the identity 1·x = cast_τ(x) (multiply-by-one is the value identity, wrapped in a type-correcting cast), but QED's fixed theory provides no multiplication or cast axioms — only equality, uninterpreted functions, order, nat-addition, and ite — so any faithful encoding, in which `Mult` and `Cast` can enter only as generic uninterpreted operator symbols (and the literal `1` is not even expressible, since `RexRN.Const` hardcodes 0), is refuted by an SMT countermodel for every instantiation. This is a genuine prover-theory limitation, not a missing DSL builder: `extend_dsl_file` can add operators but cannot add axioms, because the axioms live in the trusted, unchangeable Rust prover, and no non-vacuous special case avoids the multiply-by-one identity that *is* the rule. Hence the UNSUPPORTED call stands, consistently with the independently verified AGREE/SKIPPED verdicts for the mirror-image siblings FoldMultOne and FoldMinusZero.

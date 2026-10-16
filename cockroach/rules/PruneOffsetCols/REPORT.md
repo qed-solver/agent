@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 21  **Verification rounds used:** 2
+**Porter attempts used:** 23  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -54,4 +54,4 @@ Extracted from `prune_cols.opt` (which defines multiple rules — implement spec
 
 **Verdict:** AGREE
 
-PruneOffsetCols's only non-trivial content is pushing a column-pruning Project below an Offset, whose semantics is positional row skipping under a specified ordering, and QED's bag-semantic core assigns no meaning to Sort/Limit/Offset (the DSL and serializer expose no Offset node the prover could interpret). Modeling Offset as an uninterpreted bag-to-bag function would not rescue it either, since Project(Offset(R)) = Project(Offset(prune(R))) fails for arbitrary such functions, so the rule's correctness is irreducibly about order-based row selection. Hence no expressible special case (offset = 0, unique ordering key, etc.) leaves a genuine rule about Offset, making this a fundamental QED limitation rather than a missed encoding — consistent with the earlier AGREE on the structurally identical PruneLimitCols. ```
+PruneOffsetCols' soundness rests entirely on order-dependent row selection — that pruning columns not referenced by the ordering or outer projection leaves the ordered row sequence (and hence which rows OFFSET k skips) unchanged, including tie-break behavior — and QED's semiring/bag theory has no Sort/Limit/Offset construct, no row ordering or identity (all virtual types map to uninterpreted integer columns), and no axiom that could relate Offset(R) to Offset(π(R)). Adding an Offset builder to RelRN cannot close the gap, because the unmodifiable Rust prover has no ordering semantics to interpret it with (per qed.pdf §6.2), so this is a genuine QED limitation rather than a missing DSL capability — consistent with the verified sibling skips of EliminateOffset and PushProjectionThroughLimitAndOffset. ```

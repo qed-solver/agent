@@ -1,8 +1,10 @@
 # SimplifyCaseSingleFalsyBranch
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 25  **Verification rounds used:** 2
+**Porter attempts used:** 47  **Verification rounds used:** 3
+**Scope detail:** assumes the single WHEN branch's THEN value is the FALSE constant and the ELSE value is the NULL constant (one of the four False|Null combinations the rule matches)
+
 
 ## Source rule (as given to the porter)
 
@@ -67,6 +69,47 @@ Extracted from `select.opt` (which defines multiple rules — implement specific
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-The rule's entire soundness content is that CASE's three-valued branch selection makes `CASE WHEN c THEN falsy ELSE falsy END` never True in a filter context, but CASE/if-then-else is not in QED's interpreted scalar fragment (ite is only the internal 3VL encoding of And/Or/In/Some, per the paper), so a faithful before-side filter serializes the CASE as an uninterpreted operator that SMT is free to make true for some row and can never equate with the constant-False filter on the after side. Every alternative encoding fails for the same fundamental reason: abstracting the CASE to a shared uninterpreted symbol proves a vacuous identity, rewriting it out of And/Or/Not proves a different rule (constant-false absorption) rather than this one, and a DSL extension cannot help because the immutable prover has no CASE interpretation to key on — this is the "specific operator internal semantics QED cannot see through" limitation, so UNSUPPORTED is correct. ```
+The encoding is non-vacuous and faithful: the WHEN condition is a proper uninterpreted predicate, the 3VL expansion (cond∧False)∨(¬cond∧Null) matches the CASE for all three values of cond, both sides are genuinely all-dropping filters, and the leakproof precondition is honored via constants. The SCOPE line honestly discloses the specific False/Null restriction (the only combination expressible via AND/OR/NOT), and the only further implicit narrowing — a single-item filter list — is compositionally trivial since both sides are empty regardless of other conjuncts.
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": true,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 392083
+  }
+}
+```

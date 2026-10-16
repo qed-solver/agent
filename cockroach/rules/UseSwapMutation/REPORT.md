@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 41  **Verification rounds used:** 3
+**Porter attempts used:** 23  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -88,4 +88,4 @@ Extracted from `mutation.opt` (which defines multiple rules — implement specif
 
 **Verdict:** AGREE
 
-The rule's correctness rests on the backend's bespoke compare-and-swap semantics of UpdateSwap/DeleteSwap (optimistic: a graceful no-op when the PK-pinned row is absent) plus plan-time side conditions (input has zero or one row, WHERE pins every PK column, no FK/unique/check constraints) — QED can express neither, since RuleScript rules are unconditional equivalences with no assumption mechanism (table-level guarantees are only row-level constraints), and its bag-based query semantics has no notion of mutation/state at all. The two sides' inputs are not universally bag-equivalent (a filtered scan yields 0 or 1 data-dependent rows vs. a constructed one-row Values, diverging when the pinned row is absent), and since the Update↔UpdateSwap operator relationship is backend-internal semantics invisible to QED as independent uninterpreted symbols, no DSL builder extension can make it a theorem — and there is no non-trivial provable special case, since even identical inputs under two distinct uninterpreted operators are not provably related. ```
+The rewrite is not a bag equivalence under any encoding: even in the best case (a real PK-equality filter, a unique-key scan, and the same uninterpreted per-row mutation symbol on both sides), a scan lacking a row for that PK makes the before-input empty while the synthesized Values(c) row makes the after-input non-empty, so QED would refute rather than prove it — the rule is sound only because UpdateSwap/DeleteSwap has bespoke no-op-on-absent-row runtime semantics that QED's bag model cannot see, plus guard-level inference (HasZeroOrOneRow, full PK constraint, CanUseSwapMutation) that uninterpreted symbols cannot connect. No non-degenerate special case exists: even modeling the mutation as the identity leaves the genuinely false input-bag swap, and the only provable encoding would be a trivial identity, so the missing values() builder is not the binding gap. ```

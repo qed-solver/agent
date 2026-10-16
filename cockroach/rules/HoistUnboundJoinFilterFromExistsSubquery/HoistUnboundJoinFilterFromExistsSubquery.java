@@ -1,43 +1,37 @@
-// SCOPE: PARTIAL — INNER join only, the outer-bound condition is modeled as a global (0-ary) boolean symbol rather than a genuinely correlated reference into the outer row (RuleScript has no correlated-subquery-inside-EXISTS construct), which is a faithful narrower instance of the same identity as HoistUnboundFilterFromExistsSubquery, applied to a join's filter list instead of a plain Select's
+// SCOPE: PARTIAL — the exists subquery's correlated join is encoded as a SEMI join between the single-column outer input and a single inner table, with one uninterpreted outer-only conjunct and one uninterpreted conjunct over both sides
 package org.qed.RRuleInstances;
 
-import kala.collection.Seq;
 import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.rex.RexSubQuery;
 import org.qed.RRule;
 import org.qed.RelRN;
 import org.qed.RexRN;
-import org.qed.RuleBuilder;
 
 public record HoistUnboundJoinFilterFromExistsSubquery() implements RRule {
-    record Exists(RelRN input) implements RexRN {
-        @Override
-        public RexNode semantics() {
-            return RexSubQuery.exists(input.semantics());
-        }
-    }
+    // Outer input: its row is the correlation row of the exists subquery.
+    static final RelRN input = RelRN.scan("A", "A_Type");
+    // Inner table of the join inside the exists subquery.
+    static final RelRN sub = RelRN.scan("K", "K_Type");
 
-    static final RelRN outer = RelRN.scan("Outer", "Outer_Type");
-    static final RelRN left = RelRN.scan("Left", "Left_Type");
-    static final RelRN right = RelRN.scan("Right", "Right_Type");
-
-    // "unboundCond": a condition that depends only on the outer row, modeled
-    // as a global (0-ary) boolean symbol — same symbol whether folded into
-    // the join's own filter (before) or pulled out to the outer filter (after).
-    static final RexRN unboundCond = new RexRN.Pred(
-            RuleBuilder.create().genericPredicateOp("unbound_cond", false), Seq.empty());
-    static final RexRN otherJoinPred = left.joinPred("other_join_cond", right);
+    // The unbound join filter as an outer-only filter (hoisted, on the after side).
+    static final RexRN unboundCond = input.pred("P");
+    // The same unbound conjunct as it appears inside the join condition (before side).
+    static final RexRN joinUnbound = input.joinField(0, sub).pred("P");
+    // The remaining join filter, uninterpreted over both join sides.
+    static final RexRN joinCond = input.joinPred("Q", sub);
+    // The outer select's other uninterpreted filter, over the outer input only.
+    static final RexRN rest = input.pred("rest");
 
     @Override
     public RelRN before() {
-        RelRN join = left.join(JoinRelType.INNER, RexRN.and(unboundCond, otherJoinPred), right);
-        return outer.filter(new Exists(join));
+        // Outer input SEMI-joined with the inner table on (P(A) AND Q(A, K)).
+        return input.filter(rest)
+                .join(JoinRelType.SEMI, RexRN.and(joinUnbound, joinCond), sub);
     }
 
     @Override
     public RelRN after() {
-        RelRN join = left.join(JoinRelType.INNER, otherJoinPred, right);
-        return outer.filter(RexRN.and(new Exists(join), unboundCond));
+        // P(A) hoisted out of the join condition: filter first, then SEMI-join on Q(A, K).
+        return input.filter(RexRN.and(unboundCond, rest))
+                .join(JoinRelType.SEMI, joinCond, sub);
     }
 }

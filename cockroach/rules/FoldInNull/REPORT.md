@@ -1,8 +1,10 @@
 # FoldInNull
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 100  **Verification rounds used:** 5
+**Porter attempts used:** 21  **Verification rounds used:** 2
+**Scope detail:** covers only the In alternative of the rule (a single before/after pair cannot express the In | NotIn disjunction).
+
 
 ## Source rule (as given to the porter)
 
@@ -28,6 +30,47 @@ Extracted from `scalar.opt` (which defines multiple rules — implement specific
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-Manually investigated by Claude (the automated run exhausted all 5 rounds on repeated context-length crashes, never reaching a real try_rule call). Same root cause as FoldEqualsAnyNull: the rule needs (x IN (NULL)) == NULL and (x NOT IN (NULL)) == NULL for ANY x — an uninterpreted operator (IN) forced to NULL based on one specific argument (the singleton-NULL tuple), independent of the other (x). QED's prover core has no general null-propagation rule for uninterpreted function/predicate applications (confirmed via qed-prover/src/pipeline/shared.rs: is_null() is just equality against a fresh uninterpreted NULL sentinel, with no strictness rule tied to any operator's arguments) — only a small hardcoded set of operators (COUNT, EXISTS, IS NULL/IS NOT NULL, boolean AND/OR/NOT) get real interpreted semantics, and IN/NOT IN is not among them. No CASE/conditional construct exists in the DSL to manually encode the null-forcing branch either. Genuinely outside QED's supported fragment for the same reason as FoldEqualsAnyNull.
+The encoding is the filter-context relational instance of the In alternative, using the canonical desugaring `x IN (NULL)` ≡ `x = NULL` (the exact form SimplifyInSingleElement in the same file produces), with correct types (nullV typed as the column type V, and the RHS a BOOLEAN null matching `(Null (BoolType))`), no preconditions or symbol-sharing errors, and structurally distinct before/after plans whose equivalence (equality with NULL is never true, so both filters yield the empty bag for every instantiation) is a genuine, non-vacuous proof. The omission of the NotIn alternative is a real DSL limitation (one before/after pair cannot express the In | NotIn disjunction), is honestly and specifically tagged in the SCOPE line, and the resulting rule remains a non-degenerate special case of the original.
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": true,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 278584
+  }
+}
+```

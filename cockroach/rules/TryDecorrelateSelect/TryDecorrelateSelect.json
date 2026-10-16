@@ -1,5 +1,5 @@
 {
-  "help" : [ "LogicalJoin(condition=[on_cond($0, $1)], joinType=[inner])\n  LogicalTableScan(table=[[L]])\n  LogicalFilter(condition=[select_filter($0)])\n    LogicalTableScan(table=[[R]])\n", "LogicalJoin(condition=[AND(on_cond($0, $1), select_filter($1))], joinType=[inner])\n  LogicalTableScan(table=[[L]])\n  LogicalTableScan(table=[[R]])\n" ],
+  "help" : [ "LogicalFilter(condition=[on($0, $1)])\n  LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])\n    LogicalTableScan(table=[[L]])\n    LogicalFilter(condition=[select($cor0.col-L, $0)])\n      LogicalTableScan(table=[[R]])\n", "LogicalJoin(condition=[AND(on($0, $1), select($0, $1))], joinType=[inner])\n  LogicalTableScan(table=[[L]])\n  LogicalTableScan(table=[[R]])\n" ],
   "schemas" : [ {
     "types" : [ "INTEGER" ],
     "nullable" : [ true ],
@@ -16,7 +16,7 @@
     "key" : [ ]
   } ],
   "queries" : [ {
-    "join" : {
+    "filter" : {
       "condition" : {
         "type" : "BOOLEAN",
         "operand" : [ {
@@ -26,24 +26,31 @@
           "column" : 1,
           "type" : "INTEGER"
         } ],
-        "operator" : "on_cond"
+        "operator" : "on"
       },
-      "left" : {
-        "scan" : 0
-      },
-      "kind" : "INNER",
-      "right" : {
-        "filter" : {
-          "condition" : {
-            "type" : "BOOLEAN",
-            "operand" : [ {
-              "column" : 0,
-              "type" : "INTEGER"
-            } ],
-            "operator" : "select_filter"
+      "source" : {
+        "correlate" : {
+          "left" : {
+            "scan" : 0
           },
-          "source" : {
-            "scan" : 1
+          "kind" : "INNER",
+          "right" : {
+            "filter" : {
+              "condition" : {
+                "type" : "BOOLEAN",
+                "operand" : [ {
+                  "column" : 0,
+                  "type" : "INTEGER"
+                }, {
+                  "column" : 1,
+                  "type" : "INTEGER"
+                } ],
+                "operator" : "select"
+              },
+              "source" : {
+                "scan" : 1
+              }
+            }
           }
         }
       }
@@ -61,14 +68,17 @@
             "column" : 1,
             "type" : "INTEGER"
           } ],
-          "operator" : "on_cond"
+          "operator" : "on"
         }, {
           "type" : "BOOLEAN",
           "operand" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          }, {
             "column" : 1,
             "type" : "INTEGER"
           } ],
-          "operator" : "select_filter"
+          "operator" : "select"
         } ],
         "operator" : "AND"
       },

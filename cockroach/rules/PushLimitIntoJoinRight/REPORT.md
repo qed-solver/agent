@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 21  **Verification rounds used:** 2
+**Porter attempts used:** 22  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -52,4 +52,4 @@ Extracted from `limit.opt` (which defines multiple rules — implement specifica
 
 **Verdict:** AGREE
 
-PushLimitIntoJoinRight's soundness rests on LIMIT's ordered-prefix semantics — selecting the top-n rows under an ordering, with the ordering restricted to right-input columns and the join preserving right rows — and QED only decides bag-semantic equivalence, where Sort/Limit/Offset are (at best) uninterpreted operators with no prefix/ordering meaning. Because the Limit node sits in different positions on the two sides (above the join vs. pushed into the right input), the goal cannot be reduced to a pure bag identity on the join subexpressions — unlike the previously-proved AssociateLimitJoins rules, where an identical outer Limit in the same position factors out by congruence — so no RuleScript encoding can make it provable without modifying the QED prover, which is off-limits. ```
+`PushLimitIntoJoinRight`'s correctness rests entirely on top-n/ordering semantics — distributing `Limit` through a join that preserves the right rows — but QED decides equivalence over bag semantics with uninterpreted functions and gives `Limit`/`Sort`/`Offset` no bag-semantic meaning (they are uninterpreted QOps), so the before term `Limit(Join(L,R),n)` and the after term `Limit(Join(L,Limit(R,n)),n)` are structurally distinct opaque applications whose inner arguments cannot be shown equal, and SMT cannot equate them. The only equatable degenerate case (empty left input) makes both sides collapse to the same `Limit(∅)` without exercising the pushdown, so it's vacuous and not a usable special case. No `extend_dsl_file` can close the gap because the missing top-n axioms live in the unmodifiable Rust prover, not in the DSL or serializer.

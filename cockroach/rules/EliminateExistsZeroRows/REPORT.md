@@ -2,8 +2,8 @@
 
 **Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 92  **Verification rounds used:** 1
-**Scope detail:** the zero-rows precondition is encoded as a literal .empty() relation (a statically known-empty shape), matching the source rule's HasZeroRows guard
+**Porter attempts used:** 9  **Verification rounds used:** 1
+**Scope detail:** uncorrelated EXISTS only (modeled as a left-semi join on a constant-true condition), with the subquery input known to have zero rows
 
 
 ## Source rule (as given to the porter)
@@ -30,7 +30,7 @@ Extracted from `scalar.opt` (which defines multiple rules — implement specific
 
 **Verdict:** CONFIRMED
 
-Manually investigated by Claude (the automated run exhausted all 5 rounds on repeated context-length crashes, never reaching a real try_rule call). Reused the custom local Exists RexRN (built directly on Calcite's RexSubQuery.exists(RelNode), no shared DSL changes) from EliminateExistsProject. Encoded the zero-rows precondition via RelRN.Empty (a relation of the right shape guaranteed to have zero rows). before() = outer.filter(EXISTS(zeroRowInput)), after() = outer.filter(FALSE). QED proves them equal (the equivalence-class layer resolves it directly via UExpr algebra — squash(sum over an empty relation) reduces to false — without needing SMT). Verified non-vacuous with a negative control: replacing the empty input with an ordinary (non-empty) scan of the same shape correctly breaks the proof (provable=false), confirming the check genuinely depends on the input being empty, not just always-true regardless of row count.
+The encoding faithfully models the uncorrelated case of the rule: before() is the standard relational desugaring of `WHERE EXISTS(empty subquery)` (outer left-semi-join on a constant-true condition against a zero-row relation), and after() is the desugared form of the rewritten query (outer filtered by constant False); the two are structurally different plan shapes whose bag-semantic equality is exactly the rule's content, not a vacuous identity. SEMI join kind, true join condition, `Empty` for HasZeroRows, and `falseLiteral` for the constant False are all the correct operators, the only symbols are the independent Outer and the type-carrying Input (no spurious sharing), and no hidden preconditions are assumed. The restriction to an uncorrelated EXISTS appearing as the whole filter is a genuine consequence of RuleScript lacking a scalar-subquery/Exists symbol (so the rule can only be stated at the relational level), it is explicitly and specifically declared in the SCOPE line, and the result is a real, non-degenerate special case rather than a structural no-op. ```
 
 ## QED prover result
 
@@ -41,7 +41,7 @@ Manually investigated by Claude (the automated run exhausted all 5 rounds on rep
   "complete_fragment": false,
   "equiv_class_duration": {
     "secs": 0,
-    "nanos": 55208
+    "nanos": 111709
   },
   "equiv_class_timed_out": false,
   "smt_duration": {
@@ -52,15 +52,15 @@ Manually investigated by Claude (the automated run exhausted all 5 rounds on rep
   "nontrivial_perms": false,
   "translate_duration": {
     "secs": 0,
-    "nanos": 32916
+    "nanos": 1033125
   },
   "normal_duration": {
     "secs": 0,
-    "nanos": 165000
+    "nanos": 256417
   },
   "stable_duration": {
     "secs": 0,
-    "nanos": 2282459
+    "nanos": 9099000
   },
   "unify_duration": {
     "secs": 0,
@@ -68,7 +68,7 @@ Manually investigated by Claude (the automated run exhausted all 5 rounds on rep
   },
   "total_duration": {
     "secs": 0,
-    "nanos": 4527542
+    "nanos": 25094166
   }
 }
 ```

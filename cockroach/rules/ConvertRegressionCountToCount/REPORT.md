@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 67  **Verification rounds used:** 4
+**Porter attempts used:** 27  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -54,4 +54,4 @@ Extracted from `groupby.opt` (which defines multiple rules — implement specifi
 
 **Verdict:** AGREE
 
-The rewrite's correctness rests entirely on a specific algebraic identity between two *different* named aggregates — `RegressionCount(a,b)` (counts rows where both args are non-null) equaling `Count(b)` (counts rows where one arg is non-null) under the side condition that `a` is provably never-null — and QED treats aggregate names as uninterpreted beyond bag equality of their input, with no mechanism in the Java DSL or JSON format to declare such a semantic axiom (the prover is Rust-side and untouchable). Any genuine instance of this rule necessarily changes the aggregate's name and arity, so no non-vacuous special case survives: even the narrowest encoding (e.g. one arg a non-nullable-typed column) still requires the prover to bridge an opaque 2-operand `RegressionCount` to an interpreted 1-operand `Count`, which SMT will refute by choosing an interpretation of the uninterpreted aggregate that disagrees with the count. This is precisely the documented limitation "knows nothing about a specific aggregate function's algebra beyond bag equality of its input" / "a backend operator's bespoke internal semantics," not a gap `extend_dsl_file` could close (multi-operand `AggCall` already exists; only the prover-side semantics are missing). ```
+The rule's correctness rests on an algebraic identity between two distinct aggregate functions — regr_count(y,x) ≡ count(x) when one argument is never-null — but QED models every aggregate as an independent uninterpreted function of the group bag keyed only by operator name (the serializer emits only name, operands, distinct, ignoreNulls, type, and the prover has no count/regr axioms), so no RuleScript encoding, including marking the never-null argument's column type non-nullable, can make the prover relate two differently-named aggregate calls. Making the names identical would no longer be the rule, and adding aggregate axioms would require modifying the Rust prover, which is out of bounds. The porter's non-timeout `provable=false` is therefore the expected countermodel of QED's semantics — a genuine missing-aggregate-algebra limitation, not a fixable symbol-sharing or modeling bug.

@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 26  **Verification rounds used:** 2
+**Porter attempts used:** 9  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -45,4 +45,4 @@ Extracted from `ordering.opt` (which defines multiple rules — implement specif
 
 **Verdict:** AGREE
 
-The rule is a properties-only rewrite: it only replaces GroupingPrivate.Ordering with a relaxation computed by OrderingChoice.Simplify over the input's functional dependencies, while the plan's data and the emitted bag are identical before and after. Its correctness content is entirely a statement about row orderings — that sequences of rows satisfying the original requirement also satisfy the simplified one — and QED is a bag-semantics decision procedure with no notion of required/physical ordering (the same fundamental gap that excludes Sort/Limit/Offset/Window). Any RuleScript encoding would have to render before and after as the same Aggregate(source, groupSet, aggCalls), a vacuous identity that QED could only prove trivially; extending the DSL wouldn't help either, since no ordering channel exists through semantics()/JSONSerializer into the immutable prover, which would erase it back to bag equality. ```
+QED is a bag-semantics decision procedure with no model of ordering/order-by — Sort/Limit/Offset/Order-By carry no bag meaning (qed.pdf §6.2 "List semantics"; reference Limitations) — yet SimplifyGroupByOrdering's entire content is simplifying the physical OrderingChoice attached to GroupBy/ScalarGroupBy/DistinctOn by dropping ordering columns made redundant by the input's functional-dependency set, which changes only the ordering directive, not the produced rows, so before and after serialize to the identical bag. QED's only FD modeling (unique-key scans) cannot help, because those FDs here drive ordering-column removal rather than any change in row content, so no non-trivial bag-level equivalence exists and any RuleScript encoding degenerates to a vacuous `GroupBy ≡ GroupBy` identity — genuinely outside what the prover can check, not a missed encoding. ```

@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 61  **Verification rounds used:** 4
+**Porter attempts used:** 41  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
@@ -35,4 +35,4 @@ Extracted from `scalar.opt` (which defines multiple rules — implement specific
 
 **Verdict:** AGREE
 
-The rule's correctness rests entirely on COALESCE's first-non-null semantics — the identity "leading-NULL args drop, so a null-constant prefix plus a non-null constant c collapses to c" — but QED models the coalesce call only as an uninterpreted function symbol, so that equality is not valid for every instantiation of the symbol and is unprovable. No non-trivial special case is expressible either: the DSL has no NULL literal, no ite/CASE, and no IS-NULL predicate to reconstruct coalesce's semantics from primitives, and there is no relational workaround because "first non-null argument" needs row ordering (Limit/Sort), which QED has no bag-semantic model for — so encoding it any other way would just bake the simplification into before() instead of deriving it. ```
+QED encodes COALESCE as an uninterpreted scalar function with no first-non-null selection axiom, so the rule's essential step COALESCE(NULL, x) → x is a bespoke operator-semantic identity that the SMT layer cannot justify for any instantiation of the symbols. The DSL also has no NULL literal, so the "leading null operands" premise cannot even be expressed, and closing that with `extend_dsl_file` would not help because the missing axiom lives in the fixed prover (which cannot be modified), not in the Java API — and any relational re-encoding of "first non-null" would require interpreting the very uninterpreted symbols QED abstracts away. This falls squarely under the limitation of operators whose specific internal semantics QED cannot see through, so the porter's UNSUPPORTED conclusion is correct.

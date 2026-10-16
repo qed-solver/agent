@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 111  **Verification rounds used:** 6
+**Porter attempts used:** 64  **Verification rounds used:** 6
 
 ## Source rule (as given to the porter)
 
@@ -62,4 +62,4 @@ Extracted from `decorrelate.opt` (which defines multiple rules — implement spe
 
 **Verdict:** AGREE
 
-The rule's entire content is a scalar-level predicate swap `x = ANY(subquery)` → `EXISTS(SELECT … WHERE x = scalar)` inside a join's ON condition, but the DSL's scalar language (RexRN: Pred/Proj/And/Or/Not/Field/literals) offers no subquery/Any/Exists/IN predicate node — predicates are only flat uninterpreted symbols over the current row. QED's Q-expression model is flat bag semantics over a fixed schema with no nested/correlated-relation predicate, so it cannot represent either side nor prove the Any↔Exists entailment between independent uninterpreted symbols (a documented limitation). Since the Join wrapper is unchanged on both sides, the subquery predicate swap *is* the whole rule, leaving no relational structure to salvage as a narrower provable special case. ```
+Confirmed against the DSL source: RexRN has no scalar-subquery or quantifier node (only Field/JoinField, uninterpreted Pred/Proj, And/Or/Not/True/False/Const), and the subquery's input relation is nested inside a scalar expression, so it is unreachable from any join-condition RexRN — the ANY and EXISTS conjuncts can only be encoded as independent uninterpreted predicate symbols, which QED is designed not to relate. The rule's validity rests entirely on the semantic definitions of the ANY/EXISTS scalar quantifiers over a correlated nested bag (including 3VL null handling in the filter context), which lies outside QED's bag-semantics-with-uninterpreted-functions model, and no DSL extension could close this since the fixed prover has no translation for nested-bag quantification inside filter predicates. Pushing the existential to a relational SEMI-join node changes the plan tree shape and would prove a different join-factoring identity with the ANY conjunct still uninterpreted, so no non-trivial encoding of the rule as stated exists. ```

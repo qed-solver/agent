@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 45  **Verification rounds used:** 3
+**Porter attempts used:** 102  **Verification rounds used:** 6
 
 ## Source rule (as given to the porter)
 
@@ -44,4 +44,4 @@ Extracted from `groupby.opt` (which defines multiple rules — implement specifi
 
 **Verdict:** AGREE
 
-Both sides of this rule are custom operators whose correctness rests on runtime error semantics — EnsureDistinctOn/EnsureUpsertDistinctOn with an empty grouping col-set and Max1Row(ErrorOnDup) each *raise an error* when the input has more than one row — and QED decides total bag equivalence with no notion of errors, no Max1Row/Limit-style cardinality-cap operator in the core language, and no uninterpreted relational operator to stand in for either side. The only near-candidate encoding, a keyless group-by, diverges on empty input (it always yields one row, Max1Row yields zero), and the language offers no way to constrain an uninterpreted input to at most one row (scan `unique`/key marks column uniqueness, not row count), so the error condition that is the entire point of the "Ensure" variant can neither be expressed nor proven, even as a special case. ```
+The rule's essential mechanism is error-raising — EnsureDistinctOn/Max1Row/ErrorOnDup must fail when the no-grouping-columns input has more than one row — and QED only models total bag equivalence with no error/partial-function semantics and no Max1Row/Sort/Limit (top-1 ordering) operator to encode it. In the error-free remainder (≤1-row input), the single group's bag coincides with Max1Row's output, so both sides reduce to the identical bag transformation (aggregates over the input, 0 rows on empty input), yielding only a trivial identity rather than a two-sided rule. Additionally, QED's ungrouped Aggregate always emits one row, so it cannot match the required 0/1-row collapse on empty input, and no combination of Filter/Join/Union/Empty can synthesize the missing error or emptiness-conditional behavior.

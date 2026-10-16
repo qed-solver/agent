@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 46  **Verification rounds used:** 3
+**Porter attempts used:** 33  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -34,4 +34,4 @@ Extracted from `scalar.opt` (which defines multiple rules — implement specific
 
 **Verdict:** AGREE
 
-The rule's soundness rests on a type-system invariant — that a specific cast of the constant to the variable's type preserves the comparison's truth — but in any faithful RuleScript encoding the cast and the comparison predicate are both uninterpreted symbols with no axiom relating them (the prover maps all virtual types to a single integer domain and treats every operator uninterpreted, and the prover itself cannot be modified to add cast axioms), so `cmp(x, c) ↔ cmp(x, f(c))` has an SMT countermodel under every instantiation and cannot be proven. The only "provable" encoding would be the vacuous identity case where the constant is left untouched (reusing the same field, so no conversion is actually expressed), which does not encode this rule at all — this is exactly the documented limitation that QED cannot reason about type casts or a backend operator's bespoke internal semantics, not a missing DSL operator that `extend_dsl_file` could fix. ```
+The rule's soundness is exactly that casting the constant to the variable's type is lossless — i.e. op(x, c) ⟺ op(x, cast(c)) — but QED erases all types to integers and models explicit casts as uninterpreted functions with no axioms (as qed.pdf documents), so cast(c) is a free term and the SMT countermodel (an uninterpreted predicate distinguishing c from f(c)) is a genuine independence result, not an encoding bug. RuleScript exposes no side-condition or axiom mechanism (a rule is just a before/after pair), so the only provable degenerate encoding is the identity cast, which erases the rule entirely; the porter's concrete probe of x = C vs x = cast(C) correctly targeted the irreducible core. ```

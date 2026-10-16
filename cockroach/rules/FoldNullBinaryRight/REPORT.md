@@ -1,8 +1,10 @@
 # FoldNullBinaryRight
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 49  **Verification rounds used:** 4
+**Porter attempts used:** 22  **Verification rounds used:** 2
+**Scope detail:** the binary operator is instantiated as the concrete `<` (null right arg implies null result, the rule's not-AllowNullArgs case), since QED only models null propagation for concrete primitive operators and arithmetic operators cannot infer return types over the virtual operand type V
+
 
 ## Source rule (as given to the porter)
 
@@ -29,6 +31,47 @@ Extracted from `fold_constants.opt` (which defines multiple rules — implement 
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-FoldNullBinaryRight's correctness rests entirely on the operator-specific axiom "if op does not allow null args, then op(x, NULL) = NULL"; in RuleScript/QED that binary op is an uninterpreted function with no behavioral axioms, and the only constraint channel (table `guaranteed` clauses) expresses row-wise predicates over scan contents, not universal function-level identities over flowing columns — so the SMT layer has no way to derive f(x,NULL)=NULL and the equivalence is genuinely unprovable, not a missing builder. ```
+The encoding is a non-vacuous, faithful instance of the rule: `before()` is `Filter(R, x < NULL)` and `after()` is `Filter(R, NULL-literal)`, which are structurally different and whose bag-equivalence depends precisely on the null-propagation property (`<` does not allow null args, so `x < NULL` is never true) that `FoldNullBinaryRight` relies on, with an arbitrary left value `x` standing for `$left:*` and a genuine null literal for `$right:(Null)`, in filter position — a legitimate embedding of the expression-level rewrite with the result type forced to boolean. Hard-coding `<` rather than an uninterpreted binary operator is a genuine QED limitation (uninterpreted symbols carry no null semantics, and the prover cannot be modified to grant them), not a missing DSL capability, and the `SCOPE: PARTIAL` line honestly and specifically names exactly this restriction, leaving the result a real, non-degenerate rewrite.
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": true,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 335042
+  }
+}
+```

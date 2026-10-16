@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 27  **Verification rounds used:** 2
+**Porter attempts used:** 32  **Verification rounds used:** 4
 
 ## Source rule (as given to the porter)
 
@@ -38,4 +38,4 @@ $result
 
 **Verdict:** AGREE
 
-FoldFunction's correctness rests on evaluating specific named functions over specific constant arguments and equating the result with the produced constant, but QED treats all function/predicate symbols as uninterpreted with no evaluation axioms — under universal quantification it can never derive a relation between f(c₁,…,cₙ) and any particular folded value — and the scalar language has only boolean True/False literals, so the constant arguments and the folded result can't even be written down (and a scan field is a variable, not a constant, making "f(x) ⇒ r" a different, unprovable statement). Closing this with extend_dsl_file is impossible in principle: new operators serialize as uninterpreted symbols in the JSON QED already consumes, and giving a symbol evaluation semantics would mean modifying the Rust prover itself, which is off-limits — so this is the fundamental "backend operator semantics QED cannot see through" limitation, not a missed encoding. ```
+FoldFunction requires evaluating an arbitrary function call over constants, which means the prover must know that function's internal evaluation semantics. RuleScript can only express such a call as an uninterpreted pred/proj/aggCall symbol, and QED has no constant-folding semantics for those symbols; the only constant-foldable scalar operators are the built-in logical connectives/literals, which correspond to the sibling Unary/Binary/Comparison rules rather than the Function node. Therefore the gap is a fundamental limitation of the fixed QED model, not a missing Java DSL constructor, so the UNSUPPORTED conclusion is justified.

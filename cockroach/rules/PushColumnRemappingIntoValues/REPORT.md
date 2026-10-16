@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 37  **Verification rounds used:** 3
+**Porter attempts used:** 25  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
@@ -87,4 +87,4 @@ Extracted from `project.opt` (which defines multiple rules — implement specifi
 
 **Verdict:** AGREE
 
-PushColumnRemappingIntoValues is a data-preserving hygiene step — it renames a Values column to a projection's alias and folds that identity (Variable-reference) projection from the computed set into passthrough, leaving the rows unchanged — so its only semantic delta is a column rename, which QED's bag-of-tuples model has no first-class notion of (it tracks neither column identity/name nor a non-empty Values node, only the empty one). Hence every faithful before/after encoding collapses to the vacuous identity-projection law (the same bag of tuples ≡ itself), whereas any encoding that introduces separate value relations to manufacture checkable content models them as unrelated uninterpreted relations and is unprovable; no encoding at any level of generality yields a rule-specific bag-semantic statement, so the UNSUPPORTED claim is sound. ```
+The rule's only effect is renaming a Values column and moving a plain column-reference projection item into the passthrough set — a pure column-identity/metadata transformation with zero row-bag delta, and QED's nameless positional model (where both a passthrough column and a column-ref projection item serialize to the identical `{"column": i}` reference, and Values/Project column names carry no semantics) makes before and after the same object in the model, so any encoding would prove a vacuous identity rather than the rule. This gap lives in the fixed Rust prover's representation, not in a closable DSL builder: even extending the DSL with a Values-with-rows operator would only yield proofs of "identity projection is identity," which hold independently of the rule's conditions.

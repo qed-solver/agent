@@ -1,8 +1,10 @@
 # FoldNullBinaryLeft
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 85  **Verification rounds used:** 5
+**Porter attempts used:** 43  **Verification rounds used:** 3
+**Scope detail:** the binary operator is instantiated as the concrete `<` (null left arg implies null result, the rule's not-AllowNullArgs case), embedded in filter position since QED only models null propagation for concrete primitive operators and arithmetic operators cannot infer return types over the virtual operand type V
+
 
 ## Source rule (as given to the porter)
 
@@ -29,6 +31,47 @@ Extracted from `fold_constants.opt` (which defines multiple rules — implement 
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-Manually investigated by Claude (the automated run exhausted all 5 rounds without a usable conclusion). Same root cause as FoldEqualsAnyNull/FoldInNull: the rule needs Binary(op, NULL, right) == NULL for any op/right that doesn't specifically allow null arguments — an uninterpreted operator forced to NULL based on ONE argument being NULL, independent of the other. QED's prover core has no general null-propagation rule for uninterpreted function/predicate applications (qed-prover/src/pipeline/shared.rs: is_null() is just equality against a fresh uninterpreted NULL sentinel, with no strictness tied to any operator's arguments) — only a small hardcoded set of operators (COUNT, EXISTS, IS NULL/IS NOT NULL, boolean AND/OR/NOT) get real interpreted semantics. No CASE/conditional construct exists in the DSL to manually encode the null-forcing branch either. Genuinely outside QED's supported fragment for the same reason as the other Fold*Null* rules in this family (FoldEqualsAnyNull, FoldInNull) — likely applies to FoldNullBinaryRight and other siblings in fold_constants.opt too.
+`before()` (filter on `NULL < x`) and `after()` (filter on the null literal) are structurally different, and QED's proof establishes a genuine, non-vacuous fact — that a null-left comparison is never TRUE in QED's three-valued model, so replacing it with a null condition preserves the bag, which is exactly what the rule asserts in filter position for `<`. The narrowing to a concrete primitive operator and filter context is forced by QED's inability to model null propagation for uninterpreted operators (the `!AllowNullArgs` condition cannot be axiomatized over them), and the `SCOPE: PARTIAL` line honestly and specifically names the assumed condition and its cause, so the result is a legitimate non-degenerate special case rather than a disguised triviality.
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": true,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 78083
+  }
+}
+```

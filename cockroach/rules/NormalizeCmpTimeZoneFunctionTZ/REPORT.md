@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 26  **Verification rounds used:** 2
+**Porter attempts used:** 62  **Verification rounds used:** 4
 
 ## Source rule (as given to the porter)
 
@@ -61,4 +61,4 @@ Extracted from `comp.opt` (which defines multiple rules — implement specifical
 
 **Verdict:** AGREE
 
-The rule's soundness requires the two timezone overloads (zone,TIMESTAMPTZ→TIMESTAMP and zone,TIMESTAMP→TIMESTAMPTZ) to be mutual inverses, but QED's SMT encoding treats each uninterpreted scalar function as an independent symbol and proves equivalence only for *all* instantiations—since F(z,x) op c ⟺ x op G(z,c) is not a valid identity for arbitrary uninterpreted F and G (the solver will produce a countermodel with unrelated functions), no encoding can make QED verify the rewrite; the DSL also provides no axiom/constraint channel to assert the inverse relationship, making this a genuine fundamental limitation rather than a missed encoding trick. ```
+The rule's soundness rests entirely on an axiom QED does not and cannot have — that the two `timezone` overloads are mutual inverses (and order-preserving for Ge/Gt/Le/Lt) — but in RuleScript they can only be modeled as independent uninterpreted function symbols, and `f(z, tz) OP c ⟺ tz OP g(z, c)` is not valid for arbitrary f, g under any instantiation. No encoding closes the gap: per-table `guaranteed` constraints are row-scoped over a table's own columns and cannot assert a functional-inverse law at the query's arbitrary non-row constant, the prover's JSON format has no axiom channel, and `extend_dsl_file` only extends the Java DSL, not the unmodifiable Rust prover. My own fresh exploration of alternative encodings (relational joins over a representation-relation table, threading the constant through a scan) either still requires relating two independent uninterpreted symbols or degenerates into a trivial identity that no longer states the rule — so this is the documented limitation of no predicate entailment between independent symbols / no access to a backend operator's bespoke semantics, matching the independently-verified skip of the type-swap sibling.

@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 23  **Verification rounds used:** 2
+**Porter attempts used:** 27  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -42,4 +42,4 @@ Extracted from `numeric.opt` (which defines multiple rules — implement specifi
 
 **Verdict:** AGREE
 
-FoldPlusZero's soundness rests on the numeric identity x + 0 = x together with the cast-to-binary-type being a no-op on a correctly typed operand, but QED encodes Plus and Cast as uninterpreted function symbols over uninterpreted types, exposes no numeric zero literal (only boolean literals), and has no arithmetic axioms linking distinct operators — so the before and after expressions are not equal under arbitrary instantiation of those symbols, which is exactly the "operator's bespoke internal semantics" limitation. This is not a closable DSL gap: even a `extend_dsl_file` addition of a zero-constant builder would yield merely an uninterpreted constant in the prover, which still lacks any axiom equating plus(x, 0) with cast(x), and the QED prover itself is off-limits. The conclusion matches the already-verified sibling rules FoldMinusZero and FoldDivOne from the same numeric.opt file, which fail for the identical fundamental reason. ```
+FoldPlusZero's correctness rests entirely on the additive identity (x + 0 = x) and cast semantics, but QED's fixed oracle theory models scalar operators and casts only as uninterpreted function symbols with no axioms — even encoding the pattern with Calcite's real PLUS/CAST SqlOperators would serialize to UFs the prover has no theory for (the only interpreted addition is internal nat-addition, not user-facing). No re-encoding can bridge that gap: `plus(x, 0)` and `cast(x)` have different operand structures so they cannot be collapsed into one shared symbol, and smuggling the identity in as a table "guaranteed" constraint would merely assume the rule as a premise, making the proof circular rather than universal. Hence a countermodel exists for every encoding, no genuine non-trivial special case is provable (the same reasoning sinks the whole numeric-fold family), and the porter's UNSUPPORTED conclusion is correct.

@@ -1,0 +1,65 @@
+{
+  "help" : [ "LogicalFilter(condition=[IN($0, {\nLogicalTableScan(table=[[Sub]])\n})])\n  LogicalTableScan(table=[[Input]])\n", "LogicalFilter(condition=[EXISTS({\nLogicalFilter(condition=[=($cor0.col-Input, $0)])\n  LogicalTableScan(table=[[Sub]])\n})], variablesSet=[[$cor0]])\n  LogicalTableScan(table=[[Input]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Sub",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Sub" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Input",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Input" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "filter" : {
+      "condition" : {
+        "query" : {
+          "scan" : 0
+        },
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "column" : 0,
+          "type" : "INTEGER"
+        } ],
+        "operator" : "IN"
+      },
+      "source" : {
+        "scan" : 1
+      }
+    }
+  }, {
+    "filter" : {
+      "condition" : {
+        "query" : {
+          "filter" : {
+            "condition" : {
+              "type" : "BOOLEAN",
+              "operand" : [ {
+                "column" : 0,
+                "type" : "INTEGER"
+              }, {
+                "column" : 1,
+                "type" : "INTEGER"
+              } ],
+              "operator" : "="
+            },
+            "source" : {
+              "scan" : 0
+            }
+          }
+        },
+        "type" : "BOOLEAN",
+        "operand" : [ ],
+        "operator" : "EXISTS"
+      },
+      "source" : {
+        "scan" : 1
+      }
+    }
+  } ]
+}

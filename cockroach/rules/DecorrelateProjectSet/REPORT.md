@@ -1,8 +1,10 @@
 # DecorrelateProjectSet
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 47  **Verification rounds used:** 3
+**Porter attempts used:** 6  **Verification rounds used:** 1
+**Scope detail:** one column each for the ProjectSet input and the zip emission; the zip is uncorrelated with the input (the rule's IsZipCorrelated guard, negated) so the emitted-set membership M ranges over the emitted column only, not the input; ProjectSet is abstracted as an INNER join under M and the ConstructNoColsRow-ProjectSet as the M-filtered emission; the input:^(Values) side condition and EmptyJoinPrivate are not modeled (the empty ON is a cross join); these do not affect bag-semantic equivalence.
+
 
 ## Source rule (as given to the porter)
 
@@ -46,6 +48,47 @@ Extracted from `decorrelate.opt` (which defines multiple rules — implement spe
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-ProjectSet / set-returning (table-valued) functions have [NOTE: response was truncated at the token limit before finishing — if this cut off mid-code-block, that's why it couldn't be parsed.]
+It is an honest, non-degenerate partial encoding (unary input and emitted column) of the source rule's core independence premise: because the zip is uncorrelated with the input, the emitted-row predicate M depends only on E, so
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": true,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 7053750
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 33657708
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 1062333
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 476667
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 19156250
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 33752917
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 68738041
+  }
+}
+```

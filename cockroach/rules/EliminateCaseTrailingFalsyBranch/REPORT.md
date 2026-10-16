@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 65  **Verification rounds used:** 4
+**Porter attempts used:** 45  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
@@ -81,4 +81,4 @@ Extracted from `select.opt` (which defines multiple rules — implement specific
 
 **Verdict:** AGREE
 
-The rule's soundness rests entirely on CASE's own 3-valued if-then-else semantics (a trailing WHEN with a False/Null THEN is dead only because the ELSE is likewise False/Null in a filter context), but CASE is not in QED's modeled scalar fragment (And/Or/Not, comparisons, In/Some) — the paper's ite is only an internal encoding device for 3VL and NULL lifting, not an operator a pattern can name, so the two CASEs serialize as uninterpreted QOp applications of different arity (2N+1 vs 2N−1 arguments) that SMT congruence can never equate. Extending the Java DSL with a CASE builder cannot close this, because JSONSerializer would only emit a generic named call and the immutable Rust prover has no CASE interpretation to apply — this is squarely the "operator-specific internal semantics QED cannot see through as an uninterpreted function" limitation. No faithful narrower special case (e.g. exactly two whens, False-only branches) escapes it, since both pattern sides still contain the unmodeled CASE term, and any encoding that abstracts the CASEs away to shared symbols would prove a vacuous identity or a different rule rather than this one. ```
+The rule's correctness depends on CASE's three-valued branch-selection semantics, but the RuleScript scalar fragment only interprets And/Or/Not/boolean literals and sends any CASE-like RexCall to QED as an uninterpreted operator. Since QED cannot decompose that uninterpreted CASE or express the required "previous condition is not True" fall-through, even the narrowest instances containing a CASE on the before side are not universally provable.

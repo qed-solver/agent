@@ -2,8 +2,8 @@
 
 **Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 62  **Verification rounds used:** 1
-**Scope detail:** the aggregation argument is itself the (single-column)
+**Porter attempts used:** 26  **Verification rounds used:** 3
+**Scope detail:** no grouping columns (ScalarGroupBy), where the per-call aggregate FILTER is encoded as a relational Filter below the aggregate (equivalent for the single group), and the aggregate argument is the scan's unique key.
 
 
 ## Source rule (as given to the porter)
@@ -53,7 +53,7 @@ Extracted from `groupby.opt` (which defines multiple rules — implement specifi
 
 **Verdict:** CONFIRMED
 
-Manually re-derived and verified by Claude (not the automated porter/verifier LLM loop, which exhausted both pool attempts on repeated LLM context-length crashes before ever reaching a proof attempt). The automated run's last crash-time candidate (stashed at UnprovableRRuleInstances/EliminateAggFilteredDistinctForKeys.java.rejected) had already identified the right narrow special case — aggregation argument = the single unique grouping key — but was missing the required SCOPE tag and was never actually run through QED before the crash. Testing it directly: provable=true. Verified non-vacuous with a negative control (dropping the scan's unique=true flag, everything else identical) which correctly comes back provable=false — confirming the proof genuinely depends on the uniqueness fact (every group has at most one row, so AggDistinct trivially coincides with the plain aggregate), not some artifact QED would accept unconditionally. The source rule's AggFilter wrapper is not modeled (RelRN/AggCall has no FILTER-clause construct) — the covered identity is the AggDistinct->plain rewrite alone, on the premise that $filter is present unchanged on both sides of the source rule and that filtering rows out of an already-unique-keyed relation cannot introduce duplicates into what remains, so the argument extends unaffected to the filtered case; only the AggFilter wrapper itself goes unverified here. NOTE: this same narrow encoding, tested directly against the sibling rule EliminateAggDistinctForKeys (already recorded SKIPPED), also comes back provable=true with the same non-vacuous negative-control behavior — contradicting that rule's recorded verifier reasoning that 'no encoding, including the narrow primary-key special case, can prove this.' That looks like a false SKIPPED verdict worth reopening, but I have not touched that entry since it wasn't the rule asked about here.
+before() and after() differ genuinely (distinct=true vs false on the same aggregate, a flag the JSONSerializer does pass to QED), and the proof is non-vacuous: the scan's key on the aggregate's argument forces the argument values to be unique, so dedup is the identity and the uninterpreted aggregate's input bags are equal. The encoding is a sound, honestly-tagged PARTIAL special case — ScalarGroupBy (where encoding AggFilter as a pre-aggregate Filter is strictly equivalent, as the SCOPE line notes) with the argument as the unique key, which satisfies the original rule's HasStrictKey + CanRemoveAggDistinctForKeys preconditions — with no hard-coded predicates, wrong operator shapes, or missing premises. ```
 
 ## QED prover result
 
@@ -64,34 +64,34 @@ Manually re-derived and verified by Claude (not the automated porter/verifier LL
   "complete_fragment": false,
   "equiv_class_duration": {
     "secs": 0,
-    "nanos": 6200792
+    "nanos": 6724750
   },
   "equiv_class_timed_out": false,
   "smt_duration": {
     "secs": 0,
-    "nanos": 14893083
+    "nanos": 38066374
   },
   "smt_timed_out": false,
   "nontrivial_perms": false,
   "translate_duration": {
     "secs": 0,
-    "nanos": 87083
+    "nanos": 1087791
   },
   "normal_duration": {
     "secs": 0,
-    "nanos": 538625
+    "nanos": 479416
   },
   "stable_duration": {
     "secs": 0,
-    "nanos": 12603500
+    "nanos": 17922416
   },
   "unify_duration": {
     "secs": 0,
-    "nanos": 15006042
+    "nanos": 38206708
   },
   "total_duration": {
     "secs": 0,
-    "nanos": 30284291
+    "nanos": 71677500
   }
 }
 ```

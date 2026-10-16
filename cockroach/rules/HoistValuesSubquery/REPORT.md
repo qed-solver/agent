@@ -2,22 +2,39 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 2  **Verification rounds used:** 0
+**Porter attempts used:** 101  **Verification rounds used:** 6
 
 ## Source rule (as given to the porter)
 
 ```
-Extracts subqueries from row tuples and joins them with the Values operator.
+Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+HoistValuesSubquery extracts subqueries from row tuples and joins them with
+the Values operator. This and other subquery hoisting patterns create a
+single, top-level relational query with no nesting.
+
+This rule is marked as low priority for the same reason as HoistSelectExists.
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `HoistValuesSubquery`, not the other rules in that file):
+
+```
+# HoistValuesSubquery extracts subqueries from row tuples and joins them with
+# the Values operator. This and other subquery hoisting patterns create a
+# single, top-level relational query with no nesting.
+#
+# This rule is marked as low priority for the same reason as HoistSelectExists.
+[HoistValuesSubquery, Normalize, LowPriority]
+(Values
+    $rows:[ ... $item:* & (HasHoistableSubquery $item) ... ]
+    $private:*
+)
+=>
+(HoistValuesSubquery $rows $private)
+```
 ```
 
 ## Independent verifier review
 
 **Verdict:** AGREE
 
-Same representational gap as HoistProjectSubquery/HoistSelectSubquery: the rule generically hoists a correlated Subquery, Exists, or Any expression out of a scalar position (here, a VALUES row tuple) into a join; the rule's own canonical example is a *scalar* subquery used as a value (VALUES ((SELECT u FROM uv WHERE u=x LIMIT 1))). QED's prover core has no interpreted semantics for a scalar subquery's value (Calcite's $SCALAR_QUERY / RexSubQuery.scalar) -- it falls through to a fully opaque HOp with no defined relationship to 'the same column, once the subquery's relation is joined in.' Only EXISTS has real interpreted semantics in relation.rs (eval_logic's Logic::squash(UExpr::sum(...)) case), and this rule's row-tuple-value use case is not an EXISTS/boolean position, so the Exists-record trick doesn't apply here.
-
-## QED prover result
-
-```json
-{}
-```
+The rule's correctness hinges on the scalar-subquery cardinality invariant — that the subquery relation R has at most one row — which makes `Values(row_containing_subquery(R))` bag-equivalent to a cross-join with R. QED reasons over arbitrary uninterpreted bags and cannot verify this ≤1-row constraint for a symbol R; any attempt to encode the before/after pair would be refuted by a two-row instantiation of R. Additionally, the DSL has no constructor for a Values node carrying non-trivial row content or a RexSubQuery expression in a value-producing (non-boolean) position, and even extending the DSL with such constructors would not close the gap, since QED's semiring translation has no modeled semantics for a subquery populating a row value — only boolean-context effects (EXISTS/IN) are recognized. This is a genuine fundamental limitation of QED's relational-algebra fragment, not a missed encoding. ```

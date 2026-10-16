@@ -1,40 +1,53 @@
 package org.qed.RRuleInstances;
 
+import com.google.common.collect.ImmutableSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.logical.LogicalFilter;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexSubQuery;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.qed.RRule;
 import org.qed.RelRN;
 import org.qed.RexRN;
-import org.qed.JoinKind;
+import org.qed.RuleBuilder;
 
-// SCOPE: FULL
+// SCOPE: PARTIAL — the ANY comparison is fixed to equality (x = ANY(sub), i.e. IN) over a single-column subquery, and the filter holds only the ANY conjunct
 public record NormalizeSelectAnyFilter() implements RRule {
-    static final RelRN a = RelRN.scan("A", "T1");
-    static final RelRN b = RelRN.scan("B", "T2");
-    static final RexRN pa = a.pred("pa");
-    static final RexRN pb = b.pred("pb");
+    static final RelRN input = RelRN.scan("Input", "V");
+    static final RelRN sub = RelRN.scan("Sub", "V");
 
-    void p1() { RelRN r = a.join(b, "c"); }
-    void p2() { RelRN r = a.join(b, "c", JoinKind.Inner); }
-    void p3() { RelRN r = RelRN.join(a, b, "c"); }
-    void p4() { RelRN r = a.semiJoin(b, "c"); }
-    void p5() { RexRN r = a.exists(b, "c"); }
-    void p6() { RexRN r = a.exists(b); }
-    void p7() { RexRN r = b.exists(); }
-    void p8() { RexRN r = a.any(b, "c"); }
-    void p9() { RexRN r = a.any(b); }
-    void p10() { RexRN r = b.any(); }
-    void p11() { RexRN r = RexRN.exists(b); }
-    void p12() { RexRN r = RexRN.any(b); }
-    void p13() { RexRN r = RexRN.or(pa, pb); }
-    void p14() { RexRN r = pa.not(); }
-    void p15() { RelRN r = a.union(b); }
-    void p16() { RelRN r = a.intersect(b); }
-    void p17() { RelRN r = a.minus(b); }
-    void p18() { RelRN r = RelRN.empty(); }
-    void p19() { RelRN r = a.project("x"); }
-    void p20() { RelRN r = a.aggregate(b, "g", "f"); }
-    void p21() { RelRN r = a.filterExists(b, "c"); }
-    void p22() { RexRN r = RelRN.exists(a, b, "c"); }
+    private record AnyFilter(RelRN outer, RelRN inner) implements RelRN {
+        @Override
+        public RelNode semantics() {
+            var b = RuleBuilder.create();
+            RelNode l = outer.semantics();
+            RexNode in = b.in(inner.semantics(), java.util.List.of(b.getRexBuilder().makeInputRef(l, 0)));
+            return LogicalFilter.create(l, in);
+        }
+    }
 
-    @Override public RelRN before() { return a.filter(pa); }
-    @Override public RelRN after() { return b.filter(pb); }
+    private record ExistsFilter(RelRN outer, RelRN inner) implements RelRN {
+        @Override
+        public RelNode semantics() {
+            var b = RuleBuilder.create();
+            RelNode l = outer.semantics();
+            RelNode r = inner.semantics();
+            var rb = b.getRexBuilder();
+            var corrId = b.getCluster().createCorrel();
+            var corrVar = rb.makeCorrel(l.getRowType(), corrId);
+            RexNode cond = rb.makeCall(SqlStdOperatorTable.EQUALS, rb.makeFieldAccess(corrVar, 0),
+                    rb.makeInputRef(r.getRowType().getFieldList().get(0).getType(), 0));
+            return LogicalFilter.create(l, RexSubQuery.exists(LogicalFilter.create(r, cond)), ImmutableSet.of(corrId));
+        }
+    }
+
+    @Override
+    public RelRN before() {
+        return new AnyFilter(input, sub);
+    }
+
+    @Override
+    public RelRN after() {
+        return new ExistsFilter(input, sub);
+    }
 }

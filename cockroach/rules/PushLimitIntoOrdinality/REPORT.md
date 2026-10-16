@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 32  **Verification rounds used:** 2
+**Porter attempts used:** 25  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -76,4 +76,4 @@ Extracted from `limit.opt` (which defines multiple rules — implement specifica
 
 **Verdict:** AGREE
 
-The rule's soundness rests entirely on list/ordering semantics: the Limit keeps rows positionally (first N in an ordering), the Ordinality's output column is position-dependent, and the OrderingIntersects/OrderingIntersection premises are what guarantee the same rows survive with the same ordinal values after the push-down. QED reasons only over bag semantics and treats Sort/Limit/Offset as uninterpreted operators with no positional algebra (qed.pdf §6.2 "list semantics" failure category), so any bag-level encoding is either vacuous (both sides collapse to the same expression) or unfaithful (e.g., modeling Limit as a row predicate and Ordinality as an uninterpreted row function would prove a different, trivially true filter/projection commutation, not this rule). The absence of a Limit/Sort builder in RelRN is not the decisive gap — even adding one (JSONSerializer already serializes LogicalSort) would leave QED with an uninterpreted operator, and the before/after equivalence is simply not a bag-semantic identity. ```
+The rule's correctness rests entirely on ordering/prefix-selection semantics — which rows the Limit keeps, the ordinals Ordinality assigns, and the final row order — none of which QED models (Sort/Limit/Offset have no bag-semantic meaning); because both sides differ only in the placement and ordering of that unmodelable Limit, dropping it yields the vacuous identity Ordinality(input) ≡ Ordinality(input), and even extending the DSL with Limit/Ordinality builders would not help since the QED prover fundamentally lacks the semantics to reason about them. ```

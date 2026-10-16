@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 41  **Verification rounds used:** 3
+**Porter attempts used:** 24  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -28,4 +28,4 @@ Extracted from `fold_constants.opt` (which defines multiple rules — implement 
 
 **Verdict:** AGREE
 
-FoldArray rewrites an uninterpreted Array constructor applied to constant arguments into a concrete TArray ground constant, but QED models the Array constructor as an uninterpreted function with no axioms relating its application to any ground term, so the SMT solver can never establish Array(c1,c2,…)=arrayConstant; additionally the DSL has no array-literal builder (RexRN exposes only boolean true/false literals, and the QED JSON format carries no array type or array-value semantics), so even the RHS is inexpressible — the only encodable encoding reuses the same uninterpreted symbol on both sides, yielding a vacuous identity rather than a genuine rewrite. ```
+In any encoding, FoldArray reduces to a value equation between an uninterpreted function application and a stored constant: the `Array` constructor must be an uninterpreted projection symbol (no array operator exists in the core language), and both its constant elements and the RHS constant-array datum are, by construction of `RexRN.Const`, just the literal 0 in the prover — so QED would have to prove `arr(0,…,0) = 0` universally for an arbitrary uninterpreted `arr`, which a countermodel refutes and which no axiom/constraint mechanism in the DSL can override. QED also has no list/array value semantics (a tabulated "List semantic" failure category), and since the Rust prover is the unmodifiable trusted arbiter, `extend_dsl_file` cannot supply the missing semantics. The narrowest possible special case (fixed arity/types) has exactly the same unprovable shape, so no non-vacuous encodable form exists. ```

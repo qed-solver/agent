@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 44  **Verification rounds used:** 3
+**Porter attempts used:** 48  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
@@ -47,4 +47,4 @@ Extracted from `groupby.opt` (which defines multiple rules — implement specifi
 
 **Verdict:** AGREE
 
-QED models each aggregate call as an uninterpreted function applied to its input bag, and neither the DSL's `AggCall` nor the prover's aggregate JSON object (`{operator, operand, distinct, ignoreNulls, type}`) has any FILTER/row-selection slot — the only modeled pre-aggregate row filter is COUNT's non-null ignoreNulls. So the before side `f(a) FILTER (WHERE c)` has no non-vacuous encoding: expressing the filter as a `Filter` node under the aggregate makes `before` syntactically identical to `after`, while folding `c` into the aggregate's operands produces a different uninterpreted function over a different bag, for which the SMT solver has no algebraic bridge to the after side. This is a fundamental limitation of QED's aggregate semantics (an internal operator behavior it cannot see through), not a missing DSL builder — even a `extend_dsl_file` adding a filter field to the serialized aggregate would be inert, since the immutable prover does not parse or model it, so the porter's UNSUPPORTED conclusion is correct. ```
+The rule's only transformation is hoisting a per-call aggregate FILTER (SELECT agg(x) FILTER(WHERE p) FROM t) into a Filter on the ScalarGroupBy's input, and the DSL's AggCall has no filter modifier (the JSON group node only carries operator/operand/distinct/ignoreNulls), so the before-side can at best be written as the aggregate over the already-filtered input, making both sides identical and proving nothing about FILTER semantics. The genuine equivalence needed is "agg(x) FILTER (WHERE p) over all rows = agg(x) over the rows where p holds", which is exactly the kind of aggregate-modifier internal semantics QED cannot see through: it models aggregates only up to bag equality of their input and knows no aggregate algebra, and the prover cannot be extended to add FILTER semantics. Extending the DSL with a filter field on AggCall would be futile since JSONSerializer has no corresponding field and the Rust QED prover is the immutable arbiter. ```

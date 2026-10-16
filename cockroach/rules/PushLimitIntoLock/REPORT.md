@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 47  **Verification rounds used:** 3
+**Porter attempts used:** 22  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -34,4 +34,4 @@ Extracted from `limit.opt` (which defines multiple rules — implement specifica
 
 **Verdict:** AGREE
 
-The transpose is only valid because (a) the Limit keeps the first $limit rows under its ORDER BY — QED explicitly has no list/ordering semantics for Sort/Limit/Offset, which carry no bag-semantic meaning — and (b) Lock is a side-effectful, row-preserving operator whose guard (not SKIP LOCKED) is backend-internal semantics the trusted prover cannot see: the returned rows may be equivalent, but the rule actually constrains *which rows get locked*, and encoding Lock as an uninterpreted unary operator would make Limit∘Lock and Lock∘Limit unequal in general (arbitrary operators don't commute), so it would be refuted, not proved. The gap is in the immutable prover (no ordering model, no side-effect operator; Limit isn't even serializable in the current DSL), not a missing builder, so a DSL extension cannot rescue it.
+The rewrite Limit(Lock(X)) ⟹ Lock(Limit(X)) is only sound because (a) a non-SKIP-LOCKED Lock is row-identity over its input — a backend-specific internal semantic that QED cannot see through, since Lock would be merely a distinct uninterpreted operator — and (b) Limit's row-count/ordering behavior, which QED explicitly does not model (Sort/Limit/Offset have no bag-semantic meaning; no Limit builder even exists in RelRN, and adding one would still leave it an axiom-free uninterpreted QOp). With both operators uninterpreted and unrelated, the claim reduces to proving two distinct uninterpreted functions commute, which the SMT solver refutes for every instantiation, and the rule's actual payoff (locking fewer rows) is a side effect invisible to bag equivalence, so no non-vacuous special case is encodable. ```

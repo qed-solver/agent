@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 24  **Verification rounds used:** 2
+**Porter attempts used:** 9  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -38,4 +38,4 @@ $input
 
 **Verdict:** AGREE
 
-EliminateCast's soundness rests entirely on the cast operator's own value semantics — that a cast is value-identical to its input when the input type equals the target type — guarded by the type-level side condition `HasColType`, which the pattern language cannot express (type names are inert labels, all lowered to integers in the prover, and no predicate can assert type equality between symbols). Any faithful encoding therefore reduces to proving `cast(x) ≡ x` for an uninterpreted scalar function, which QED's SMT translation cannot justify; adding a cast builder via `extend_dsl_file` would not help because the unmodifiable prover interprets all scalar functions as uninterpreted regardless. The blocker is on the trusted-prover side, so no faithful, non-vacuous encoding exists — the only "provable" version (dropping the cast entirely) is the vacuous tautology, not the rule. ```
+EliminateCast's soundness rests entirely on the axiom "a cast to the input's own type is the identity function," but QED's SMT prover treats scalar operators like casts as uninterpreted functions with no cast/identity theory, so it can never establish cast_T(x) = x. Compounding this, every RelType.VarType is flattened to INTEGER in JSONSerializer (VarType.getName() always returns "INTEGER"), so the HasColType type-identity guard — a purely static, value-less check — serializes to no information the prover can consume, and an uninterpreted guard predicate cannot be linked to an uninterpreted cast function. This is a fundamental QED/prover limitation rather than a DSL gap: a dedicated cast operator would still serialize to the same uninterpreted call-with-erased-type JSON form, and closing the gap would require adding a cast-identity theory to the off-limits Rust prover; the porter's empirical provable:false on the faithful Filter(guard,scan)+cast-project vs bare-field encoding is the expected outcome, and no symbol-sharing fix or narrower special case can recover a provable form without dropping the cast itself. ```

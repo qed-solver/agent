@@ -1,8 +1,10 @@
 # PruneMutationReturnCols
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 23  **Verification rounds used:** 2
+**Porter attempts used:** 46  **Verification rounds used:** 4
+**Scope detail:** the input row has exactly 4 columns and the mutation returns exactly 4 computed columns (each an uninterpreted function of all 4 input columns), one of which (a non-PK return column) is unused and pruned, one of which (a PK return column) is unused but retained, and the outer projection uses one return column through one computed expression plus one passthrough
+
 
 ## Source rule (as given to the porter)
 
@@ -62,6 +64,47 @@ Extracted from `prune_cols.opt` (which defines multiple rules — implement spec
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-The rule's only semantic effect is narrowing the ReturnCols set stored in the mutation operator's private state, and RuleScript's core language has no construct for a mutation operator or its operator-private column-set parameter — so any encoding either reuses one uninterpreted scan on both sides (before() ≡ after(), a vacuous reflexivity) or introduces two independent scans that QED cannot relate, and modeling the pruned mutation as an explicit projection of the full mutation would merely prove the generic projection-composition law while taking the mutation-specific "narrowing ReturnCols to a superset of used columns preserves visible output" property as an unverified axiom. A DSL extension cannot close this gap because QED's own (immutable) semantics have no notion of a mutation or of per-operator column sets — its JSON format and semiring translation only define scan/filter/project/join/aggregate/set operators — so the rule rests on a backend operator's bespoke internal semantics that QED fundamentally cannot see through. This is a genuine QED/language limitation, not a missed encoding, and the porter's analysis of all three encoding routes is correct. ```
+The encoding is structurally non-trivial (4-wide vs 3-wide mutation output with correct ordinal remapping of the shared passthrough column r3, field 3→field 2) and faithfully models the rule's distinctive content: an uninterpreted 1:1 row transformation standing in for Update/Upsert/Delete, one non-PK return column pruned, and one unused PK return column deliberately retained — matching the source rule's `PrimaryKeyCols ∪ ProjectionOuterCols ∪ passthrough` needed-set, so this is this specific rule rather than generic column pruning. The fixed 4-column arities and specific used/unused/PK pattern make it a genuine narrower instance, but that is a real DSL limitation (RuleScript records are concrete shapes with no arity generalization, and MetaAssignment only covers join types), and the scope line honestly states exactly that assumption with a specific condition, so the provable result is a faithful, non-degenerate special case. ```
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": true,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 348292
+  }
+}
+```

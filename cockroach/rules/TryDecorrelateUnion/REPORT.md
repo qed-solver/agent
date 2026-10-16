@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 21  **Verification rounds used:** 2
+**Porter attempts used:** 55  **Verification rounds used:** 4
 
 ## Source rule (as given to the porter)
 
@@ -121,4 +121,4 @@ Extracted from `decorrelate.opt` (which defines multiple rules — implement spe
 
 **Verdict:** AGREE
 
-The rewrite depends on the nontrivial identity ANY_NOT_NULL(L+R) = COALESCE(ANY_NOT_NULL(L), ANY_NOT_NULL(R)), including arbitrary non-null choice and null/empty-group semantics. QED only equates aggregate calls with equal input bags and treats coalesce as an uninterpreted scalar, so it cannot prove this aggregate/coalesce algebra in any faithful encoding.
+The rule's correctness hinges on the identity ANY_NOT_NULL(A ⊎ B) = COALESCE(ANY_NOT_NULL(A), ANY_NOT_NULL(B)), which requires (a) an axiom decomposing an uninterpreted aggregate over a union bag into the same aggregate over its parts — QED explicitly models each aggregate as a single uninterpreted function of the entire input bag with no such decomposition axiom — and (b) COALESCE value-selection semantics, which is absent from the core language and, even if introduced as another uninterpreted scalar, would remain unrelated to the aggregate symbol in QED's SMT encoding; this is a fundamental prover limitation (no aggregate algebra beyond bag-equality-of-input), not a closable DSL gap, so no faithful non-vacuous encoding can be proved. ```

@@ -1,49 +1,47 @@
 package org.qed.RRuleInstances;
 
 import kala.collection.Seq;
-import kala.collection.Set;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.qed.QedTable;
 import org.qed.RRule;
 import org.qed.RelRN;
 import org.qed.RelType;
 import org.qed.RexRN;
 import org.qed.RuleBuilder;
 
-// SCOPE: PARTIAL — restricts FoldNullBinaryLeft to the single built-in null-lifting operator (integer +) with a NULL left operand, observed in filter position via IS_NULL; the general form over all non-null-accepting operators is unprovable because QED supplies no null-propagation axiom to uninterpreted operators
+// SCOPE: PARTIAL — the binary operator is instantiated as the concrete `<` (null left arg implies null result, the rule's not-AllowNullArgs case), embedded in filter position since QED only models null propagation for concrete primitive operators and arithmetic operators cannot infer return types over the virtual operand type V
 public record FoldNullBinaryLeft() implements RRule {
-    static final RelType intCol = new RelType.BaseType(SqlTypeName.INTEGER, true);
-    static final RelRN source = new RelRN() {
-        @Override
-        public RelNode semantics() {
-            var table = new QedTable("Source", Seq.of("col-Source"),
-                Seq.of((RelDataType) intCol), Set.empty(), Set.empty());
-            return RuleBuilder.create().addTable(table).scan("Source").build();
-        }
-    };
-    static final RexRN x = source.field(0);
+    static final RelType.VarType V = new RelType.VarType("V", true);
+    static final RelRN source = RelRN.scan("Source", V, false);
+    static final RexRN x = source.field(0); // $right: arbitrary right input
 
-    static final RexRN nullInt = new RexRN() {
+    // the null constant of the operand type V — the (Null) $left branch
+    static final RexRN nullV = new RexRN() {
         @Override
         public RexNode semantics() {
-            var b = RuleBuilder.create();
-            return b.getRexBuilder().makeNullLiteral(
-                b.getTypeFactory().createSqlType(SqlTypeName.INTEGER));
+            return RuleBuilder.create().getRexBuilder().makeNullLiteral(V);
+        }
+    };
+
+    // the null constant of boolean type — the folded result in filter position
+    static final RexRN nullBool = new RexRN() {
+        @Override
+        public RexNode semantics() {
+            RuleBuilder b = RuleBuilder.create();
+            return b.getRexBuilder().makeNullLiteral(b.getTypeFactory().createSqlType(SqlTypeName.BOOLEAN));
         }
     };
 
     @Override
     public RelRN before() {
-        return source.filter(new RexRN.Pred(SqlStdOperatorTable.IS_NULL,
-            Seq.of(new RexRN.Proj(SqlStdOperatorTable.PLUS, Seq.of(nullInt, x)))));
+        // Binary((Null), $right) for a < operator that does not allow null args: NULL < x
+        return source.filter(new RexRN.Pred(SqlStdOperatorTable.LESS_THAN, Seq.of(nullV, x)));
     }
 
     @Override
     public RelRN after() {
-        return source.filter(new RexRN.Pred(SqlStdOperatorTable.IS_NULL, Seq.of(nullInt)));
+        // FoldNullBinary: the operator folds to a null value (boolean null in a filter)
+        return source.filter(nullBool);
     }
 }

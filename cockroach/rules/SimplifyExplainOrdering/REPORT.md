@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 27  **Verification rounds used:** 2
+**Porter attempts used:** 25  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -32,4 +32,4 @@ Extracted from `ordering.opt` (which defines multiple rules — implement specif
 
 **Verdict:** AGREE
 
-SimplifyExplainOrdering leaves the input relation and the Explain output data completely untouched — its only effect is replacing the required input ordering stored in ExplainPrivate.Props with a relaxed version, and the rewrite's validity rests entirely on an ordering/functional-dependency argument (a key column making a shorter ordering requirement sufficient for a longer one). QED models only bag semantics and has no notion of row order or of required orderings as plan properties (ordering semantics of Sort/Limit/Offset/Order By are explicitly unsupported, and even a DSL-extended Sort operator would be bag-erased by the prover, making any such encoding vacuously equivalent rather than a proof of the FD-based relaxation). Consequently, any RuleScript encoding yields bag-identical before/after patterns and a trivial, content-free proof — this is a fundamental limitation of QED's semantics, not a missing DSL builder. ```
+SimplifyExplainOrdering keeps `$input` identical on both sides and only rewrites the ordering directive stored in the Explain operator's private props, but RuleScript has no channel to express ordering directives (no Sort/annotation carrier in the core language) and QED decides equivalence on bag semantics only, so every possible encoding degenerates to the data identity input ≡ input — provable, yet vacuous, since the proof never touches the rule's actual content. That content is a functional-dependency argument about ordered sequences (a key column making later ordering columns redundant), i.e. list/ordering semantics, which is explicitly outside QED's decision procedure; even a hypothetical Sort builder couldn't close the gap, because QED would collapse any two orderings of the same bag to one another and "prove" both correct and incorrect simplifications, so this is a fundamental prover limitation rather than a missing DSL operator.

@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 21  **Verification rounds used:** 2
+**Porter attempts used:** 85  **Verification rounds used:** 6
 
 ## Source rule (as given to the porter)
 
@@ -57,4 +57,4 @@ Extracted from `project_set.opt` (which defines multiple rules — implement spe
 
 **Verdict:** AGREE
 
-The rule's core is a set-returning/row-generating operation — `ProjectSet` expanding an array column (`unnest`/`json_array_elements`) into one row per element — plus a correlated `InnerJoinApply` whose right side is a dynamic Values whose rows are that specific left row's array elements. QED only models bag semantics with *scalar* uninterpreted functions and has no list/array type semantics (all types flatten to integers in `RelType`), no row-generating operator, and `JSONSerializer`/the Q-expression format carry no construct for a Values whose contents are derived from a correlated left row (the DSL's `Correlate` only filters a *fixed* right relation). This is a fundamental QED limitation (unmodelable list/row-generation semantics, and the Rust prover can't be modified), not a missing builder `extend_dsl_file` could close, so no non-vacuous special case is provable.
+The rule's soundness is a list-level identity — row-wise unrolling of an array by a set-returning zip function (unnest/json_array_elements, including null-padding of shorter arrays) ≡ an apply join with Values of that same array — and QED's model is pure bag semantics over uninterpreted functions, with no list type, no per-row element enumeration, and no ProjectSet/Unnest operator to carry such semantics. Extending the DSL would not close the gap either: QED's JSON format and the unmodifiable prover have no node or semantics for set-returning functions, and any core-language encoding that captures per-row/per-element multiplicity (a join or Correlate gated by an uninterpreted Elem predicate) collapses before() and after() into the same relation, proving a tautology rather than the actual rewrite. ```

@@ -2,12 +2,13 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 40  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
 ```
-Source: pkg/sql/opt/norm/rules/decorrelate.opt
+# Name: HoistSelectSubquery
+# Backend: CockroachDB
+# Source: pkg/sql/opt/norm/rules/decorrelate.opt
 
 HoistSelectSubquery extracts subqueries from a Select filter and joins them
 with the Select input. This and other subquery hoisting patterns create a
@@ -47,8 +48,6 @@ Extracted from `decorrelate.opt` (which defines multiple rules — implement spe
 ```
 ```
 
-## Independent verifier review
+## Reason
 
-**Verdict:** AGREE
-
-Manually investigated by Claude. Same root cause as HoistProjectSubquery: read decorrelate_funcs.go's HoistSelectSubquery (and its doc example, 'WHERE (SELECT u FROM uv WHERE u=x LIMIT 1) IS NULL') — the hoisted subquery here is a general scalar subquery embedded in a filter comparison (not a boolean EXISTS), which gets hoisted into a LeftJoinApply/InnerJoinApply and its column referenced directly in place of the original subquery expression. QED's prover core has no handling for scalar subqueries ($SCALAR_QUERY) at all — confirmed by grep, zero hits anywhere in qed-prover's Rust source — so any such subquery used as a value falls through to a fully opaque HOp(op, args, rel, ty) with no defined relationship to 'the same relation's column, referenced directly once joined in.' There is no representational bridge for QED to reason across between those two forms — same fundamental gap as CorrelateUncollectOuter and HoistProjectSubquery, not a narrow-encoding opportunity like the EXISTS-boolean case (EliminateExistsProject/EliminateExistsZeroRows).
+In the DSL a scalar subquery reaches the prover as an opaque $SCALAR_QUERY operator with no relation to a join, so a subquery in a filter or projection cannot be shown equal to the same value taken from a joined column. Encodings with a COUNT scalar subquery in a Select filter against a Project over a left join, and against an inner join, both come back unprovable. The rule is also generic: HasHoistableSubquery matches any scalar, Any or Exists subquery and the rewrite is a Go function that builds apply joins, which has no declarative form to encode.

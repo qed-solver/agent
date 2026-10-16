@@ -2,12 +2,13 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 31  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
 ```
-Source: pkg/sql/opt/norm/rules/decorrelate.opt
+# Name: HoistProjectSetSubquery
+# Backend: CockroachDB
+# Source: pkg/sql/opt/norm/rules/decorrelate.opt
 
 HoistProjectSetSubquery extracts subqueries from zipped functions and joins
 them with the ProjectSet operator's input. This and other subquery hoisting
@@ -33,8 +34,6 @@ Extracted from `decorrelate.opt` (which defines multiple rules — implement spe
 ```
 ```
 
-## Independent verifier review
+## Reason
 
-**Verdict:** AGREE
-
-The rule's central operator, ProjectSet (set-returning/zip row generation), has no model in QED's bag-semantic core — a set-returning function maps one input row to a variable number of output rows, which is list semantics QED explicitly does not support, and the JSON theory carries no ProjectSet operator. Because both sides depend on it (the before side is a ProjectSet over a zip function containing the subquery; the after side hoists that subquery into a join but still feeds the same row-generating ProjectSet), the row-count-preserving equivalence is unprovable — a genuine QED limitation, not a missing DSL builder.
+The rule operates on ProjectSet, whose zipped set-returning functions have no operator in the DSL or the prover, so even the unhoisted input cannot be written. In the DSL a scalar subquery reaches the prover as an opaque $SCALAR_QUERY operator with no relation to a join, so a subquery in a filter or projection cannot be shown equal to the same value taken from a joined column. Encodings with a COUNT scalar subquery in a Select filter against a Project over a left join, and against an inner join, both come back unprovable. The rewrite is a Go function that builds apply joins.

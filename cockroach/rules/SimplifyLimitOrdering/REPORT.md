@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 25  **Verification rounds used:** 2
+**Porter attempts used:** 10  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -37,4 +37,4 @@ Extracted from `ordering.opt` (which defines multiple rules — implement specif
 
 **Verdict:** AGREE
 
-The rule's only change is rewriting the Limit's ordering annotation via functional-dependency reasoning, leaving the input relation and limit value untouched, and QED explicitly decides bag equivalence with no model of list/ordering semantics (Sort/Limit/Offset/Window have no bag-semantic meaning). The DSL has no channel to express an ordering property at all, so before and after are indistinguishable to the prover and the FD-based argument is a physical-property claim with no bag-level content to verify — extending the DSL with sort/limit builders would yield at most a vacuous identity proof, since the immutable QED prover does not model orderings. ```
+QED's theory is bag-only with uninterpreted operators and has no list/ordering semantics, so a Limit's ordering directive has no representation the prover can reason about: keeping the ordering makes the two sides distinct uninterpreted applications (unprovable), while erasing it reduces the rule to a vacuous identity, since the rows' multiset is untouched by the rewrite. The rule's entire correctness content — that dropping ordering columns functionally determined by earlier ones preserves the row sequence Limit/Offset select on — lives in exactly that unmodeled list semantics, and no `extend_dsl_file` builder can close the gap because the Rust prover itself (which must not be modified) lacks it; the JSON format already carrying `sort`/`limit` fields confirms this is a prover-theory limitation, not a missing DSL feature.

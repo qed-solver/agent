@@ -2,12 +2,13 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 25  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
 ```
-Source: pkg/sql/opt/norm/rules/reject_nulls.opt
+# Name: RejectNullsGroupBy
+# Backend: CockroachDB
+# Source: pkg/sql/opt/norm/rules/reject_nulls.opt
 
 RejectNullsGroupBy pushes a "col IS NOT NULL" null-rejecting filter below the
 GroupBy operator if it allows null rejection for that column (i.e. if it's in
@@ -93,8 +94,6 @@ Extracted from `reject_nulls.opt` (which defines multiple rules — implement sp
 ```
 ```
 
-## Independent verifier review
+## Reason
 
-**Verdict:** AGREE
-
-Independent analysis confirms the porter's diagnosis: RejectNullsGroupBy's soundness rests on MIN/MAX's NULL algebra — null z-rows are ignored (so a surviving group's min/max is unchanged when they're removed) and the all-null group's NULL result is what the outer null-rejecting filter discards — while QED models aggregates as uninterpreted higher-order functions equatable only on identical input bags and cannot relate an uninterpreted outer predicate to the nullness of an uninterpreted aggregate's output (the all-null group's row would survive in before() for some SMT-satisfiable instantiation). Every encoding that sidesteps those gaps degenerates to a vacuous instance: making the aggregated column a group key (then the pushed filter selects whole groups and reduces to the already-ported key-only FilterAggregateTranspose case), or declaring it NOT NULL (then the pushed filter is the identity). Closing the real gap would require teaching the QED prover aggregate NULL algebra, which is the trusted, unchangeable arbiter and documented as out of scope in qed.pdf, so the UNSUPPORTED conclusion is correct. ```
+The rewrite adds a col IS NOT NULL filter below a GroupBy/ScalarGroupBy because the aggregate ignores NULL inputs and the filter above rejects a NULL aggregate result. That equivalence rests on the aggregate skipping NULLs (and returning NULL on an all-NULL group). QED models null-skipping only for an aggregate call with ignoreNulls=true, and the DSL cannot set that flag: RelRN.AggCall has no ignoreNulls field and Aggregate.semantics() builds calls through the plain RelBuilder overload. An encoding with a generic aggregate over (key, value) under a null-rejecting filter, pushed filter versus unpushed, is not provable, since an uninterpreted aggregate of a bag has no relation to the same aggregate of a sub-bag.

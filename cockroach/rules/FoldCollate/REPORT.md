@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 22  **Verification rounds used:** 2
+**Porter attempts used:** 23  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -28,4 +28,4 @@ Extracted from `scalar.opt` (which defines multiple rules — implement specific
 
 **Verdict:** AGREE
 
-FoldCollate's entire content is the backend-bespoke identity `Collate(c, locale) ≡ CastToCollatedString(c, locale)` on a constant input, which holds only by virtue of CockroachDB's definitions of those two operators, not by any bag-algebra fact. In QED's uninterpreted-function theory they must be two distinct symbol names (a single shared name would assume the rule's conclusion as a premise, and the input's constant-ness gives no leverage — distinct uninterpreted functions can disagree even at ground terms), so the equivalence is not a logical validity the SMT solver can establish; the only "proofs" available are vacuous encodings that stop expressing the rule. This lands squarely in the documented "backend operator's bespoke internal semantics" limitation, and no `extend_dsl_file` addition (new `Collate`/`CastToCollatedString` builders, a non-boolean constant literal) could close the gap, since the DSL has no axiom mechanism to relate two distinct symbols — the UNSUPPORTED verdict is correct.
+FoldCollate's correctness rests on the value identity `collate(const, locale) = castToCollatedString(const, locale)`, but QED models both scalar operators as distinct uninterpreted functions over type-erased (INTEGER) terms, and the SMT solver is free to assign them different values at the same argument point, so no model of the encoding makes the two sides universally equal and the identity is unprovable. The only encodable variant — sharing a single uninterpreted symbol on both sides — degenerates into a vacuous `f(x) = f(x)` identity that no longer expresses the backend rule (and narrowing to `Const` inputs changes nothing, since `f(0,l) = g(0,l)` between distinct uninterpreted functions is still undecidable-true only by axiom), and `extend_dsl_file` can add operators/shapes but cannot add prover axioms about uninterpreted operators — the same fundamental gap for which the structurally identical FoldCast precedent was independently verified SKIPPED. ```

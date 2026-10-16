@@ -1,8 +1,10 @@
 # EliminateWindow
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 48  **Verification rounds used:** 4
+**Porter attempts used:** 6  **Verification rounds used:** 1
+**Scope detail:** QED has no Window operator (no frame/ordering semantics), so the zero-function window is modeled, per the established window modeling convention, as an INNER equi-join of a fixed two-column input (non-null partition key k, data column v) with its distinct partition keys.
+
 
 ## Source rule (as given to the porter)
 
@@ -26,6 +28,47 @@ $input
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-EliminateWindow's correctness rests entirely on the Window operator's internal semantics — that a Window with an empty function list is a row-preserving identity — but QED's bag-semiring prover has no Window operator at all, since Window requires list/ordering semantics the bag model cannot express (the RuleScript paper explicitly excludes Sort/Window as out of scope). Because the trusted Rust prover is unmodifiable, this gap can't be bridged by extending the Java DSL: an empty Window would remain an opaque symbol QED cannot reduce to its input, and any core-operator stand-in (identity Project, redundant group-by) would prove a *different* operator's theorem rather than this one, so no faithful encoding of `Window($input []) => $input` exists. ```
+QED fundamentally cannot represent a Window operator (no Window builder, no window case in JSONSerializer, and the unmodifiable prover has no window semantics), so full generality is genuinely out of reach and the porter's modeling of a zero-function partitioned window as an INNER equi-join of the input back to its distinct partition keys (correctly sharing the input symbol, with verified ordinals, condition, and projection, and a declared non-null key) is the only faithful available encoding. The `before()` (Join+Aggregate+Project) is structurally different from `after()` (plain scan), so the proof is non-vacuous, and the fixed two-column/non-null-key restrictions are a direct consequence of that fundamental limitation and are honestly tagged `SCOPE: PARTIAL` with the specific condition stated.
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": false,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 7521791
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 35404875
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 906917
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 651042
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 18890084
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 35497042
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 69995375
+  }
+}
+```

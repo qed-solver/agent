@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 21  **Verification rounds used:** 2
+**Porter attempts used:** 25  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -35,4 +35,4 @@ Extracted from `ordering.opt` (which defines multiple rules — implement specif
 
 **Verdict:** AGREE
 
-SimplifyOrdinalityOrdering leaves the input — and therefore the produced rows — unchanged; its entire content is that, under a functional-dependency side condition, the required ordering on the Ordinality input may be replaced by a simplified ordering (dropping a functionally determined trailing column), which is a purely list/ordering-semantics equivalence. QED decides bag-equivalence over relations with uninterpreted operators and models no orderings at all (Sort/Limit/Offset/Window/Sample have no bag-semantic meaning), and the DSL exposes no operator that could carry an ordering requirement, so the only possible encodings are either a vacuous before≡after identity (reusing the same predicate symbol, which verifies nothing about the simplification) or two distinct uninterpreted predicates that QED can never relate, since it performs no entailment reasoning between independent symbols. This is a fundamental QED limitation, not a missing DSL builder that `extend_dsl_file` could close (the prover itself is the unchangeable arbiter and has no ordering theory), so UNSUPPORTED is correct.
+The rewrite's entire effect is changing the physical ordering requirement attached to the Ordinality operator — the input relation and its bag are identical on both sides — so in any RuleScript encoding, before() and after() are literally the same relational expression, and the only proof QED could return would be a vacuous identity that says nothing about the actual simplification. The rule's real soundness rests on row-order semantics (a key column makes subsequent sort columns redundant in a total row order) and functional-dependence entailment, both of which QED fundamentally cannot model (Sort/Limit/Offset/Window/Sample have no bag-semantic meaning, and it cannot reason about FD/entailment between uninterpreted symbols); RelRN also exposes no Ordinality or ordering-requirement construct, and an extend_dsl_file cannot close the gap because the prover — the unchanging arbiter — erases ordering rather than the DSL missing a builder. ```

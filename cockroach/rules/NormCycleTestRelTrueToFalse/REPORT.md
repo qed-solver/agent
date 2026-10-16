@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 23  **Verification rounds used:** 2
+**Porter attempts used:** 24  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -30,4 +30,4 @@ Extracted from `cycle.opt` (which defines multiple rules — implement specifica
 
 **Verdict:** AGREE
 
-The rule rewrites `NormCycleTestRel(True)` to `NormCycleTestRel(False)`, where that operator is an opaque test-only function with no defined algebraic semantics, so the two sides are distinct applications of an uninterpreted function to different constants. QED is a universal bag-equivalence prover: for any honest encoding, an SMT counterexample instantiation (f(true) ≠ f(false), one row) refutes the equivalence, so no proof can exist, and the only encodings that would pass are ones that silently erase the difference the rule is defined to make. This is a fundamental limitation, not a missing DSL capability — the rule is deliberately non-equivalence-preserving (a cycle-detection test fixture), so there is nothing for QED to certify and UNSUPPORTED is the correct conclusion. ```
+The rewrite `NormCycleTestRel(True) => NormCycleTestRel(False)` has no defined evaluation semantics — it exists solely to exercise the optimizer's cycle-detection machinery — so its only semantic content is asserting f(True) = f(False) for an uninterpreted function f over two distinct boolean constants. Any faithful relational embedding (e.g., Project(f(True)) vs Project(f(False)) over a possibly non-empty scan) is not a valid theorem: a countermodel exists where f maps true and false to different values, and QED, being sound, correctly refuses to prove it. This is not a DSL gap or encoding mistake — the literals and generic projection operators are all present — but a case where the underlying claim is simply false and the intended property (cycle detection) is an engine-level behavior with no bag-semantic content for QED to verify. ```

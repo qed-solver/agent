@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 24  **Verification rounds used:** 2
+**Porter attempts used:** 50  **Verification rounds used:** 4
 
 ## Source rule (as given to the porter)
 
@@ -32,4 +32,4 @@ Extracted from `with.opt` (which defines multiple rules — implement specifical
 
 **Verdict:** AGREE
 
-InlineWith is fundamentally a let-substitution rule (`let W = D in Q` ≡ `Q[W:=D]`), and QED's Q-expression language — fixed on the Rust prover side, whose JSON contract exposes only scan/values/filter/project/join/correlate/union/intersect/except/distinct/group/sort — has no With/let-binding operator and no mechanism to assert definitional equality between two relation symbols, so the CTE reference and its body can only be modeled as independent uninterpreted symbols for which the substitution is not universally valid. No `extend_dsl_file` attempt can close this gap, because a `With` builder would have to emit a JSON operator the unmodifiable prover cannot interpret, and no meaningful special case survives (identifying the two symbols collapses the rule to a tautological identity; the sibling rules in the file additionally require Limit and recursive-CTE semantics that QED does not model).
+QED's relational fragment contains no let/With/alias operator — JSONSerializer only emits scan/values/filter/project/join/correlate/group/union/intersect/except/sort, and the prover knows no defined-relation node, so a CTE reference is an uninterpreted table whose contents can be neither defined by nor equated to its defining expression (table constraints are only single-table integrity checks). The only encodings are to treat reference and definition as unrelated symbols (QED correctly cannot prove equality) or as the same symbol (before and after become the identical plan, a vacuous proof), and since the prover is the unmodifiable arbiter no DSL extension can add a with node — the rule's entire content is precisely that binding substitution, so it is genuinely outside what QED can prove. ```

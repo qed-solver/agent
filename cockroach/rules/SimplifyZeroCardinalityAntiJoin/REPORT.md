@@ -1,8 +1,10 @@
 # SimplifyZeroCardinalityAntiJoin
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 113  **Verification rounds used:** 6
+**Porter attempts used:** 88  **Verification rounds used:** 5
+**Scope detail:** the ^(CanHaveZeroRows $right) precondition is encoded as a concrete one-row VALUES relation (single INTEGER column) rather than an arbitrary non-empty relation, and the correlated AntiJoinApply variant is not modeled.
+
 
 ## Source rule (as given to the porter)
 
@@ -32,6 +34,47 @@ Extracted from `join.opt` (which defines multiple rules — implement specifical
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-The rule is sound only under the optgen side condition `^(CanHaveZeroRows $right)` — i.e. the right input is guaranteed non-empty — which is a semantic property of a subtree, not a plan shape, and RuleScript has no mechanism to assert or assume such a property: uninterpreted scans range over all bags including the empty one, the `unique`/key flags don't imply non-emptiness, and there is no non-empty `VALUES` or any operator whose output QED can certify to have ≥ 1 row (a global aggregate's output is treated opaquely beyond input-bag equality, as the porter confirmed empirically with `provable: false`). Dropping the condition makes the rewrite outright unsound — an anti-join with an empty right and no condition returns the entire left input rather than ∅ — so no side-condition-free encoding can be proved, and extending the DSL wouldn't help since the JSON table schema carries only per-row `guaranteed` predicates and key sets, not a bag-cardinality constraint the (unmodifiable) QED prover would honor. ```
+The encoding matches the rule's exact shape — an ANTI join of an uninterpreted left relation with the source's empty on-list rendered as a TRUE condition, rewritten to the empty relation over the left's output type — and the proof is non-vacuous: had the join kind been inner, the condition false, or the right side empty, the equivalence with the empty relation would have failed for non-empty left bags. The declared PARTIAL scope is honest and genuinely forced rather than a shortcut: QED's table format can only carry key constraints and row-level "guaranteed" predicates, both vacuous over the empty bag, so the `^(CanHaveZeroRows $right)` precondition (right is guaranteed non-empty) cannot be stated about an uninterpreted symbol and must be witnessed by a concrete non-empty relation (a one-row VALUES), and the correlated AntiJoinApply variant is not modelable because the DSL's `Correlate` builder always derives its condition from all left/right fields, so no empty/TRUE-apply condition can be expressed.
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": false,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 118834
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 1080375
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 334750
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 9621584
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 26388541
+  }
+}
+```

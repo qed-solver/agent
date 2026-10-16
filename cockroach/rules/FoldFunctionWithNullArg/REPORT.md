@@ -1,8 +1,10 @@
 # FoldFunctionWithNullArg
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 61  **Verification rounds used:** 4
+**Porter attempts used:** 41  **Verification rounds used:** 3
+**Scope detail:** encodes the rule for the concrete normal null-propagating function EQUALS, with the NULL literal as its second argument and an arbitrary first argument (a scan column), in projection position; full generality (any null-propagating function, any argument position, any scalar position) is unprovable because QED does not lift null through uninterpreted function symbols (re-verified: the uninterpreted f(x, NULL) -> NULL encoding produces a clean QED JSON yet yields provable=false)
+
 
 ## Source rule (as given to the porter)
 
@@ -77,6 +79,47 @@ Extracted from `fold_constants.opt` (which defines multiple rules — implement 
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-The rule's soundness rests on backend metadata about the function itself (CalledOnNullInput=false ⇒ a NULL argument forces a NULL result), but in QED's SMT encoding every scalar function symbol introduced by the DSL is a pure uninterpreted function, and null-propagation axioms are baked in only for QED's own primitives — so for any uninterpreted 1- or 2-arg f, `Project(f(…, NULL, …), S) ≡ Project(NULL, S)` is refuted by a model where f returns a non-NULL value on a NULL-containing tuple, and no relational trick (filters, joins, or table "guaranteed" constraints) can supply the missing axiom, since the gap is in the prover's semantics of the symbol, not in DSL expressiveness (granting blanket null-propagation to all uninterpreted ops would itself be unsound, e.g. for COALESCE/NULLIF). The only conceivable special case is instantiating the function with a built-in operator that genuinely propagates NULL — of the DSL-exposable And/Or/Not, only Not does (Not(NULL)→NULL), a degenerate single-operator instance that isn't really this rule and that the DSL can't even state without adding a NULL-literal builder. The porter's complete-fragment counterexamples on the 1-arg and 2-arg probes are consistent with this, so the UNSUPPORTED conclusion is correct.
+before() and after() are structurally different (projecting EQUALS(x, NULL) vs a bare BOOLEAN null), and the proof is non-vacuous: it succeeds only because QED's model gives `=` genuine three-valued null-propagation semantics, and the porter's re-verified provable=false for an uninterpreted f(x, NULL) rules out a vacuous or over-constrained shortcut. The encoding is a faithful, specific special case of FoldFunctionWithNullArg — EQUALS is a normal (non-aggregate/window/generator) function that is not invoked on null input, the null argument satisfies HasNullArg, and full generality is genuinely out of reach since the DSL cannot express function-metadata side conditions and QED has no null-propagation contract for uninterpreted function symbols. The SCOPE: PARTIAL line accurately and specifically discloses exactly this restriction. ```
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": true,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 70042
+  }
+}
+```

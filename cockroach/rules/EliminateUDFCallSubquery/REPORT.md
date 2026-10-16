@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 23  **Verification rounds used:** 2
+**Porter attempts used:** 58  **Verification rounds used:** 3
 
 ## Source rule (as given to the porter)
 
@@ -28,4 +28,4 @@ $udf
 
 **Verdict:** AGREE
 
-The rule is a scalar rewrite whose LHS is a scalar subquery term (a relation embedded inside a scalar expression, `Subquery(Values(udf))` ⟹ `udf`), and QED's core language is purely relational with bag/semiring semantics — it has no operator that maps a relation to a scalar term, so the only link between the two sides (the subquery's "evaluate and extract the single value" behavior) is bespoke operator semantics that QED's model cannot express or derive, leaving SMT with two unrelated uninterpreted terms. This is confirmed empirically by the structurally identical sibling EliminateConstValueSubquery (same `Subquery(Values(Tuple(single scalar)))` shape), which fast-rejected before SMT after 24 attempts and passed independent verification as unsupported. Closing the DSL gaps (non-empty Values, a subquery-term builder) would only let the pattern be serialized — proving it would require modeling scalar-subquery algebra inside the immutable prover, which is out of bounds, so the UNSUPPORTED call is sound. ```
+The rule's correctness rests exactly on the algebraic identity of the value-returning scalar-subquery operator — unique(Values[<e>]) = <e> — and QED's documented model gives concrete semantics only to the cardinality-based EXISTS, treating aggregate/subquery operators as uninterpreted bag-to-value functions known solely up to input bag equality. Every faithful RuleScript encoding must carry that opaque operator on the before side and the bare UDF term on the after side, so no Java-side DSL extension (which only affects JSON construction, not the untouchable prover's axioms) can bridge the gap — consistent with the independently verified identical wall for the constant-payload sibling EliminateConstValueSubquery. ```

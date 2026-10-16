@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 23  **Verification rounds used:** 2
+**Porter attempts used:** 24  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -30,4 +30,4 @@ Extracted from `numeric.opt` (which defines multiple rules — implement specifi
 
 **Verdict:** AGREE
 
-The rule's core is the numeric identity `x - 0 = cast(x)`, which needs QED to (a) name the numeric constant 0 — the DSL only exposes boolean literals (`RexRN.trueLiteral`/`falseLiteral`), and a `Scan` is an arbitrary relation, so there is no "single row containing 0" to join against — and (b) have arithmetic axioms connecting `minus` and `cast`; QED models non-boolean scalar operators as uninterpreted functions over uninterpreted types with no axioms relating distinct operator symbols, so for any faithful encoding the SMT solver can assign different functions to `minus` and `cast` and refute the equality. This is a fundamental limitation of the prover's theory (the "Peano arithmetic" in qed.pdf is used only for bag-multiplicity counting, not data-value arithmetic), and extending the DSL cannot close it since the axiom gap lives in the prover — consistent with the independently reviewed FoldDivOne precedent from the same file, which has the identical structure (`x / 1 = cast(x)`). ```
+FoldMinusZero is a purely scalar arithmetic normalization (`x - 0` → `cast(x, τ)`) whose validity rests on the subtract-by-zero identity and on type-cast semantics; the core language has no scalar minus or cast operator at all (RelRN.Minus is relational EXCEPT), and any operator introduced — including via a DSL extension — serializes as an uninterpreted function symbol with no axioms in the unmodifiable Rust prover, so `minus(x, 0)` and `cast(x)` — or even `minus(x, 0)` and bare `x` — are unequal in some model of QED's fixed theory (equality, UF, order, nat addition, ite) for every instantiation, making UNSUPPORTED the correct call.

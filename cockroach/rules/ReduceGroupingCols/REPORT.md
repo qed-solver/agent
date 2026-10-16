@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 44  **Verification rounds used:** 3
+**Porter attempts used:** 28  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -60,4 +60,4 @@ Extracted from `groupby.opt` (which defines multiple rules — implement specifi
 
 **Verdict:** AGREE
 
-Any nontrivial firing of ReduceGroupingCols must prove that the removed grouping column is equal to a new `ConstAgg` of that column, but QED treats aggregate calls as uninterpreted except for equality of their input bags and has no algebra for `ConstAgg` picking the group-constant value. The rule also depends on the `RedundantCols` functional-dependency guard, which is a cross-row property the DSL/QED cannot assume, so no non-vacuous instance of this rewrite is provable.
+ReduceGroupingCols is sound only because of a specific algebraic identity — ConstAgg/ANY_VALUE(r) over a group returns the group's (constant) value of the redundant column r — and QED models every aggregate as an uninterpreted bag-to-scalar operator with no axioms (it can only relate aggregate calls when their input bags are provably equal, qed.pdf §6.2). Here the rewrite produces an uninterpreted f(bag) on the after-side versus the raw column value on the before-side; no SMT decision procedure can equate those for uninterpreted f, and the FD/key precondition (even if fully expressible, which would require a DSL extension for multi-column key constraints) cannot supply the missing axiom, since that gap is inside the trusted prover, not the DSL. Consequently every instance of this rewrite, including any key-based special case, requires the same unprovable identity, so no narrower provable special case exists and the UNSUPPORTED verdict stands. ```

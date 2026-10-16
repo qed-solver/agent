@@ -1,27 +1,53 @@
+// SCOPE: PARTIAL — INNER apply join only, one single-column L (x) and a two-column R (a, b), a single equality outer-column reference a = x in the right Select, and a single ON equality b = x
 package org.qed.RRuleInstances;
-// SCOPE: PARTIAL — the InnerJoinApply case only: both inputs are single-column scans of one shared uninterpreted type, ON is the genuine equality l.c0 = r.c0, and the remapped predicate is an uninterpreted 1-ary h over the outer column, swapped to the equal left column
+
 import kala.collection.Seq;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.rel.logical.LogicalCorrelate;
+import org.apache.calcite.rel.logical.LogicalFilter;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.util.ImmutableBitSet;
 import org.qed.RRule;
 import org.qed.RelRN;
 import org.qed.RexRN;
 import org.qed.RuleBuilder;
 
 public record TryRemapJoinOuterColsRight() implements RRule {
-    static final RelRN L = RelRN.scan("L", RexRN.varType("T", true), false);
-    static final RelRN R = RelRN.scan("R", RexRN.varType("T", true), false);
-    static final SqlOperator h = RuleBuilder.create().genericPredicateOp("h", true);
-    static final RelRN join = L.correlate(JoinRelType.INNER, SqlStdOperatorTable.EQUALS, R);
+    static final RelRN left = RelRN.scan("L", RexRN.varType("K", true), false);
+    static final RelRN right = RelRN.scanMany("R", Seq.of(RexRN.varType("K", true), RexRN.varType("K", true)));
+
+    private record Apply(RelRN l, RelRN r, boolean remapped) implements RelRN {
+        @Override
+        public RelNode semantics() {
+            var b = RuleBuilder.create();
+            var rb = b.getRexBuilder();
+            RelNode ln = l.semantics();
+            RelNode rn = r.semantics();
+            var corrId = b.getCluster().createCorrel();
+            var corrVar = rb.makeCorrel(ln.getRowType(), corrId);
+            RexNode a = rb.makeInputRef(rn, 0);
+            RexNode bCol = rb.makeInputRef(rn, 1);
+            RexNode rightCond = remapped
+                    ? rb.makeCall(SqlStdOperatorTable.EQUALS, a, bCol)
+                    : rb.makeCall(SqlStdOperatorTable.EQUALS, a, rb.makeFieldAccess(corrVar, 0));
+            RelNode apply = LogicalCorrelate.create(ln, LogicalFilter.create(rn, rightCond), java.util.List.of(), corrId,
+                    ImmutableBitSet.of(0), JoinRelType.INNER);
+            RexNode on = rb.makeCall(SqlStdOperatorTable.EQUALS,
+                    rb.makeInputRef(apply.getRowType().getFieldList().get(0).getType(), 0),
+                    rb.makeInputRef(apply.getRowType().getFieldList().get(2).getType(), 2));
+            return b.push(apply).filter(on).build();
+        }
+    }
 
     @Override
     public RelRN before() {
-        return join.filter(new RexRN.Pred(h, Seq.of(join.field(1))));
+        return new Apply(left, right, false);
     }
 
     @Override
     public RelRN after() {
-        return join.filter(new RexRN.Pred(h, Seq.of(join.field(0))));
+        return new Apply(left, right, true);
     }
 }

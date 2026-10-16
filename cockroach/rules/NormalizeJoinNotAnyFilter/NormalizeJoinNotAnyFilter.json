@@ -1,0 +1,106 @@
+{
+  "help" : [ "LogicalJoin(condition=[NOT(IN($0, {\nLogicalTableScan(table=[[Sub]])\n}))], joinType=[inner])\n  LogicalTableScan(table=[[Left]])\n  LogicalTableScan(table=[[Right]])\n", "LogicalJoin(condition=[NOT(EXISTS({\nLogicalFilter(condition=[OR(=($cor0.col-Left, $0), IS NULL(=($cor0.col-Left, $0)))])\n  LogicalTableScan(table=[[Sub]])\n}))], joinType=[inner], variablesSet=[[$cor0]])\n  LogicalTableScan(table=[[Left]])\n  LogicalTableScan(table=[[Right]])\n" ],
+  "schemas" : [ {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Sub",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Sub" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Left",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Left" ],
+    "key" : [ ]
+  }, {
+    "types" : [ "INTEGER" ],
+    "nullable" : [ true ],
+    "name" : "Right",
+    "guaranteed" : [ ],
+    "fields" : [ "col-Right" ],
+    "key" : [ ]
+  } ],
+  "queries" : [ {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "query" : {
+            "scan" : 0
+          },
+          "type" : "BOOLEAN",
+          "operand" : [ {
+            "column" : 0,
+            "type" : "INTEGER"
+          } ],
+          "operator" : "IN"
+        } ],
+        "operator" : "NOT"
+      },
+      "left" : {
+        "scan" : 1
+      },
+      "kind" : "INNER",
+      "right" : {
+        "scan" : 2
+      }
+    }
+  }, {
+    "join" : {
+      "condition" : {
+        "type" : "BOOLEAN",
+        "operand" : [ {
+          "query" : {
+            "filter" : {
+              "condition" : {
+                "type" : "BOOLEAN",
+                "operand" : [ {
+                  "type" : "BOOLEAN",
+                  "operand" : [ {
+                    "column" : 0,
+                    "type" : "INTEGER"
+                  }, {
+                    "column" : 2,
+                    "type" : "INTEGER"
+                  } ],
+                  "operator" : "="
+                }, {
+                  "type" : "BOOLEAN",
+                  "operand" : [ {
+                    "type" : "BOOLEAN",
+                    "operand" : [ {
+                      "column" : 0,
+                      "type" : "INTEGER"
+                    }, {
+                      "column" : 2,
+                      "type" : "INTEGER"
+                    } ],
+                    "operator" : "="
+                  } ],
+                  "operator" : "IS NULL"
+                } ],
+                "operator" : "OR"
+              },
+              "source" : {
+                "scan" : 0
+              }
+            }
+          },
+          "type" : "BOOLEAN",
+          "operand" : [ ],
+          "operator" : "EXISTS"
+        } ],
+        "operator" : "NOT"
+      },
+      "left" : {
+        "scan" : 1
+      },
+      "kind" : "INNER",
+      "right" : {
+        "scan" : 2
+      }
+    }
+  } ]
+}

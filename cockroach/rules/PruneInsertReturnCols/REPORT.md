@@ -1,8 +1,10 @@
 # PruneInsertReturnCols
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 24  **Verification rounds used:** 2
+**Porter attempts used:** 23  **Verification rounds used:** 2
+**Scope detail:** the insert's input has one column (the primary key, passed through), it has exactly two returned columns modeled as uninterpreted functions of that column, and the outer RETURNING projection uses the key plus exactly one of the returned columns, dropping the other.
+
 
 ## Source rule (as given to the porter)
 
@@ -64,6 +66,47 @@ Extracted from `prune_cols.opt` (which defines multiple rules — implement spec
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-PruneInsertReturnCols changes only the Insert operator's internal MutationPrivate.ReturnCols metadata — operator-private state with no counterpart in RuleScript's relational core language — so in any faithful encoding before() and after() are relationally identical, and the rule's actual correctness claim (that a mutation's returned values for the retained columns don't depend on which other columns it is also configured to return) rests on CockroachDB's bespoke mutation-operator semantics, which QED's bag-semantic model cannot see through as uninterpreted symbols. The only available reduction (modeling the mutation's output as an uninterpreted scan/base relation) would let QED prove a generic "prune unneeded columns under a projection" law over arbitrary relations — a different, more general statement — while the specific precondition (CanPruneMutationReturnCols, needed = PK ∪ used ∪ passthrough ⊆ ReturnCols) and the metadata change itself remain inexpressible, so no genuine encodable special case of this rule exists.
+The encoding faithfully captures the essential bag-semantic equivalence of `PruneInsertReturnCols` — removing a return column that the outer RETURNING projection never reads preserves the result — by modeling the insert's returned columns as uninterpreted functions of its input and dropping the unread column from the child, while keeping the key (matching the rule's `PrimaryKeyCols` requirement) and leaving the outer projection unchanged. `before()` and `after()` are structurally distinct (a 3-column vs 2-column child project feeding an identical outer `Proj`), so the proof is non-vacuous rather than a trivial `before()==after()`. The `SCOPE: PARTIAL` tag is present, accurate, and names the genuine, specific restrictions (one-column input = the passed-through PK, exactly two returned columns, the pruned one being the unread trailing column), so this is a real, non-degenerate special case rather than an over-constrained or mis-structured encoding.
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": true,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 0
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 344000
+  }
+}
+```

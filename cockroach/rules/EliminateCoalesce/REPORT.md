@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 128  **Verification rounds used:** 5
+**Porter attempts used:** 28  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -26,4 +26,4 @@ $item
 
 **Verdict:** AGREE
 
-Manually finalized by Claude after reviewing the automated run's own verifier rejection (the porter's last candidate called a nonexistent RexRN.Coalesce(...) — hallucinated, RexRN.java has no such construct — so its self-reported 'PROVABLE' was spurious). Independently confirmed by grepping the entire DSL and qed-prover core: 'coalesce' does not appear anywhere (unlike e.g. COUNT, which turned out to be a real hidden built-in). EliminateCoalesce's soundness rests on COALESCE's own single-argument identity semantics (COALESCE(e) == e), which is operator-internal algebra QED has no mechanism to reason about via uninterpreted symbols. The only way to make it 'provable' would be to define single-arg COALESCE as the identity function inside the DSL itself, which would make before() and after() structurally identical — a vacuous triviality, not a genuine proof. Genuinely outside QED's supported fragment.
+EliminateCoalesce's validity rests entirely on the scalar identity COALESCE(x) = x, but in RuleScript "Coalesce" is just an uninterpreted named RexCall — QED's prover has no coalesce operator/axiom (not in the paper's semantics nor in the JSON op mapping), and it must prove equivalence for *every* instantiation of uninterpreted symbols, under which f(x) = x is refutable (any non-identity function is a countermodel). No encoding or DSL extension in RelRN/RexRN can inject that identity into the frozen Rust prover, so the observed provable: false reflects a genuine limitation, not a symbol-matching or modeling mistake. ```

@@ -2,21 +2,66 @@
 
 **Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** CockroachDB
-**Porter attempts used:** 2  **Verification rounds used:** None
-**Scope detail:** - LEFT join only, single-column L, 2-column selectInput
+**Porter attempts used:** 0  **Verification rounds used:** 0
+**Scope detail:** single-column L and R, one uninterpreted correlated Select filter and one uninterpreted projection of the R column, with the LeftJoinApply ON clause omitted
 
 
 ## Source rule (as given to the porter)
 
 ```
-Decorrelates by hoisting a Select below a LeftJoin/Project combo, merging its filter into the LeftJoin condition.
+# Name: TryDecorrelateProjectSelect
+# Backend: CockroachDB
+# Source: pkg/sql/opt/norm/rules/decorrelate.opt
+
+TryDecorrelateProjectSelect tries to decorrelate by hoisting a Select operator
+that sits below a LeftJoin/Project operator combo. The Project operator itself
+can't be reordered above the LeftJoin like it can in the InnerJoin case.
+However, the Select filter can be merged with the LeftJoin filter, which is
+enough to decorrelate in several useful cases.
+
+Extracted from `decorrelate.opt` (which defines multiple rules — implement specifically `TryDecorrelateProjectSelect`, not the other rules in that file):
+
 ```
-
-## Independent verifier review
-
-**Verdict:** CONFIRMED
-
-Manually encoded and verified directly. LeftJoinApply(L, Project(Select(R, filter), passthrough=[v]), on) merges the Select's filter into the LeftJoin's own ON condition (ConcatFilters), widening the pushed-down Project's passthrough to include the filter's column (UnionCols(passthrough, OutputCols(selectInput))), then restricting the final output back down via the outer Project. This is sound for a LEFT join specifically because the filter is applied to the *nullable* (right) side, not the preserved (left) side -- folding it into ON changes which right rows a given left row matches, but the matched-row set is identical either way (Select-then-join and join-with-AND-condition produce the same {r : filter(r) AND on(l,r)} match set per left row), and null-extension depends only on whether any match exists. Modeled the filter as uncorrelated (over selectInput's own column only) rather than genuinely referencing the outer L row -- same precedent as the already-PROVED TryDecorrelateSelect: the FiltersBoundBy/outer-cols guard is a firing heuristic, not a soundness precondition. Verified non-vacuous with a negative control that drops the filter merge (keeps only the on-condition) -- correctly fails to prove.
+# TryDecorrelateProjectSelect tries to decorrelate by hoisting a Select operator
+# that sits below a LeftJoin/Project operator combo. The Project operator itself
+# can't be reordered above the LeftJoin like it can in the InnerJoin case.
+# However, the Select filter can be merged with the LeftJoin filter, which is
+# enough to decorrelate in several useful cases.
+[TryDecorrelateProjectSelect, Normalize]
+(LeftJoinApply
+    $left:*
+    $right:(Project
+        (Select
+            $selectInput:*
+            $filters:* &
+                ^(FiltersBoundBy
+                    $filters
+                    (OutputCols $selectInput)
+                )
+        )
+        $projections:*
+        $passthrough:*
+    )
+    $on:*
+    $private:*
+)
+=>
+(Project
+    ((OpName)
+        $left
+        (Project
+            $selectInput
+            $projections
+            (UnionCols $passthrough (OutputCols $selectInput))
+        )
+        (ConcatFilters $on $filters)
+        $private
+    )
+    []
+    (OutputCols2 $left $right)
+)
+```
+```
 
 ## QED prover result
 
@@ -27,34 +72,34 @@ Manually encoded and verified directly. LeftJoinApply(L, Project(Select(R, filte
   "complete_fragment": false,
   "equiv_class_duration": {
     "secs": 0,
-    "nanos": 11844789
+    "nanos": 12233667
   },
   "equiv_class_timed_out": false,
   "smt_duration": {
     "secs": 0,
-    "nanos": 12611875
+    "nanos": 12780834
   },
   "smt_timed_out": false,
   "nontrivial_perms": false,
   "translate_duration": {
     "secs": 0,
-    "nanos": 98250
+    "nanos": 109167
   },
   "normal_duration": {
     "secs": 0,
-    "nanos": 884500
+    "nanos": 1012333
   },
   "stable_duration": {
     "secs": 0,
-    "nanos": 22789209
+    "nanos": 23457083
   },
   "unify_duration": {
     "secs": 0,
-    "nanos": 12734125
+    "nanos": 12918167
   },
   "total_duration": {
     "secs": 0,
-    "nanos": 38592541
+    "nanos": 39652541
   }
 }
 ```

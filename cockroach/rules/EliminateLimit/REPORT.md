@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 21  **Verification rounds used:** 2
+**Porter attempts used:** 22  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -33,4 +33,4 @@ $input
 
 **Verdict:** AGREE
 
-Limit is one of the operators QED explicitly does not model (Sort/Limit/Offset have no bag-semantic meaning; Limit is left uninterpreted with no row-retention, ordering, or cardinality axioms), and the rule's correctness rests exactly on that missing semantics — the side condition LimitGeMaxRows needs a bound on the input's maximum row count, and the conclusion needs the axiom that a Limit with limit >= maxRows acts as the identity. Since the rewrite *removes* the Limit (the after side is the bare input), a faithful encoding cannot share the Limit symbol as a common wrapper on both sides to factor out as in the proven AssociateLimitJoinsLeft-style precedent; the two sides become Limit(x) versus x for an uninterpreted function, which is not valid for arbitrary x, and no core-language stand-in (filter, join, union, aggregate) can faithfully model positional row selection, so no narrower special case is provable either.
+EliminateLimit's correctness rests on two things QED fundamentally lacks, per the Limitations section: it models no list/ordering semantics, so a `Limit` node is an uninterpreted operator in the fixed prover with no axiom of any form `Limit(n, X) ≡ X` (or `Limit(n, ∅) ≡ ∅`), and the rule's guard `limit ≥ MaxRows(input)` is a cardinality precondition that RuleScript (unconditional before/after equivalence) and QED's JSON (no row-count field; only row-level `guaranteed` predicates) have no mechanism to express. The only DSL input with a structurally bounded row count is `Empty`, and even that degenerate instance is unprovable for the first reason, so `extend_dsl_file` (which can only add builders, not prover axioms) cannot close the gap — a genuine QED limitation, not a missed encoding. ```

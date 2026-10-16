@@ -2,12 +2,13 @@
 
 **Status:** SKIPPED
 **Source backend:** CockroachDB
-**Porter attempts used:** 100  **Verification rounds used:** 5
 
 ## Source rule (as given to the porter)
 
 ```
-Source: pkg/sql/opt/norm/rules/decorrelate.opt
+# Name: HoistProjectSubquery
+# Backend: CockroachDB
+# Source: pkg/sql/opt/norm/rules/decorrelate.opt
 
 HoistProjectSubquery extracts subqueries from a projections list and joins
 them with the Project input. This and other subquery hoisting patterns create
@@ -38,8 +39,6 @@ Extracted from `decorrelate.opt` (which defines multiple rules — implement spe
 ```
 ```
 
-## Independent verifier review
+## Reason
 
-**Verdict:** AGREE
-
-Manually investigated by Claude (the automated run exhausted all 5 rounds on repeated context-length crashes, never reaching a real try_rule call). Read the actual implementation (decorrelate_funcs.go's HoistProjectSubquery + subqueryHoister): it hoists a scalar-valued correlated subquery used inside a Project's projection list (e.g. (SELECT max(u) FROM uv WHERE u=x) AS m) out into an INNER or LEFT JOIN LATERAL, choosing the join type based on the subquery's cardinality guarantees, then references the join's own output column in place of the original subquery expression. Checked whether the EXISTS trick used for EliminateExistsProject/EliminateExistsZeroRows extends here: Calcite does provide RexSubQuery.scalar(RelNode), but grepping the entire qed-prover core turns up zero handling for it ($SCALAR_QUERY) — unlike EXISTS (which has a real interpreted match arm in relation.rs's eval_logic), a scalar subquery used as a value falls through to a fully opaque HOp(op, args, rel, ty) with no defined relationship between 'this subquery's value, expressed as an opaque function of its embedded relation' and 'the same relation's column, referenced directly once joined in via Correlate.' There is no representational bridge connecting those two forms for QED to reason across — the same class of fundamental gap as CorrelateUncollectOuter (a missing operator concept), not a narrow-encoding opportunity like the EXISTS-boolean case.
+In the DSL a scalar subquery reaches the prover as an opaque $SCALAR_QUERY operator with no relation to a join, so a subquery in a filter or projection cannot be shown equal to the same value taken from a joined column. Encodings with a COUNT scalar subquery in a Select filter against a Project over a left join, and against an inner join, both come back unprovable. The same hoisting applies to a Project's projection list, and the rewrite is a Go function that builds apply joins, so there is no declarative form to encode.

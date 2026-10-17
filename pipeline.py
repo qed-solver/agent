@@ -101,12 +101,17 @@ class Pipeline:
     ) -> Path:
         out = self.rules_out_dir / rule_name
         out.mkdir(parents=True, exist_ok=True)
-        if java_source:
-            (out / f"{rule_name}.java").write_text(java_source)
-        if json_path and json_path.exists():
-            (out / f"{rule_name}.json").write_text(json_path.read_text())
-        if result_json is not None:
-            (out / f"{rule_name}.result.json").write_text(json.dumps(result_json, indent=2))
+        if status == "PROVED":
+            if java_source:
+                (out / f"{rule_name}.java").write_text(java_source)
+            if json_path and json_path.exists():
+                (out / f"{rule_name}.json").write_text(json_path.read_text())
+            if result_json is not None:
+                (out / f"{rule_name}.result.json").write_text(json.dumps(result_json, indent=2))
+        else:
+            for stale in out.iterdir():
+                if stale.is_file() and stale.name != "REPORT.md":
+                    stale.unlink()
         report = [
             f"# {rule_name}",
             "",

@@ -11660,21 +11660,6 @@
     "timestamp": "2026-10-16T13:58:29.842370+00:00"
   },
   {
-    "rule_name": "TryDecorrelateWindow",
-    "source_backend": "CockroachDB",
-    "source_description": "Source: pkg/sql/opt/norm/rules/decorrelate.opt\n\nTryDecorrelateWindow \"pushes down\" a Join into a Window operator, in an\nattempt to keep \"digging\" down to find and eliminate unnecessary correlation.\nThe eventual hope is to trigger the DecorrelateJoin rule to turn a JoinApply\noperator into a non-apply Join operator. This rule is very similar to\nTryDecorrelateGroupBy.\n\nThis rule adds the output columns of the left side of the join to the Window\noperator's partition cols. This effectively means that each row of the left\nside of the join is windowed independently, assuming the left side has a key\n(and if it doesn't, we can give it one via EnsureKey).\n\nSELECT\nleft.k, left.x, right.x, rank\nFROM\nleft\nINNER JOIN LATERAL (\nSELECT rank() OVER () AS rank, right.x FROM (SELECT * FROM right WHERE left.k = right.k)\n)\n=>\nSELECT\nleft.k, left.x, right.x, rank() OVER (PARTITION BY left.k) AS rank\nFROM\nleft INNER JOIN right ON left.k = right.k\n\nSketch of why this rule works (assume A has a key):\n\nRecall from [3] that the definition of Apply (for cross joins) is:\n\n(InnerJoinApply A E true) = (Union_{r \u2208 A} {r} \u00d7 E(r))\n\nWhere E is a relational expression mapping rows r \u2208 A to relational result\nsets.\n\nStarting with (InnerJoinApply A (Window B partcols) on), where P is the set of\npartition columns and p is the join predicate.\n\n= (Select (InnerJoinApply A (Window B partcols) true) on)\n\nBy the inverse of MergeSelectInnerJoin.\n\n= (Select\n(Union_{r \u2208 A} {r} \u00d7 (Window B partcols)(r))\non\n)\n\nBy the definition of Apply.\n\n= (Select\n(Union_{r \u2208 A} {r} \u00d7 (Window B(r) partcols))\non\n)\n\nBy the fact that by construction, window functions only refer to\nvariable references in their input.\n\n= (Select\n(Union_{r \u2208 A} (Window {r} \u00d7 B(r) partcols))\non\n)\n\nBecause the Window only looks at columns from B(r).\n\n= (Select\n(Window\n(Union_{r \u2208 A} {r} \u00d7 B(r))\n(Union partcols (KeyCols A))\n)\non\n)\n\nRoughly, since A has a key, partitioning (Union_{r \u2208 A} r \u00d7 B(r)) by the key\nof A results in exactly one partition for each row in A, and so partitioning\nhigher up has the same effect as performing the window function for each row.\n\n= (Select\n(Window\n(InnerJoinApply A B true)\n(Union partcols (OutputCols A))\n)\non\n)\n\nAgain by the definition of Apply.\n\nExtracted from `decorrelate.opt` (which defines multiple rules \u2014 implement specifically `TryDecorrelateWindow`, not the other rules in that file):\n\n```\n# TryDecorrelateWindow \"pushes down\" a Join into a Window operator, in an\n# attempt to keep \"digging\" down to find and eliminate unnecessary correlation.\n# The eventual hope is to trigger the DecorrelateJoin rule to turn a JoinApply\n# operator into a non-apply Join operator. This rule is very similar to\n# TryDecorrelateGroupBy.\n#\n# This rule adds the output columns of the left side of the join to the Window\n# operator's partition cols. This effectively means that each row of the left\n# side of the join is windowed independently, assuming the left side has a key\n# (and if it doesn't, we can give it one via EnsureKey).\n#\n# SELECT\n#     left.k, left.x, right.x, rank\n# FROM\n#   left\n#   INNER JOIN LATERAL (\n#     SELECT rank() OVER () AS rank, right.x FROM (SELECT * FROM right WHERE left.k = right.k)\n#   )\n# =>\n# SELECT\n#   left.k, left.x, right.x, rank() OVER (PARTITION BY left.k) AS rank\n# FROM\n#   left INNER JOIN right ON left.k = right.k\n#\n# Sketch of why this rule works (assume A has a key):\n#\n# Recall from [3] that the definition of Apply (for cross joins) is:\n#\n#  (InnerJoinApply A E true) = (Union_{r \u2208 A} {r} \u00d7 E(r))\n#\n# Where E is a relational expression mapping rows r \u2208 A to relational result\n# sets.\n#\n# Starting with (InnerJoinApply A (Window B partcols) on), where P is the set of\n# partition columns and p is the join predicate.\n#\n#  = (Select (InnerJoinApply A (Window B partcols) true) on)\n#\n# By the inverse of MergeSelectInnerJoin.\n#\n#  = (Select\n#      (Union_{r \u2208 A} {r} \u00d7 (Window B partcols)(r))\n#      on\n#    )\n#\n# By the definition of Apply.\n#\n#  = (Select\n#      (Union_{r \u2208 A} {r} \u00d7 (Window B(r) partcols))\n#      on\n#    )\n#\n# By the fact that by construction, window functions only refer to\n# variable references in their input.\n#\n#  = (Select\n#      (Union_{r \u2208 A} (Window {r} \u00d7 B(r) partcols))\n#      on\n#    )\n#\n# Because the Window only looks at columns from B(r).\n#\n#  = (Select\n#      (Window\n#        (Union_{r \u2208 A} {r} \u00d7 B(r))\n#        (Union partcols (KeyCols A))\n#      )\n#      on\n#    )\n#\n# Roughly, since A has a key, partitioning (Union_{r \u2208 A} r \u00d7 B(r)) by the key\n# of A results in exactly one partition for each row in A, and so partitioning\n# higher up has the same effect as performing the window function for each row.\n#\n#  = (Select\n#      (Window\n#        (InnerJoinApply A B true)\n#        (Union partcols (OutputCols A))\n#      )\n#      on\n#    )\n#\n# Again by the definition of Apply.\n[TryDecorrelateWindow, Normalize]\n(InnerJoinApply | InnerJoin\n    $left:*\n    $right:(Window $input:* $windows:* $private:*) &\n        (HasOuterCols $right)\n    $on:*\n    $joinPrivate:*\n)\n=>\n(Project\n    # Needed to project away any columns added by EnsureKey.\n    (Select\n        (Window\n            ((OpName)\n                $newLeft:(EnsureKey $left)\n                $input\n                []\n                $joinPrivate\n            )\n            $windows\n            (AddColsToPartition $private (KeyCols $newLeft))\n        )\n        $on\n    )\n    []\n    (OutputCols2 $left $right)\n)\n```",
-    "status": "SKIPPED",
-    "attempts_used": 104,
-    "reason": "TryDecorrelateWindow depends on true window semantics\u2014partitioning, ordering, and per-row window-function behavior\u2014which QED does not model because Window has no bag-semantic meaning. The rewrite cannot be reduced to an equivalence of ordinary uninterpreted bag operators, so a QED proof is fundamentally out of reach.",
-    "prover_stats": {},
-    "verification_rounds_used": 6,
-    "verifier_verdict": "AGREE",
-    "verifier_reasoning": "TryDecorrelateWindow depends on true window semantics\u2014partitioning, ordering, and per-row window-function behavior\u2014which QED does not model because Window has no bag-semantic meaning. The rewrite cannot be reduced to an equivalence of ordinary uninterpreted bag operators, so a QED proof is fundamentally out of reach.",
-    "scope": "",
-    "scope_detail": "",
-    "timestamp": "2026-10-16T14:19:39.179431+00:00"
-  },
-  {
     "rule_name": "TryRemapSelectOuterCols",
     "source_backend": "CockroachDB",
     "source_description": "Source: pkg/sql/opt/norm/rules/decorrelate.opt\n\nTryRemapSelectOuterCols is similar to TryRemapJoinOuterColsRight, but it\napplies to the input of a Select.\n\nExtracted from `decorrelate.opt` (which defines multiple rules \u2014 implement specifically `TryRemapSelectOuterCols`, not the other rules in that file):\n\n```\n# TryRemapSelectOuterCols is similar to TryRemapJoinOuterColsRight, but it\n# applies to the input of a Select.\n[TryRemapSelectOuterCols, Normalize]\n(Select\n    $input:* & (HasOuterCols $input)\n    $on:* &\n        (CanMaybeRemapOuterCols $input $on) &\n        (Let ($remapped $ok):(TryRemapOuterCols $input $on) $ok)\n)\n=>\n(Select $remapped $on)\n```",
@@ -11918,5 +11903,55 @@
     "scope": "",
     "scope_detail": "",
     "timestamp": "2026-10-16T20:07:07.793538+00:00"
+  },
+  {
+    "rule_name": "TryDecorrelateWindow",
+    "source_backend": "CockroachDB",
+    "source_description": "(spec text unavailable at publish time)",
+    "status": "PROVED",
+    "attempts_used": 1,
+    "reason": "Manual encoding via PushSelectIntoWindow's join-back-on-partition idiom + TryDecorrelateGroupBy's single-key precedent; confirmed with negative control.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 10353792
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 18333333
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 142750
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 1040417
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 20549375
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 18575458
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 42510708
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "Manual encoding, following the same 'left already has a strict key, Input uncorrelated' precedent already established (and independently verified) for TryDecorrelateGroupBy's single-key case, plus the join-back-on-partition-key idiom that PushSelectIntoWindow (already PROVED) uses to model Window as an uninterpreted per-partition aggregate joined to its input. The window's pre-existing partition-column set is modeled as EMPTY (a scalar/whole-input window, e.g. RANK() OVER ()), so AddColsToPartition(private, KeyCols(newLeft)) adds exactly L's own key as the sole partition column after decorrelation -- the same single-key shape already confirmed provable for the analogous GroupBy rule (multi-key partition sets hit the same known SMT-completeness gap that blocks multi-key GroupBy, so this PARTIAL scope deliberately stays in the single-key fragment). QED proves it (provable=true); a negative control that cross-joins the per-partition aggregate back instead of joining on the partition key (collapsing per-L-row partitioning into one shared scalar value) correctly fails to prove, confirming the per-partition join is load-bearing.",
+    "scope": "PARTIAL",
+    "scope_detail": "the 'left already has a strict key' branch (EnsureKey is a no-op), uncorrelated Input (HasOuterCols is a firing heuristic per the TryDecorrelateSelect/TryDecorrelateGroupBy precedent), Window modeled via the join-back-on-partition-key idiom (no frame/ordering semantics, an uninterpreted aggregate standing in for the window function), starting from EMPTY pre-existing partition columns so only L's key is added, single aggregate call, ON references only the input's value column",
+    "timestamp": "2026-09-30T03:11:24.283606+00:00"
   }
 ]

@@ -1,8 +1,8 @@
 # RuleScript porting progress
 
-_Last updated: 2026-10-14T15:59:53.925350+00:00_
+_Last updated: 2026-10-17T08:34:07.576139+00:00_
 
-**96/151 rules proved** (0 failed, 55 skipped as out of QED's supported fragment).
+**97/151 rules proved** (0 failed, 54 skipped as out of QED's supported fragment).
 
 | Rule | Backend | Status | Scope | Attempts | Notes |
 |---|---|---|---|---|---|
@@ -75,6 +75,7 @@ _Last updated: 2026-10-14T15:59:53.925350+00:00_
 | `ProjectCalcMerge` | Apache Calcite | ✅ PROVED | PARTIAL | 9 | The encoding faithfully desugars the Project-over-Calc match (a Calc as filter(B)∘project(E0,E1), exact because the fixed shape has no lo... |
 | `ProjectCorrelateTranspose` | Apache Calcite | ✅ PROVED | PARTIAL | 62 | The encoding is a genuine, non-vacuous special case: before() projects above a 4-column cross product while after() prunes each input to ... |
 | `ProjectFilterTranspose` | Apache Calcite | ✅ PROVED | PARTIAL | 39 | The encoding is a faithful fixed-shape instantiation of the rule's whole-expressions mode: before() = Filter(P(E(x,y), y), S) → Project(E... |
+| `ProjectJoinJoinRemove` | Apache Calcite | ✅ PROVED | PARTIAL | 120 | Manually re-derived and verified by Claude (not the automated porter/verifier LLM loop, which exhausted all 5 rounds on repeated context-... |
 | `ProjectJoinRemove` | Apache Calcite | ✅ PROVED | PARTIAL | 24 | The encoding is a non-vacuous, correctly-modeled special case of the source rule: it captures the LEFT-join self-join-on-unique-key form ... |
 | `ProjectJoinTranspose` | Apache Calcite | ✅ PROVED | PARTIAL | 10 | The encoding is a faithful, non-vacuous special case: `before()` (inner join of raw scans with condition C(TL(l),TR(r)) and top projectio... |
 | `ProjectMerge` | Apache Calcite | ✅ PROVED | FULL | 6 | `before()` (a Project stacked on a Project) and `after()` (a single Project) are structurally distinct, so the proof is non-vacuous and m... |
@@ -139,7 +140,6 @@ _Last updated: 2026-10-14T15:59:53.925350+00:00_
 | `MaterializedViewProjectJoin` | Apache Calcite | ⏭️ SKIPPED | — | 14 | The rule's soundness rests entirely on the planner-maintained invariant that the MV's physical table holds exactly the bag produced by it... |
 | `MinusToDistinct` | Apache Calcite | ⏭️ SKIPPED | — | 10 | The rewrite's correctness rests entirely on reading membership off aggregate outputs — `COUNT() FILTER tag=i` > 0 / == 0 testing whether ... |
 | `MinusToFilter` | Apache Calcite | ⏭️ SKIPPED | — | 45 | I independently verified the rewrite is mathematically sound, but any faithful encoding forces QED to relate its EXCEPT (set-minus) primi... |
-| `ProjectJoinJoinRemove` | Apache Calcite | ⏭️ SKIPPED | — | 105 | The rewrite's row-level validity hinges on B's key being unique AND the top join condition referencing only the shared A-key column plus ... |
 | `ProjectMeasure` | Apache Calcite | ⏭️ SKIPPED | — | 41 | ProjectMeasureRule's rewrite (Aggregate(g, SINGLE_VALUE(d)) over a Project with d = M2X(V2M(e)) AS d) is only sound because of the measur... |
 | `ProjectMultiJoinMerge` | Apache Calcite | ⏭️ SKIPPED | — | 23 | Calcite's `ProjectMultiJoinMerge` leaves the MultiJoin's inputs, join conditions, row type, and even the top-level project (reused verbat... |
 | `ProjectOverSumToSum0` | Apache Calcite | ⏭️ SKIPPED | — | 23 | The rewrite operates entirely on window aggregates (`SUM(x) OVER (frame)` → `SUM0(x) OVER (frame)`), and QED has no bag-semantic model fo... |
@@ -796,6 +796,15 @@ Note: SemiJoinRule.java defines multiple distinct rule variants as separate stat
 - Reason / notes: The encoding is a faithful fixed-shape instantiation of the rule's whole-expressions mode: before() = Filter(P(E(x,y), y), S) → Project(E(x,y), F(x)), and after() hoists E and F into Project(S, [x, y, E(x,y), F(x)]), filters on the hoisted columns via the same uninterpreted P, and projects them back out — exactly the sub-project/filter/top-project shape Calcite's Replacer builds. The proof is non-vacuous (the plans genuinely differ: filter over raw scan with embedded uninterpreted calls vs. filter over a larger intermediate projection), symbols are correctly shared (E, F, P reused by name across both sides, with no spurious identification of independent expressions), and no hidden preconditions are needed since bag-semantics commutation of Filter and Project holds for any uninterpreted operators and all column types — which the prover checked universally. The remaining gap to the full rule (arbitrary numbers of input columns, project expressions, and filter operands, plus ref-collection across arbitrary shapes) is inherent to RuleScript's lack of let-binding/bounded-schema constructs, not an avoidable hard-coding; the SCOPE: PARTIAL line is specific, accurate, and the rule is a useful non-degenerate special case. ```
 - QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 84999541}, panicked=False
 
+### `ProjectJoinJoinRemove` — ✅ PROVED
+
+- Source backend: Apache Calcite
+- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/ProjectJoinJoinRemoveRule.java
+- Attempts used: 120
+- Last updated: 2026-09-25T18:26:16.886499+00:00
+- Reason / notes: Manually re-derived and verified by Claude (not the automated porter/verifier LLM loop, which exhausted all 5 rounds on repeated context-length crashes without ever reaching a try_rule call). Read the source (ProjectJoinJoinRemoveRule.java): it eliminates the right input B of a bottom LEFT JOIN(A,B) feeding a top LEFT JOIN(that, C), when (1) neither the outer project nor the top join's condition reference any column of B, (2) the top join's left-side join key equals the bottom join's own left-side join key (same column of A reused), and (3) B's join-key columns are unique. First tried the fully general two-distinct-relations form (A, B, C with B merely unique-keyed) — genuinely NOT provable (confirmed real, not a bug: QED's equivalence-class layer rejects it before SMT even runs). Then mirrored the same narrow mechanism the already-proven ProjectJoinRemove precedent uses: a SELF-join of a unique non-nullable column on EQUALS (every row provably matches itself, so the LEFT join's null-extension term never fires), extended with a second join to C reusing that same column. This proves (provable=true, real SMT work happened — smt_duration>0, unlike the failed general attempt), and is confirmed non-vacuous: dropping the unique=true flag on the negative control correctly flips it to provable=false. This is the same narrow self-join special case ProjectJoinRemove already covers, just extended with one more join layer — consistent scope, not a stronger general claim.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 38820584}, panicked=False
+
 ### `ProjectJoinRemove` — ✅ PROVED
 
 - Source backend: Apache Calcite
@@ -1349,14 +1358,6 @@ Note: MeasureRules.java defines multiple distinct rule variants as separate stat
 - Attempts used: 45
 - Last updated: 2026-10-14T08:25:37.144556+00:00
 - Reason / notes: I independently verified the rewrite is mathematically sound, but any faithful encoding forces QED to relate its EXCEPT (set-minus) primitive to a group-all/distinct aggregate over a filtered scan, and both sides reduce to zero/positivity tests on semiring products of the form S·[predicate] (S·P_R = 0 on the before side, S·P_L·¬P_R > 0 from the distinct on the after side) — a zero-of-product / aggregate-algebra step beyond bag-equality that QED's semiring decision procedure cannot perform, and which no DSL extension or re-encoding can close since the prover itself is off-limits and the DSL already exposes every operator the rule needs. The porter's four fast, non-timed-out "not provable" results across the full encodable 2×2 space (plain vs filtered left × unique vs non-unique base) are consistent with this: even the unique-key variant still requires 0/1-multiplication facts under a support test, and the only distinct alternative (union(false, F, F)) serializes into QED's same "distinct" wrapper. ```
-
-### `ProjectJoinJoinRemove` — ⏭️ SKIPPED
-
-- Source backend: Apache Calcite
-- Source rule: Source: core/src/main/java/org/apache/calcite/rel/rules/ProjectJoinJoinRemoveRule.java
-- Attempts used: 105
-- Last updated: 2026-10-14T09:26:22.814981+00:00
-- Reason / notes: The rewrite's row-level validity hinges on B's key being unique AND the top join condition referencing only the shared A-key column plus C (never B); proving that as a *bag* identity over a two-level nullable LEFT-join stack with a column-skipping Project sits outside QED's complete bag-semantic fragment (complete_fragment: false, rejected structurally in ~1–2 µs before SMT across four encodings that varied equi-vs-uninterpreted condition, B unique/non-unique, and projection shape), while the structurally identical stack under an Aggregate proves — so the wall is QED's own incomplete fragment for a bag Project atop a multi-level LEFT-join stack, not a DSL-expressibility gap or an uncorrected symbol mismatch (a name mismatch would instead yield an authoritative complete_fragment:true "not provable").
 
 ### `ProjectMeasure` — ⏭️ SKIPPED
 

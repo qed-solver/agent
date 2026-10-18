@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache DataFusion
-**Porter attempts used:** 10  **Verification rounds used:** 1
+**Porter attempts used:** 21  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: datafusion/optimizer/src/simplify_expressions/unwrap_cast.rs, lines 1-25
 
 **Verdict:** AGREE
 
-The rewrite `cast(x) cmp y ⟺ x cmp cast(y)` is only sound because of the specific cast's value-algebra (injectivity/monotonicity, literal in-range) plus static type-level guards; in QED every operator — the cast and each comparison — is an uninterpreted function with no axioms, and all VarTypes are erased to INTEGER in the prover, so that commutation is genuinely not a universal identity (the porter's complete, non-timed-out SMT countermodel is the expected answer, not an encoding bug). No DSL extension could help: the prover has no cast theory to hook into, and the pattern language offers no way to state the required side conditions (range/losslessness), so even the degenerate sub-case `cast(lit) = lit` would be unprovable since the "literal" is just an arbitrary column value. ```
+The rewrite `cast(x,T) op v ≡ x op cast(v,T)` is valid only under axioms about the concrete cast (injectivity for Eq/NotEq, order-embedding for ordered comparisons, and range-containment so the literal's reverse cast is lossless), but RuleScript/QED models every projection and predicate — casts and comparisons included — as uninterpreted symbols over type-erased integers with no axiom mechanism, so the SMT solver can always build a countermodel (e.g., a constant-valued "cast" plus an arbitrary predicate) and refute the equivalence. The gap is not a missing DSL builder — the shape `filter(op(proj(x), c)) → filter(op(x, proj(c)))` is expressible and would compile — it is the prover's axiom-free semantics for uninterpreted functions, which the Rust QED binary cannot be modified to extend; and the only degenerate escape (identity cast) collapses into a tautology, since type erasure makes "cast to the same type" indistinguishable from no cast, so no genuine narrower special case exists to prove.

@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache DataFusion
-**Porter attempts used:** 7  **Verification rounds used:** 1
+**Porter attempts used:** 10  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: datafusion/optimizer/src/push_down_filter.rs, lines 885-889
 
 **Verdict:** AGREE
 
-I confirmed against the ground-truth RelRN.java that no Sort builder or record exists (JSONSerializer can carry a sort node, but the trusted, unmodifiable prover decides equivalence only under bag semantics, under which Sort has no list/ordering meaning, per QED's stated limitations). The rule's sole non-trivial content — that the survivors of Filter(p, Sort(R)) retain the same relative sorted order as Sort(Filter(p, R)) — is a sequence property that cannot be expressed in the bag algebra (row-wise uninterpreted predicates/projections cannot capture relative ordering across a whole relation). Any encodable reduction would degenerate to the tautology Filter(p, R) ≡ Filter(p, R), certifying nothing about order preservation, so the porter's UNSUPPORTED conclusion is correct. ```
+The rule's only correctness content is that pushing a Filter below a Sort leaves the surviving rows in the same relative order — a purely list/ordering property — whereas QED decides equivalence only under bag semantics, where Sort (order-only) has no meaning and both `Filter(P, Sort(R))` and `Sort(Filter(P, R))` collapse to the identical bag {r∈R | P(r)}. Because the prover fundamentally cannot model ordering (explicitly listed in the Limitations as having no bag-semantic meaning), even adding a `sort` builder via extend_dsl_file would yield at best a vacuous tautology, and there is no non-trivial bag-semantic special case to salvage, since filtering is order-independent and the two sides are bag-identical for every instantiation. ```

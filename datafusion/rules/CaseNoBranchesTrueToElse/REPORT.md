@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache DataFusion
-**Porter attempts used:** 9  **Verification rounds used:** 1
+**Porter attempts used:** 87  **Verification rounds used:** 6
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 
 
 **Verdict:** AGREE
 
-The rule's core claims (CASE WHEN true THEN A ELSE B → A, and dropping false branches) require an interpreted value-level ite/CASE operator, but RuleScript's surface language (RexRN) only exposes And/Or/Not/bool-literals as interpreted scalar ops and emits any CASE as a named RexCall that the fixed Rust prover treats as an uninterpreted function it quantifies universally over — so case(true,A,B)=A is not entailed for arbitrary instantiations. No builder can be added via extend_dsl_file to make the prover interpret CASE (the prover is the unchangeable arbiter and only special-cases the boolean connectives, with ite being internal to their 3-valued-logic encoding, not a query-fragment operator), and a relational re-encoding (union of filtered projections) would bake the CASE semantics in by hand, proving a tautology rather than the rule. This is a genuine QED limitation of the "uninterpreted operator whose internal semantics the prover cannot see through" class, consistent with the two prior AGREE verdicts.
+The rule's before side inherently contains a CASE scalar operator whose guard/branch-selection semantics are not in QED's modeled fragment — a CASE symbol in the pattern would be an uninterpreted operator unrelated to the else expression (independent-symbol entailment, a documented QED limitation), and since `JSONSerializer` only emits operator name strings, no `extend_dsl_file` change in the Java layer can supply CASE semantics that live in the immutable Rust prover. The porter's only provable encoding (attempt 1) drops the CASE and proves merely the propositional tautology (false∧a)∨(¬false∧b) ≡ b of the pre-expanded form, which is not a port of the CASE rewrite itself. This is exactly the documented category of "an operator whose specific internal semantics QED cannot see through as an uninterpreted function," so the UNSUPPORTED conclusion is correct.

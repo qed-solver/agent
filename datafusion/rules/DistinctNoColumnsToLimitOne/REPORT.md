@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache DataFusion
-**Porter attempts used:** 48  **Verification rounds used:** 3
+**Porter attempts used:** 28  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: datafusion/optimizer/src/replace_distinct_aggregate.rs, lines 89-100
 
 **Verdict:** AGREE
 
-The rule's target is exactly `Limit { fetch: Some(1) }`, and QED does not model Limit/Offset/Sort (list/ordering semantics have no meaning in its bag semantics, with no axioms relating such an operator to its input), so the after pattern has no faithful encoding in the core language. The rewrite only holds because the input is zero-column (all rows identical), and the only at-most-one-row construct the bag core offers for a zero-column bag is the set-variant self-intersect — which is precisely how the before side (Distinct) itself is encoded — so any "encoding" either collapses to the trivial identity B∩B ≡ B∩B or is simply false if the placeholder has one or more columns (where DISTINCT can yield many rows while LIMIT 1 yields at most one), with no DSL constraint available to express the all-rows-equal premise. ```
+The rule's RHS is `LIMIT 1`, and QED fundamentally has no bag-semantic model for Limit — per qed.pdf it is only expressible as the uninterpreted QOp(Limit, n, Q) (§3.1) and is explicitly unsupported for its ordering semantics (§6.2) — so in the SMT encoding it is a fresh unconstrained relation, and no equivalence involving it can be proved universally; a `limit()` builder via extend_dsl_file could not help, since the obstacle is the untouchable prover itself, not the DSL. On a zero-column bag, the only core-language construct matching the RHS's "zero or one empty row" semantics is set self-intersection, which is exactly the LHS, so the sole provable encoding degenerates to a vacuous before==after identity rather than a faithful encoding of the DataFusion rewrite. The porter correctly identified that the gap is a real QED limitation (order/limit semantics) rather than a missing encoding trick, so UNSUPPORTED is the right call. ```

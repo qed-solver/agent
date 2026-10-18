@@ -2,16 +2,15 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache DataFusion
-**Porter attempts used:** 114  **Verification rounds used:** 6
 
 ## Source rule (as given to the porter)
 
 ```
-Source: datafusion/optimizer/src/scalar_subquery_to_join.rs, lines 1-437
+# Name: ScalarSubqueryToJoin
+# Backend: Apache DataFusion
+# Source: datafusion/optimizer/src/scalar_subquery_to_join.rs:1-437
 ```
 
-## Independent verifier review
+## Reason
 
-**Verdict:** AGREE
-
-The scalar-subquery → LEFT JOIN rewrite is only valid because a global (groupless) aggregate over an *empty* input yields the same value the LEFT JOIN injects as its synthetic right-side NULL row (and DataFusion's own `CASE ... IS NULL` "count-bug" compensation exists precisely to recover non-NULL empty-input values like COUNT), so the proof depends on the aggregate's value at the empty multiset and on the groupless aggregate being a singleton. QED models every aggregate as an uninterpreted function of its input bag and "knows nothing about a specific aggregate function's algebra beyond bag equality of its input," so it cannot relate `agg(∅)` to the join's NULL — confirmed by the SMT solver actually running (~36 ms) and refuting with a concrete unmatched-row counterexample. This is a genuine limitation of the prover's aggregate-algebra/cardinality reasoning, not a missing DSL builder; adding a "constrain to one row" operator would not close the gap because the blocker is the uninterpreted aggregate's unknown empty-input value.
+The rule rewrites a Filter or Projection holding a correlated scalar subquery into a left join against a decorrelated subquery, with compensation expressions for aggregates such as COUNT. QED has no scalar-subquery value: the prover receives it as an opaque operator unrelated to any join. Modelling the subquery as a LEFT correlate over a scalar aggregate and comparing it with a LEFT join against a per-key aggregate is not provable, because an uninterpreted aggregate of the empty bag is not tied to the NULL a left join produces for a missing key. The Count-bug compensation, the alias generation, and the Filter-versus-Projection handling are Rust logic with no DSL counterpart. A narrower encoding would prove only a different identity, so the rule is recorded as skipped.

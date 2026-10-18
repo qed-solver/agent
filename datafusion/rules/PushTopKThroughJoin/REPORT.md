@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache DataFusion
-**Porter attempts used:** 21  **Verification rounds used:** 2
+**Porter attempts used:** 30  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: datafusion/optimizer/src/push_down_limit/topk_through_join.rs, lines 92-
 
 **Verdict:** AGREE
 
-The rule's substance — that the top-N rows of a LEFT/RIGHT join, ordered by keys that depend only on the preserved side, are all producible from the top-N of that side — is an ordering/top-k statement, while QED only decides bag equality and (per qed.pdf and the reference) has no semantics for Sort/Limit at all, which the RelRN DSL doesn't even expose a builder for, so `extend_dsl_file` could at best emit a "sort" JSON node that the unmodifiable prover has no ordering axioms to interpret. Furthermore the rewrite is not a bag equality in general: with equal sort keys, the before- and after-plans can yield different N-row result sets (both valid top-k results under arbitrary tie-breaking), so even a hypothetical ordering-aware equivalence prover could not certify it. I also checked the tempting narrow special cases (unique sort key via `scan(..., unique)`, at-most-one match per preserved row): they would make top-N deterministic, but "first N rows in an order" is still not expressible in the bag language — no comparison/total-order axiom on uninterpreted key values exists — so no provable, non-vacuous encoding exists, consistent with the PushLimitIntoLeftJoin precedent. ```
+This rule's only content is that the first-N-rows-under-a-sort-key of a LEFT/RIGHT join are sourced from the first-N-rows of the preserved input (with sort keys confined to that side), which is pure ordered/top-N stream semantics; QED models all queries in bag semantics and treats Sort/Limit/Order-By as uninterpreted QOps with no ordering or top-N axioms (qed.pdf §6.2, "List semantics"), so `Sort(fetch=N, Join(L,R))` and `Sort(fetch=N, Join(Sort(fetch=N,L), R))` are structurally distinct uninterpreted terms SMT cannot equate. Dropping the Sort wrappers degenerates to the vacuous identity `Join(L,R) ≡ Join(L,R)`, no non-vacuous fragment reduces to a bag equality (even with a unique key or fetch=1, "the N-smallest" needs an order QED doesn't model), and `extend_dsl_file` can't close the gap because the missing axioms live in the unmodifiable prover, which serializes but does not axiomatize ordering — the same structural situation as the already-confirmed `SortJoinTranspose`/`PushLimitIntoLeftJoin`/`PushLimitIntoJoinLeft` skips. ```

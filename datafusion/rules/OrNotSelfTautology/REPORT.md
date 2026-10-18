@@ -1,8 +1,10 @@
 # OrNotSelfTautology
 
-**Status:** SKIPPED
+**Status:** PROVED  **Scope:** PARTIAL
 **Source backend:** Apache DataFusion
-**Porter attempts used:** 108  **Verification rounds used:** 6
+**Porter attempts used:** 64  **Verification rounds used:** 4
+**Scope detail:** A is modeled as a non-nullable boolean column of the scanned source, not an arbitrary uninterpreted non-null boolean expression
+
 
 ## Source rule (as given to the porter)
 
@@ -12,6 +14,47 @@ Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 
 
 ## Independent verifier review
 
-**Verdict:** AGREE
+**Verdict:** CONFIRMED
 
-The rule's soundness rests entirely on A being non-nullable (in Kleene logic A OR NOT(A) = NULL when A = NULL), and the porter's encodings are corroborated by an internal consistency check: the Kleene-valid dual A AND NOT(A) → FALSE proved while the OR direction was rejected with a complete SMT run, which is the signature of QED modeling uninterpreted predicates as possibly-null rather than a symbol-sharing or encoding bug. QED's JSON contract carries nullability only per table column (verified in JSONSerializer: expression nodes serialize only an operator/operand/type with no nullability flag), so an uninterpreted predicate or projection can never be asserted non-null, and the only guaranteed non-null boolean — a non-nullable scan column used directly in the filter condition — is rejected by QED's filter translator, whose boolean-term grammar admits predicate calls/connectives/literals but panics on a column reference (verified for both a BOOLEAN-named and a generic-typed non-nullable column). This gap cannot be closed via extend_dsl_file, because it lies in the JSON contract (no per-expression nullability channel) and in the prover-side boolean grammar, neither of which is modifiable from the Java DSL — a genuine QED limitation, not a missed encoding. ```
+The encoding is non-trivial (before carries a real `a OR NOT a` filter that after removes) and correctly captures the DataFusion rule's essential semantics and its "A is not null" precondition, since the column is declared non-nullable — with a nullable A, `A OR NOT A` is null in 3VL and the filter would drop rows, so the proof would genuinely fail without this declaration. The PARTIAL tag is honest and specific: A is restricted to a bare non-null boolean column of a scan rather than an arbitrary non-null expression, which is forced by the toolchain because the DSL's uninterpreted predicates are nullable (`genericPredicateOp(name, true)`) and per-expression nullability is never serialized to the prover (only table-column nullability is), making the column the only way to express the precondition — a genuine limitation, not an avoidable shortcut, and the rule remains non-degenerate.
+
+## QED prover result
+
+```json
+{
+  "provable": true,
+  "panicked": false,
+  "complete_fragment": true,
+  "equiv_class_duration": {
+    "secs": 0,
+    "nanos": 6041000
+  },
+  "equiv_class_timed_out": false,
+  "smt_duration": {
+    "secs": 0,
+    "nanos": 35630500
+  },
+  "smt_timed_out": false,
+  "nontrivial_perms": false,
+  "translate_duration": {
+    "secs": 0,
+    "nanos": 934209
+  },
+  "normal_duration": {
+    "secs": 0,
+    "nanos": 468583
+  },
+  "stable_duration": {
+    "secs": 0,
+    "nanos": 16522709
+  },
+  "unify_duration": {
+    "secs": 0,
+    "nanos": 35707750
+  },
+  "total_duration": {
+    "secs": 0,
+    "nanos": 67970792
+  }
+}
+```

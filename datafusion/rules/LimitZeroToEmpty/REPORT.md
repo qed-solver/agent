@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache DataFusion
-**Porter attempts used:** 7  **Verification rounds used:** 1
+**Porter attempts used:** 13  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: datafusion/optimizer/src/eliminate_limit.rs, lines 1-89
 
 **Verdict:** AGREE
 
-The rule's soundness (LIMIT with literal fetch 0 ⇒ empty relation, and skip-0/no-fetch ⇒ identity) rests entirely on the row-count/ordering semantics of LIMIT/OFFSET, but QED models Sort/Limit/Offset only as uninterpreted query operators (QOp) with no cardinality or ordering axioms, so `Limit(0, X)` is an unconstrained bag that SMT can instantiate as non-empty, making the equivalence with ∅ refutable for every input X. No non-trivial special case rescues it — even with an empty input (e.g. `Limit(0, Filter(false, X))`) there is no axiom linking the uninterpreted QOp's output to its input, so it remains unprovable. And closing it via `extend_dsl_file` is not an option: the DSL simply has no Limit/Sort builders, but adding one would serialize a LogicalSort that QED still treats as uninterpreted, since the limitation is in the trusted prover's bag-semantic model, not in the DSL's surface language. ```
+The rule's entire content is the Limit operator's own semantic axioms (fetch=0 yields the zero-row relation; fetch=None with skip=0 is the identity), but QED encodes Limit/Offset only as a free, uninterpreted QOp with no axioms about row counting or ordering, so any before/after pair with an uninterpreted QOp on only one side is unprovable for every instantiation — a fundamental limitation of the unmodifiable Rust prover, not a DSL gap (a Limit builder added via extend_dsl_file would only serialize to the same uninterpreted node). No genuine special case exists: pinning the input (e.g., to Empty or a scan) still leaves an unconstrained QOp term to equate with ∅/Q, and the only provable Limit-involving equivalences would be degenerate same-structure tautologies that are not this rewrite. ```

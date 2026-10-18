@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache DataFusion
-**Porter attempts used:** 6  **Verification rounds used:** 1
+**Porter attempts used:** 21  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: datafusion/optimizer/src/push_down_limit.rs, lines 128-144
 
 **Verdict:** AGREE
 
-The rule's validity is purely a prefix-in-enumeration-order argument — the outer Limit(skip, fetch) can only consume the first skip+fetch rows of the scan's ordered output, and the tightened scan must return that same prefix rather than merely some smaller subset — and QED models only unordered bags, explicitly lacking any list/ordering semantics for Limit/Offset/Sort. A DSL extension cannot close the gap either: even though JSONSerializer can carry a sort node with offset/limit, the prover has no bag meaning for it, and the scan's fetch cap is a physical operator-internal property with no representation in QED's uninterpreted-table model at all (fetch is not serialized). No bag-semantic stand-in works — a filter predicate cannot cap cardinality or select an order-dependent prefix, and modeling the capped scan as an independent uninterpreted table would destroy the prefix relationship the proof depends on — so no encoding can be proved equivalent. ```
+The rule's soundness rests on row-order/scan-prefix semantics — LIMIT/OFFSET selects particular rows of an unordered scan, and TableScan.skip/fetch returns such a prefix — but QED's trusted bag-semantic model explicitly gives no semantics to Sort/Limit/Offset, and `RelRN` exposes no limit/offset builder (adding one to the DSL could not supply semantics the fixed Rust prover lacks). The before's full scan and the after's trimmed scan would be two unrelated opaque scan symbols whose prefix relation is unexpressible in the JSON format, and under strict bag equality the two plans aren't even equivalent (DataFusion treats unordered LIMIT output as an arbitrary subset, a coarser equivalence than bag equality), so no non-trivial special case could be proven either. ```

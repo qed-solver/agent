@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache DataFusion
-**Porter attempts used:** 22  **Verification rounds used:** 2
+**Porter attempts used:** 6  **Verification rounds used:** 1
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: datafusion/optimizer/src/push_down_limit.rs, lines 186-192
 
 **Verdict:** AGREE
 
-The rule's correctness rests on Limit's ordered-prefix semantics — *which* rows are retained depends on row order — and QED's bag-semantic model fundamentally has no Sort/Limit/Offset or ordering structure, so that premise cannot be stated. Encoding Limit as an uninterpreted operator gives no axiom linking its output to its input, so `Limit(f,s,Proj(E,R)) = Proj(E,Limit(f,s,R))` is not first-order valid (e.g. a LIMIT that returns one fixed row whenever its input is nonempty is a countermodel for any non-fixing projection E). The only special cases collapse: identity/permutation with unbounded fetch is vacuous, and fetch=0 would require the unmodeled cardinality axiom Limit(0)=∅, so no non-trivial provable special case exists. ```
+Whether read as the fragment actually given (Limit(fetch) over Sort(fetch) being dropped, i.e. TopK pushdown) or as the named Limit/Project commute, the rule's validity is a statement about ordered row prefixes — "the first n rows survive" — and QED decides equivalence only over unordered bags with uninterpreted functions, explicitly modeling no ordering semantics for Sort/Limit/Offset (qed.pdf §6.2), with the Rust prover being the fixed arbiter that cannot be extended. Any encoding in the core language would have to stand in for "select n rows" as an uninterpreted bag-level function, and the required identity (Limit(π(x)) = π(Limit(x)), or Limit(Sort_k(x)) = Sort_k(x)) is not valid for arbitrary uninterpreted functions — projection can change sizes and duplicate rows after the selection, so the SMT solver would refute it — making a non-vacuous RuleScript encoding impossible. The porter's UNSUPPORTED conclusion (and the prior AGREE verdict on the sibling CapSortFetchWithLimit rule) is correct. ```

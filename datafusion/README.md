@@ -1,8 +1,8 @@
 # RuleScript porting progress
 
-_Last updated: 2026-10-01T13:01:33.456155+00:00_
+_Last updated: 2026-10-17T03:26:32.601898+00:00_
 
-**74/110 rules proved** (0 failed, 36 skipped as out of QED's supported fragment).
+**77/110 rules proved** (0 failed, 33 skipped as out of QED's supported fragment).
 
 | Rule | Backend | Status | Scope | Attempts | Notes |
 |---|---|---|---|---|---|
@@ -13,6 +13,7 @@ _Last updated: 2026-10-01T13:01:33.456155+00:00_
 | `AndTrueIdentity` | Apache DataFusion | ✅ PROVED | FULL | 7 | The before pattern is genuinely different from the after pattern because it contains `AND(trueLiteral, right)` under a filter, while the ... |
 | `BinaryOpNullPropagation` | Apache DataFusion | ✅ PROVED | PARTIAL | 8 | The encoding is a faithful, non-vacuous instance of the simplifier: `Filter(x = NULL)` ⟹ `Filter(NULL::Boolean)` is exactly DataFusion's ... |
 | `CommonSubexprEliminate` | Apache DataFusion | ✅ PROVED | PARTIAL | 21 | before() genuinely duplicates the nested subterm g(c0) under two distinct uninterpreted projections f1/f2 over a 1-column scan, while aft... |
+| `CommuteLimitSubqueryAlias` | Apache DataFusion | ✅ PROVED | PARTIAL | 45 | The encoding faithfully matches the source rule's shape — Limit directly above SubqueryAlias commutes to SubqueryAlias directly above Lim... |
 | `DeMorganNotAnd` | Apache DataFusion | ✅ PROVED | FULL | 7 | before() = Filter(¬(P∧Q)) and after() = Filter((¬P)∨(¬Q)) are structurally distinct and match the source's `not(A and B) ⟹ (not A) or (no... |
 | `DeMorganNotOr` | Apache DataFusion | ✅ PROVED | FULL | 4 | The encoding is a non-vacuous De Morgan rewrite under a generic row-wise filter, with `left` and `right` as independent uninterpreted pre... |
 | `DecorrelateLateralJoin` | Apache DataFusion | ✅ PROVED | PARTIAL | 24 | The proof is non-vacuous — `before()` is a correlated (dependent) INNER join while `after()` is an ordinary INNER join, and the uninterpr... |
@@ -56,6 +57,7 @@ _Last updated: 2026-10-01T13:01:33.456155+00:00_
 | `OrAndAbsorption` | Apache DataFusion | ✅ PROVED | FULL | 7 | `before()` and `after()` are structurally different filters over the same scan whose conditions are `A OR (A AND B)` vs `A`, with A and B... |
 | `OrCommonFactorDistribution` | Apache DataFusion | ✅ PROVED | PARTIAL | 5 | The encoding is a faithful, non-vacuous instance of the rule: `before()` is `Filter((A∧B)∨(A∧C))` and `after()` is `Filter(A∧(B∨C))` over... |
 | `OrFalseIdentity` | Apache DataFusion | ✅ PROVED | FULL | 8 | The encoding differs from `after()` in exactly the intended way — `Filter(OR(falseLiteral, P), source)` vs `Filter(P, source)` — where `P... |
+| `OrNotSelfTautology` | Apache DataFusion | ✅ PROVED | PARTIAL | 64 | The encoding is non-trivial (before carries a real `a OR NOT a` filter that after removes) and correctly captures the DataFusion rule's e... |
 | `OrSelfIdempotent` | Apache DataFusion | ✅ PROVED | PARTIAL | 12 | The before/after conditions genuinely differ (`(A OR B) OR A` vs `A OR B` over the same scan), and reusing the single `A` symbol for both... |
 | `OrTrueAbsorption` | Apache DataFusion | ✅ PROVED | FULL | 4 | `before()` (`Filter(Or(<uninterpreted pred>, trueLiteral), S)`) and `after()` (`Filter(trueLiteral), S`) are structurally distinct, so th... |
 | `PassthroughEmptyRelation` | Apache DataFusion | ✅ PROVED | PARTIAL | 5 | before() = Filter(pred, Empty(child)) and after() = Empty(child) are structurally distinct, and the proved claim — for every uninterprete... |
@@ -75,47 +77,45 @@ _Last updated: 2026-10-01T13:01:33.456155+00:00_
 | `RedundantDistinctElimination` | Apache DataFusion | ✅ PROVED | PARTIAL | 6 | before() (the set-variant self-intersection of the input) and after() (the bare input) are structurally distinct, and the proven equality... |
 | `ReorderPredicatesByCost` | Apache DataFusion | ✅ PROVED | PARTIAL | 5 | The encoding is non-vacuous and faithful to the rule's only bag-semantic core: `before()` and `after()` differ structurally (conjunct ord... |
 | `RewriteComparisonViaUdfPreimage` | Apache DataFusion | ✅ PROVED | PARTIAL | 43 | The encoding faithfully captures the core semantic content of DataFusion's `rewrite_with_preimage` for the `=` case: under the step-funct... |
+| `RewriteSetComparison` | Apache DataFusion | ✅ PROVED | PARTIAL | 30 | before (a Filter whose condition is an IN subquery) and after (a Filter whose condition is a correlated EXISTS subquery) are structurally... |
 | `RightJoinNullRejectingToInner` | Apache DataFusion | ✅ PROVED | PARTIAL | 7 | The encoding is non-vacuous and semantically correct: `before()` and `after()` differ exactly in join kind (RIGHT vs INNER), the filter `... |
 | `SimplifyPredicatesViaBoundAnalysis` | Apache DataFusion | ✅ PROVED | PARTIAL | 52 | before() (filter x>5 AND x>6) and after() (filter x>6) are structurally distinct, and their equivalence is non-vacuous — it requires the ... |
 | `SingleDistinctToGroupBy` | Apache DataFusion | ✅ PROVED | PARTIAL | 7 | The proof is non-vacuous and shape-faithful: before() is a single-level DISTINCT aggregate while after() reproduces exactly what the Data... |
 | `UnionsToFilter` | Apache DataFusion | ✅ PROVED | PARTIAL | 4 | The encoding is non-vacuous (UNION ALL of two filtered branches vs. a single OR-filtered branch) and semantically faithful to DataFusion'... |
 | `UnwrapSingletonUnion` | Apache DataFusion | ✅ PROVED | FULL | 5 | The encoding is faithful and non-trivial: `before()` is a `Union(all=true)` with exactly one source and `after()` is that same source, pr... |
-| `BitwiseAndByZero` | Apache DataFusion | ⏭️ SKIPPED | — | 22 | The rule's only non-trivial content is the operator-specific numeric law `A & 0 = 0`, but RuleScript can introduce `&` solely as an unint... |
-| `BitwiseOrByZero` | Apache DataFusion | ⏭️ SKIPPED | — | 21 | The rule's entire content is the semantic identity x | 0 = x of the specific bitwise-or operation, but RuleScript can only introduce `|` ... |
-| `BitwiseShiftByZeroNoop` | Apache DataFusion | ⏭️ SKIPPED | — | 21 | The rule's soundness rests on the algebraic identity x >> 0 = x, but in QED the shift operator can only appear as an uninterpreted scalar... |
-| `BitwiseXorByZero` | Apache DataFusion | ⏭️ SKIPPED | — | 24 | The rule requires the bitwise-Xor identity `x ^ 0 = x`, but RuleScript can only introduce `^` as an uninterpreted projection/predicate an... |
-| `CapSortFetchWithLimit` | Apache DataFusion | ⏭️ SKIPPED | — | 7 | QED works in pure bag semantics and, per qed.pdf §6.2, explicitly has no model for the ordering semantics of Sort/Limit/Offset ("does not... |
-| `CaseBranchAlwaysFalseElided` | Apache DataFusion | ⏭️ SKIPPED | — | 8 | The rule is pure scalar CASE algebra whose correctness rests entirely on CASE's branch-selection semantics — a value-level ite (first-TRU... |
-| `CaseFirstBranchAlwaysTrue` | Apache DataFusion | ⏭️ SKIPPED | — | 25 | This rule's correctness rests entirely on the CASE operator's 3-valued branch-selection semantics (e.g. `case(TRUE, a, b) ≡ a`, dropping ... |
-| `CaseNoBranchesTrueToElse` | Apache DataFusion | ⏭️ SKIPPED | — | 9 | The rule's core claims (CASE WHEN true THEN A ELSE B → A, and dropping false branches) require an interpreted value-level ite/CASE operat... |
-| `CastLiteralFold` | Apache DataFusion | ⏭️ SKIPPED | — | 24 | The rule's essential content is cast value algebra — QED models any cast as an uninterpreted function (qed.pdf §6.2) with no cast identit... |
-| `CommuteLimitProjection` | Apache DataFusion | ⏭️ SKIPPED | — | 22 | The rule's correctness rests on Limit's ordered-prefix semantics — *which* rows are retained depends on row order — and QED's bag-semanti... |
-| `CommuteLimitSubqueryAlias` | Apache DataFusion | ⏭️ SKIPPED | — | 24 | SubqueryAlias is a pure name change — bag-identity — and RuleScript's core language has no operator for it (faithfully omitting it is the... |
-| `DedupeSortExprs` | Apache DataFusion | ⏭️ SKIPPED | — | 7 | The rule only trims the ORDER BY key list while the input (and hence the bag of emitted rows) is unchanged on both sides, so its entire s... |
-| `DistinctNoColumnsToLimitOne` | Apache DataFusion | ⏭️ SKIPPED | — | 48 | The rule's target is exactly `Limit { fetch: Some(1) }`, and QED does not model Limit/Offset/Sort (list/ordering semantics have no meanin... |
-| `DivideByOne` | Apache DataFusion | ⏭️ SKIPPED | — | 11 | I verified the porter's two claims against the ground-truth sources: `RexRN.java` exposes only `trueLiteral`/`falseLiteral` (no numeric l... |
-| `LimitZeroToEmpty` | Apache DataFusion | ⏭️ SKIPPED | — | 7 | The rule's soundness (LIMIT with literal fetch 0 ⇒ empty relation, and skip-0/no-fetch ⇒ identity) rests entirely on the row-count/orderi... |
-| `MergeNestedLimits` | Apache DataFusion | ⏭️ SKIPPED | — | 9 | The rule's soundness is a row-position identity — OFFSET drops the first k rows of a stream and LIMIT keeps the first n — but QED's bag s... |
-| `ModuloByOne` | Apache DataFusion | ⏭️ SKIPPED | — | 12 | QED models every scalar operator (including `Modulo`) as an uninterpreted function symbol over uninterpreted types, and the DSL exposes o... |
-| `MultiplyByOne` | Apache DataFusion | ⏭️ SKIPPED | — | 21 | The rewrite A * 1 ⟹ A is valid only because 1 is the multiplicative identity of real arithmetic, but QED models scalar operators like Mul... |
-| `MultiplyByZero` | Apache DataFusion | ⏭️ SKIPPED | — | 41 | MultiplyByZero is a pure scalar arithmetic identity — its soundness rests on the axiom ∀a. *(a, 0) = 0 (guarded by non-nullness of a), bu... |
-| `NotLikeToNotLike` | Apache DataFusion | ⏭️ SKIPPED | — | 24 | The rule's entire content is the definitional duality ¬(x LIKE y) ≡ x NOT LIKE y, and QED's fixed logic has no axiom or definitional expa... |
-| `OrNotSelfTautology` | Apache DataFusion | ⏭️ SKIPPED | — | 108 | The rule's soundness rests entirely on A being non-nullable (in Kleene logic A OR NOT(A) = NULL when A = NULL), and the porter's encoding... |
-| `PushFilterIntoSort` | Apache DataFusion | ⏭️ SKIPPED | — | 7 | I confirmed against the ground-truth RelRN.java that no Sort builder or record exists (JSONSerializer can carry a sort node, but the trus... |
-| `PushFilterIntoTableScan` | Apache DataFusion | ⏭️ SKIPPED | — | 7 | The only branch of this rule with bag-semantic content — dropping an `Exact`-pushed conjunct from the Filter above a TableScan — is sound... |
-| `PushLimitIntoCrossJoin` | Apache DataFusion | ⏭️ SKIPPED | — | 27 | The cross-join branch rewrites `LIMIT_n(L ⋈cross R)` to `LIMIT_n(LIMIT_n(L) ⋈cross LIMIT_n(R))`, whose correctness is a purely prefix/enu... |
-| `PushLimitIntoLeftJoin` | Apache DataFusion | ⏭️ SKIPPED | — | 9 | The soundness of this rewrite rests entirely on limit/row-count semantics — that the outer LIMIT(skip, fetch) can only observe rows produ... |
-| `PushLimitIntoRightJoin` | Apache DataFusion | ⏭️ SKIPPED | — | 26 | The rule's soundness rests entirely on row-count/ordering semantics — that in a right join each preserved right-input row appears in the ... |
-| `PushLimitIntoTableScan` | Apache DataFusion | ⏭️ SKIPPED | — | 6 | The rule's validity is purely a prefix-in-enumeration-order argument — the outer Limit(skip, fetch) can only consume the first skip+fetch... |
-| `PushLimitIntoUnionBranches` | Apache DataFusion | ⏭️ SKIPPED | — | 8 | This rule is valid only because DataFusion’s union preserves branch order and Limit selects a row-position prefix, so capping each branch... |
-| `PushTopKThroughJoin` | Apache DataFusion | ⏭️ SKIPPED | — | 21 | The rule's substance — that the top-N rows of a LEFT/RIGHT join, ordered by keys that depend only on the preserved side, are all producib... |
-| `RemoveNoopLimit` | Apache DataFusion | ⏭️ SKIPPED | — | 21 | Both halves of this rule (fetch=Literal(0) ⇒ empty relation; fetch=None with skip=Literal(0) ⇒ drop the Limit as identity) draw their ent... |
-| `RewriteSetComparison` | Apache DataFusion | ⏭️ SKIPPED | — | 66 | The rule's entire semantic content is a scalar three-valued-logic identity — `x op ANY/ALL (S)` being equal to a CASE over EXISTS subquer... |
-| `ScalarSubqueryToJoin` | Apache DataFusion | ⏭️ SKIPPED | — | 114 | The scalar-subquery → LEFT JOIN rewrite is only valid because a global (groupless) aggregate over an *empty* input yields the same value ... |
-| `SimplifyRegexToLike` | Apache DataFusion | ⏭️ SKIPPED | — | 13 | The rule's entire semantic content is a string pattern-matching axiom (e.g. `x ~ '^foo$'` ⟺ `x = 'foo'`, `x ~ 'foo'` ⟺ `x LIKE '%foo%'`),... |
-| `SimplifyUdafToScalar` | Apache DataFusion | ⏭️ SKIPPED | — | 29 | The assigned source (L1677–1685) is a pure dispatch that hands the aggregate to an arbitrary per-UDAF, user-supplied `simplify()` closure... |
-| `StructCastSameFieldCountFold` | Apache DataFusion | ⏭️ SKIPPED | — | 5 | The rule's only effect is plan-time constant evaluation — replacing an eligible CAST/TRY_CAST over a struct literal with the concrete val... |
-| `UnwrapCastAroundComparison` | Apache DataFusion | ⏭️ SKIPPED | — | 10 | The rewrite `cast(x) cmp y ⟺ x cmp cast(y)` is only sound because of the specific cast's value-algebra (injectivity/monotonicity, literal... |
+| `BitwiseAndByZero` | Apache DataFusion | ⏭️ SKIPPED | — | 21 | The DataFusion rule `x & 0 ⇒ 0` rests entirely on an algebraic identity of the BITWISE_AND operator, and any faithful RuleScript encoding... |
+| `BitwiseOrByZero` | Apache DataFusion | ⏭️ SKIPPED | — | 23 | The identity A | 0 = A holds only by integer bitwise-OR algebra, but in RuleScript the operator can only be introduced as a generic (unin... |
+| `BitwiseShiftByZeroNoop` | Apache DataFusion | ⏭️ SKIPPED | — | 35 | The rule is a value-level scalar identity — shift(A, 0) = A — which in RuleScript can only be encoded as Project(f(A, 0)) ⟹ Project(A) wh... |
+| `BitwiseXorByZero` | Apache DataFusion | ⏭️ SKIPPED | — | 31 | The rule's core claim is a semantic identity of DataFusion's XOR operator (`A ^ 0 = A`, and in the recursive branch `X ^ X = 0` plus asso... |
+| `CapSortFetchWithLimit` | Apache DataFusion | ⏭️ SKIPPED | — | 24 | The Sort arm of DataFusion's push_down_limit only changes the numeric fetch/skip parameters on Sort/Limit (capping the sort's fetch at sk... |
+| `CaseBranchAlwaysFalseElided` | Apache DataFusion | ⏭️ SKIPPED | — | 28 | The rule's validity rests entirely on CASE's first-true-branch selection semantics, and RuleScript's core language has no conditional/IF-... |
+| `CaseFirstBranchAlwaysTrue` | Apache DataFusion | ⏭️ SKIPPED | — | 23 | The rewrite's soundness rests entirely on CASE's branch-selection semantics, and any CASE node appearing in the before pattern is seen by... |
+| `CaseNoBranchesTrueToElse` | Apache DataFusion | ⏭️ SKIPPED | — | 87 | The rule's before side inherently contains a CASE scalar operator whose guard/branch-selection semantics are not in QED's modeled fragmen... |
+| `CastLiteralFold` | Apache DataFusion | ⏭️ SKIPPED | — | 26 | QED models type casts as uninterpreted function symbols with no axioms — its only structural theorems are bag algebra, Boolean algebra, a... |
+| `CommuteLimitProjection` | Apache DataFusion | ⏭️ SKIPPED | — | 6 | Whether read as the fragment actually given (Limit(fetch) over Sort(fetch) being dropped, i.e. TopK pushdown) or as the named Limit/Proje... |
+| `DedupeSortExprs` | Apache DataFusion | ⏭️ SKIPPED | — | 11 | DedupeSortExprs is a pure ORDER BY optimization — deduping sort keys and FD-pruning never change the multiset of output rows, only their ... |
+| `DistinctNoColumnsToLimitOne` | Apache DataFusion | ⏭️ SKIPPED | — | 28 | The rule's RHS is `LIMIT 1`, and QED fundamentally has no bag-semantic model for Limit — per qed.pdf it is only expressible as the uninte... |
+| `DivideByOne` | Apache DataFusion | ⏭️ SKIPPED | — | 13 | DivideByOne (A / 1 → A, and the multiply-by-zero variant actually in the given snippet) rests entirely on a scalar arithmetic identity — ... |
+| `LimitZeroToEmpty` | Apache DataFusion | ⏭️ SKIPPED | — | 13 | The rule's entire content is the Limit operator's own semantic axioms (fetch=0 yields the zero-row relation; fetch=None with skip=0 is th... |
+| `MergeNestedLimits` | Apache DataFusion | ⏭️ SKIPPED | — | 21 | MergeNestedLimits is only correct under positional/ordering semantics — which rows survive `skip`+`fetch` depends on row order — and QED ... |
+| `ModuloByOne` | Apache DataFusion | ⏭️ SKIPPED | — | 13 | The validity of `A % 1 = 0` rests entirely on the concrete algebra of the modulo operator (any integer divided by 1 has remainder 0), but... |
+| `MultiplyByOne` | Apache DataFusion | ⏭️ SKIPPED | — | 21 | The rewrite `A * 1 → A` (and `1 * A → A`) is valid only under the multiplicative-identity axiom for actual arithmetic multiplication; QED... |
+| `MultiplyByZero` | Apache DataFusion | ⏭️ SKIPPED | — | 24 | The rule `A * 0 → 0` (and `0 * A → 0`) rests on the multiplicative-zero axiom of actual arithmetic multiplication, but in RuleScript `*` ... |
+| `NotLikeToNotLike` | Apache DataFusion | ⏭️ SKIPPED | — | 64 | DataFusion's `simplify_not_like` is a pure scalar definitional identity — `NOT(e LIKE p) ≡ e NOT_LIKE p` — whose entire soundness rests o... |
+| `PushFilterIntoSort` | Apache DataFusion | ⏭️ SKIPPED | — | 10 | The rule's only correctness content is that pushing a Filter below a Sort leaves the surviving rows in the same relative order — a purely... |
+| `PushFilterIntoTableScan` | Apache DataFusion | ⏭️ SKIPPED | — | 27 | The rewrite Filter(P, Scan(T)) ⇒ Scan(T, filters=[P]) is sound only under the DataFusion TableProviderFilterPushDown::Exact contract — th... |
+| `PushLimitIntoCrossJoin` | Apache DataFusion | ⏭️ SKIPPED | — | 23 | The rule's soundness depends entirely on row-position semantics — a Limit retaining the first skip+fetch rows of a stream, plus the cross... |
+| `PushLimitIntoLeftJoin` | Apache DataFusion | ⏭️ SKIPPED | — | 21 | QED models Limit (like Sort/Offset) as an uninterpreted QOp with no ordering, row-count, or top-N axioms, so `Limit(n, LeftJoin(L, R, on)... |
+| `PushLimitIntoRightJoin` | Apache DataFusion | ⏭️ SKIPPED | — | 23 | PushLimitIntoRightJoin is sound only because of a top-n/prefix ordering property — the first n rows of a RIGHT-join output can only invol... |
+| `PushLimitIntoTableScan` | Apache DataFusion | ⏭️ SKIPPED | — | 21 | The rule's soundness rests on row-order/scan-prefix semantics — LIMIT/OFFSET selects particular rows of an unordered scan, and TableScan.... |
+| `PushLimitIntoUnionBranches` | Apache DataFusion | ⏭️ SKIPPED | — | 30 | The rewrite is sound only because "Limit" means "take the first skip+fetch rows of a sequence," a prefix/ordering notion that QED's bag s... |
+| `PushTopKThroughJoin` | Apache DataFusion | ⏭️ SKIPPED | — | 30 | This rule's only content is that the first-N-rows-under-a-sort-key of a LEFT/RIGHT join are sourced from the first-N-rows of the preserve... |
+| `RemoveNoopLimit` | Apache DataFusion | ⏭️ SKIPPED | — | 17 | The rule's correctness rests on Limit/offset semantics — that `LIMIT 0` truncates to the empty relation and that `Limit{skip=0, fetch=Non... |
+| `ScalarSubqueryToJoin` | Apache DataFusion | ⏭️ SKIPPED | — | 0 | The rule rewrites a Filter or Projection holding a correlated scalar subquery into a left join against a decorrelated subquery, with comp... |
+| `SimplifyRegexToLike` | Apache DataFusion | ⏭️ SKIPPED | — | 24 | The rule's soundness rests entirely on string/glob semantics (the pattern "%" matches exactly the non-null strings, and nothing else), bu... |
+| `SimplifyUdafToScalar` | Apache DataFusion | ⏭️ SKIPPED | — | 41 | The cited lines are a regex-predicate dispatch (`simplify_regex_expr` behind a regex-compilation planning-budget guard), not a UDAF hook,... |
+| `StructCastSameFieldCountFold` | Apache DataFusion | ⏭️ SKIPPED | — | 22 | This "rule" is not a relational-algebra rewrite but a constant-folding step in DataFusion's const evaluator: CAST(struct_literal AS struc... |
+| `UnwrapCastAroundComparison` | Apache DataFusion | ⏭️ SKIPPED | — | 21 | The rewrite `cast(x,T) op v ≡ x op cast(v,T)` is valid only under axioms about the concrete cast (injectivity for Eq/NotEq, order-embeddi... |
 
 ## Details
 
@@ -181,6 +181,15 @@ _Last updated: 2026-10-01T13:01:33.456155+00:00_
 - Last updated: 2026-09-30T23:58:59.785280+00:00
 - Reason / notes: before() genuinely duplicates the nested subterm g(c0) under two distinct uninterpreted projections f1/f2 over a 1-column scan, while after() hoists g into an intermediate projection [g(c0), c0] and references its output column from the outer projection — structurally different plans that mirror DataFusion's try_optimize_proj + build_common_expr_project_plan shape exactly (common expr first, passthrough after, top projection drops the passthrough), with Source/g/f1/f2 correctly shared by name across both sides, so the proof is non-vacuous and universal over the uninterpreted symbols (the extensional-function model matches the rule's own is_volatile_node precondition rather than silently dropping it). The declared PARTIAL scope is honest and specific — projection node only, exactly two projected expressions sharing exactly one common subexpression — even though the full rule also covers Filter/Sort/Window/Aggregate and arbitrary expression lists (Window/Sort aren't even exposed by the DSL); the encoded instance is a non-degenerate, genuine special case of the real rewrite, not a structurally-identical tautology. ```
 - QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 348167}, panicked=False
+
+### `CommuteLimitSubqueryAlias` — ✅ PROVED
+
+- Source backend: Apache DataFusion
+- Source rule: Source: datafusion/optimizer/src/push_down_limit.rs, lines 193-199
+- Attempts used: 45
+- Last updated: 2026-10-16T23:34:09.614621+00:00
+- Reason / notes: The encoding faithfully matches the source rule's shape — Limit directly above SubqueryAlias commutes to SubqueryAlias directly above Limit — with SubqueryAlias correctly represented as an all-fields identity projection (aliasing changes no row values or multiplicities) and DataFusion's orderless Limit modeled as a sort with empty collation plus offset/fetch, the closest QED can carry. The only narrowing, concrete skip=0/fetch=10 literals, is honestly tagged PARTIAL and is in fact uniform: the Limit node is identical on both sides and the alias is identity, so the commutation holds for any skip/fetch, which matches the preconditional-free real rule (no missing constraints or symbol-sharing artifacts). The near-instant provable result is expected and non-vacuous in a meaningful sense: alias normalizes away on both sides, leaving the same Limit expression, exactly the genuine (tautological) commutation the real rule performs.
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 339875}, panicked=False
 
 ### `DeMorganNotAnd` — ✅ PROVED
 
@@ -569,6 +578,15 @@ _Last updated: 2026-10-01T13:01:33.456155+00:00_
 - Reason / notes: The encoding differs from `after()` in exactly the intended way — `Filter(OR(falseLiteral, P), source)` vs `Filter(P, source)` — where `P` is a genuinely uninterpreted predicate symbol and `source` is an uninterpreted scan, so the proof covers the full family `false OR A → A` rather than a hard-coded instance. The literal-false left operand and two-argument OR match the DataFusion guard `is_false(&left)` exactly, and no precondition (uniqueness, NOT NULL, etc.) is silently assumed — the disjunction identity even holds pointwise under three-valued null semantics, and the single-column scan is a neutral carrier rather than a restriction, since the boolean identity is independent of the source's shape. ```
 - QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 386458}, panicked=False
 
+### `OrNotSelfTautology` — ✅ PROVED
+
+- Source backend: Apache DataFusion
+- Source rule: Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 978-985
+- Attempts used: 64
+- Last updated: 2026-10-17T00:02:27.353874+00:00
+- Reason / notes: The encoding is non-trivial (before carries a real `a OR NOT a` filter that after removes) and correctly captures the DataFusion rule's essential semantics and its "A is not null" precondition, since the column is declared non-nullable — with a nullable A, `A OR NOT A` is null in 3VL and the filter would drop rows, so the proof would genuinely fail without this declaration. The PARTIAL tag is honest and specific: A is restricted to a bare non-null boolean column of a scan rather than an arbitrary non-null expression, which is forced by the toolchain because the DSL's uninterpreted predicates are nullable (`genericPredicateOp(name, true)`) and per-expression nullability is never serialized to the prover (only table-column nullability is), making the column the only way to express the precondition — a genuine limitation, not an avoidable shortcut, and the rule remains non-degenerate.
+- QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 67970792}, panicked=False
+
 ### `OrSelfIdempotent` — ✅ PROVED
 
 - Source backend: Apache DataFusion
@@ -740,6 +758,15 @@ _Last updated: 2026-10-01T13:01:33.456155+00:00_
 - Reason / notes: The encoding faithfully captures the core semantic content of DataFusion's `rewrite_with_preimage` for the `=` case: under the step-function contract (which correctly encodes that the UDF outputs `val` iff its input falls in `[lower, upper)`), filtering on `fx = val` is equivalent to filtering on `e >= lower AND e < upper`. The before/after predicates are structurally distinct (one references the UDF output column, the other references the input column with range bounds), so the proof is non-vacuous. The SCOPE line honestly states that only `=` is encoded and that NULL-handling variants are excluded, which is a genuine and non-degenerate special case (the `=` case being the most semantically rich, producing a conjunction rather than a single comparison). The non-nullable `Int` type correctly handles the "x is not NULL" precondition from the source rule, and modeling the preimage contract as a shared filter side-condition is the standard and appropriate technique in this DSL for expressing a UDF's registered semantic property.
 - QED stats: complete_fragment=True, total_duration={'secs': 0, 'nanos': 72795167}, panicked=False
 
+### `RewriteSetComparison` — ✅ PROVED
+
+- Source backend: Apache DataFusion
+- Source rule: Source: datafusion/optimizer/src/rewrite_set_comparison.rs, lines 1-175
+- Attempts used: 30
+- Last updated: 2026-10-17T02:38:46.491991+00:00
+- Reason / notes: before (a Filter whose condition is an IN subquery) and after (a Filter whose condition is a correlated EXISTS subquery) are structurally distinct, so the proof is not vacuous, and they are genuinely equivalent: in filter context both keep exactly the outer rows for which some subquery row satisfies x = y, and the DataFusion CASE-over-EXISTS form collapses to a bare EXISTS there without any NOT NULL or primary-key precondition that the encoding silently omits. The shared K_type is a correct comparability constraint rather than an over-constraint, the inner_pred/subquery stay uninterpreted, and the PARTIAL scope line is honest and specific (only `=` ANY/IN under a Filter; ALL, other operators, and null-preserving non-filter contexts excluded), so the result is a faithful, non-degenerate special case of the real IN-to-EXISTS rewrite. ```
+- QED stats: complete_fragment=False, total_duration={'secs': 0, 'nanos': 88757750}, panicked=False
+
 ### `RightJoinNullRejectingToInner` — ✅ PROVED
 
 - Source backend: Apache DataFusion
@@ -789,287 +816,263 @@ _Last updated: 2026-10-01T13:01:33.456155+00:00_
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1229-1235
-- Attempts used: 22
-- Last updated: 2026-09-30T23:19:46.493880+00:00
-- Reason / notes: The rule's only non-trivial content is the operator-specific numeric law `A & 0 = 0`, but RuleScript can introduce `&` solely as an uninterpreted scalar symbol — the core language has no integer literals or interpreted bit-arithmetic, so the zero operand and its zero-ness cannot be expressed in any more constrained way — and QED's fixed theory over such symbols (equality, uninterpreted functions, ite, ordering, with arithmetic reserved for bag multiplicity) entails no axiom of the form `f(x, c) = c` for an arbitrary constant symbol `c`, so the identity is not valid under all instantiations no matter how the encoding is shaped. This is a genuine limitation of the unmodifiable prover's theory, not a missing DSL builder, so `extend_dsl_file` cannot close the gap and the porter's empirically confirmed `provable=false` is the predicted outcome.
+- Attempts used: 21
+- Last updated: 2026-10-16T20:32:46.364761+00:00
+- Reason / notes: The DataFusion rule `x & 0 ⇒ 0` rests entirely on an algebraic identity of the BITWISE_AND operator, and any faithful RuleScript encoding (an uninterpreted projection symbol applied to a field and a `RexRN.Const` zero) turns it into the universal claim `∀R ∀x. f(x, 0) = 0`, which is false for an uninterpreted function and so is correctly refuted by QED's SMT decision procedure, not by an encoding bug. No `extend_dsl_file` change can help, since the DSL can already express the rule's shape and the missing axioms would have to live in the immutable Rust prover's SMT theory; nor does a non-vacuous narrower special case exist, because even the constant instance `f(c, 0) = 0` is not valid for an uninterpreted f (the only provable variant would be the vacuous `0 = 0`). This is exactly the documented limitation of an operator's bespoke internal semantics being opaque to QED, consistent with the porter's empirical `provable=false` and the analogous `FoldMultOne` (`x * 1 = x`) precedent. ```
 
 ### `BitwiseOrByZero` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1303-1308
-- Attempts used: 21
-- Last updated: 2026-09-30T23:21:11.663446+00:00
-- Reason / notes: The rule's entire content is the semantic identity x | 0 = x of the specific bitwise-or operation, but RuleScript can only introduce `|` as an uninterpreted scalar symbol, and QED's fixed oracle theory (equality/uninterpreted functions, total order, natural-number addition, ite) contains no bitwise-arithmetic axioms; since a rule is just a before/after pattern pair with no assumption mechanism and `extend_dsl_file` cannot alter the unmodifiable Rust prover, no encoding can supply that identity — and bitwise OR is not even definable from the available addition/order arithmetic, so no faithful surrogate encoding exists. A real `try_rule` attempt would therefore only return not-provable (the solver can countermodel `|` as any function, e.g. a constant one), so the porter's UNSUPPORTED conclusion, though reached without a live attempt, is correct.
+- Attempts used: 23
+- Last updated: 2026-10-16T20:29:23.978456+00:00
+- Reason / notes: The identity A | 0 = A holds only by integer bitwise-OR algebra, but in RuleScript the operator can only be introduced as a generic (uninterpreted) projection symbol serialized by name, and QED's SMT theory — equality over uninterpreted functions, a total order, and three-valued And/Or — has no integer/bit-vector axioms, so a countermodel with or(x, c) ≠ x is always available. The one encoding QED could prove would be three-valued logical `A OR FALSE = A`, which is a different rule and would misrepresent DataFusion's integer BitwiseOr. This matches the stated limitation of operator-specific internal semantics QED cannot see through, and `extend_dsl_file` cannot help since the missing piece is axioms inside the unmodifiable prover theory. ```
 
 ### `BitwiseShiftByZeroNoop` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1452-1457
-- Attempts used: 21
-- Last updated: 2026-09-30T23:25:30.742686+00:00
-- Reason / notes: The rule's soundness rests on the algebraic identity x >> 0 = x, but in QED the shift operator can only appear as an uninterpreted scalar function, and the prover's fixed oracle theory (equality + UF, total order, addition, ite) contains no shift or zero-identity axiom, so no instance of an uninterpreted f satisfies f(x, 0) = x — indirect encodings (modeling the literal 0 as a constant/values table, key or "guaranteed" constraints on it) get at most congruence (f(x, c) = f(x, 0)), never the identity itself. This is a genuine limitation of the immutable Rust prover, not a missing DSL capability that extend_dsl_file could close: even a first-class shift builder would need the prover to know its axiom, which it doesn't. Any encoding that made the proof go through would have to replace the shift with an identity or ite-based surrogate, which would no longer be a faithful port of DataFusion's rule — exactly the "operator whose specific internal semantics QED cannot see through as an uninterpreted function" limitation in the reference.
+- Attempts used: 35
+- Last updated: 2026-10-16T20:28:26.193110+00:00
+- Reason / notes: The rule is a value-level scalar identity — shift(A, 0) = A — which in RuleScript can only be encoded as Project(f(A, 0)) ⟹ Project(A) where the shift is an uninterpreted projection operator, and QED's SMT encoding asks whether ∀a. f(a,0)=a holds for an uninterpreted f, which is false without an identity axiom. The porter verified the encoding compiles and serializes cleanly (so it's not a DSL gap — the JSON format carries operators only by name, with no channel to attach axioms, and the prover is the fixed arbiter with no shift semantics), making this precisely the limitation where a rule's correctness rests on an operator's specific internal semantics that QED cannot see through as an uninterpreted function. Any "provability trick" (e.g. naming the operator something QED has axioms for) would prove a different rule, not the shift identity, so no honest encoding — full or special-case — exists. ```
 
 ### `BitwiseXorByZero` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1376-1381
-- Attempts used: 24
-- Last updated: 2026-09-30T23:28:54.392042+00:00
-- Reason / notes: The rule requires the bitwise-Xor identity `x ^ 0 = x`, but RuleScript can only introduce `^` as an uninterpreted projection/predicate and QED has no prover-level axioms relating that uninterpreted operator to a zero constant. Adding a Java DSL builder could expose the shape, but it cannot add the missing operator theory, so the equivalence is not valid under arbitrary SMT interpretations.
+- Attempts used: 31
+- Last updated: 2026-10-16T20:48:57.774332+00:00
+- Reason / notes: The rule's core claim is a semantic identity of DataFusion's XOR operator (`A ^ 0 = A`, and in the recursive branch `X ^ X = 0` plus associativity/commutativity and structural occurrence-counting), but in RuleScript the XOR can only be introduced as an uninterpreted function symbol, and QED's fixed theory (equality/UF, natural-number +, ite, 3-valued And/Or/Not) contains no bitwise interpretation and no mechanism to attach such axioms to a symbol — so `xor(a, 0) = a` is false for some UF instantiations and SMT will always produce a countermodel, making the empirically observed provable=false a genuine limitation rather than an encoding bug (the Const/VarType NPE was a red herring; the final encoding serialized fine and still failed for the fundamental reason). No `extend_dsl_file` change can close the gap because the missing knowledge (XOR's group-identity law) would have to live in the immutable prover's SMT theory, and no non-trivial special case (integer, constant, or Boolean) avoids needing that operator's internal semantics.
 
 ### `CapSortFetchWithLimit` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/push_down_limit.rs, lines 161-185
-- Attempts used: 7
-- Last updated: 2026-09-30T23:26:26.543368+00:00
-- Reason / notes: QED works in pure bag semantics and, per qed.pdf §6.2, explicitly has no model for the ordering semantics of Sort/Limit/Offset ("does not support queries that make use of the ordering semantics of Limit, Offset, or Order By"), yet this rule's entire content is row-position semantics: Sort's fetch capping the number of rows emitted (top-K), Limit(0, n) being redundant once its input is bounded to ≤ n rows, and the min-algebra on the fetch arguments — none of which are properties of the bag of rows. Under QED's uninterpreted treatment, the before/after sides differ only in the structure and fetch arguments of those uninterpreted higher-order operators over the same input, so the SMT solver has no algebraic relation to bridge and no narrower special case (e.g. skip=0 with an unchanged fetch cap) removes the dependency on the missing ordering semantics. Note the DSL also lacks a Sort/Limit builder, but that is not the blocker — extending `RelRN` could at best expose operators the prover itself deliberately gives no bag-semantic meaning to, so the UNSUPPORTED conclusion is correct. ```
+- Attempts used: 24
+- Last updated: 2026-10-16T20:43:19.481382+00:00
+- Reason / notes: The Sort arm of DataFusion's push_down_limit only changes the numeric fetch/skip parameters on Sort/Limit (capping the sort's fetch at skip+fetch), and its correctness is purely a TopK-prefix statement about which rows come "first" in sort order — rows beyond position skip+fetch can never survive LIMIT/OFFSET. QED decides equivalence only over unordered bags with uninterpreted functions and has no Sort/Limit/Offset operators or ordering semantics (qed.pdf: it "does not support queries that make use of the ordering semantics of Limit, Offset, or Order By"), and adding a Java sort/limit builder via extend_dsl_file could not help since the Rust prover — the fixed arbiter — has no order model to apply. Any approximation that replaces "first k sorted rows" with an uninterpreted filter predicate would encode arbitrary sub-bags rather than sorted prefixes and be rightly refuted, while dropping the Sort/Limit from both sides leaves input ≡ input, which is vacuous; so no non-vacuous RuleScript encoding exists. ```
 
 ### `CaseBranchAlwaysFalseElided` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1525-1562
-- Attempts used: 8
-- Last updated: 2026-09-30T23:36:53.199340+00:00
-- Reason / notes: The rule is pure scalar CASE algebra whose correctness rests entirely on CASE's branch-selection semantics — a value-level ite (first-TRUE branch wins; false/NULL conditions fall through to the next branch/ELSE) — and QED's interpreted fragment has no ite: I independently verified `RexRN` offers only And/Or/Not/boolean literals plus uninterpreted `pred`/`proj` symbols, and `JSONSerializer` passes any scalar operator to the fixed Rust prover as a bare name that unmodeled operators receive uninterpreted treatment for, so a CASE minted via `extend_dsl_file` could never be universally equated with its then/else/NULL forms (e.g. `case(false,a,b) ≡ b` fails for an arbitrary function symbol). No relational reconstruction is faithful either: a Filter/Union re-encoding of branch selection drops NULL-condition rows that CASE would send to ELSE (unsound for the non-literal branches the rule preserves), and for the constant-condition branches the only interpretable "encoding" collapses to the already-rewritten relation, making the proof vacuous — the before side of every instance of the rule contains a CASE that nothing in the fragment can name, so no provable special case exists. The gap is therefore in the prover's fixed operator interpretations, which are off-limits to modify (extend_dsl_file only touches the Java builder/serializer layer), so the porter's UNSUPPORTED verdict is correct.
+- Attempts used: 28
+- Last updated: 2026-10-16T20:56:17.060872+00:00
+- Reason / notes: The rule's validity rests entirely on CASE's first-true-branch selection semantics, and RuleScript's core language has no conditional/IF-THEN-ELSE construct, so the before-side CASE can only be expressed as a name-keyed uninterpreted predicate. QED by design treats uninterpreted predicate symbols as mutually independent (the "predicate inference/entailment between independent symbols" limitation), so no SMT proof can relate that opaque symbol to the AND/OR/NOT expansion built from other uninterpreted symbols — and this holds even under the rule's own non-nullable-condition guard that removes the 3VL divergence, since the CASE symbol's meaning simply isn't in the prover. Consequently no narrower special case is provable either: any before side containing the CASE symbol is equally invisible to QED, matching the AGREE-verified SKIPPED precedents for structurally identical CASE-branch rewrites.
 
 ### `CaseFirstBranchAlwaysTrue` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1525-1562
-- Attempts used: 25
-- Last updated: 2026-09-30T23:39:10.975705+00:00
-- Reason / notes: This rule's correctness rests entirely on the CASE operator's 3-valued branch-selection semantics (e.g. `case(TRUE, a, b) ≡ a`, dropping `WHEN false` branches), and QED's interpreted fragment contains no CASE/ite — any CASE encoding serializes to an uninterpreted scalar call, for which the equality is not valid under universal instantiation, so no SMT proof exists. Every instance of the rule, including the narrowest special cases (`CASE WHEN true THEN a END → a`, `CASE WHEN false THEN a ELSE b END → b`), necessarily contains CASE on the before side, so no special case escapes the uninterpreted-operator gap. This is a fixed-prover semantics limitation (the interpretation is keyed by operator name inside the Rust prover), which `extend_dsl_file` cannot address since it only touches the Java builders/serializer. ```
+- Attempts used: 23
+- Last updated: 2026-10-16T21:02:48.402642+00:00
+- Reason / notes: The rewrite's soundness rests entirely on CASE's branch-selection semantics, and any CASE node appearing in the before pattern is seen by QED only as a name-keyed uninterpreted function — its interpreted scalar fragment is just AND/OR/NOT/TRUE/FALSE — so the claimed equivalence reduces to "uninterpreted f(x,a,y,b,q) ≡ (x∧a) ∨ (y∧¬x∧b) ∨ (¬(x∨y)∧q)", which a single instantiation falsifies (all argument predicates true, f false) and no `extend_dsl_file` change can fix, since operator interpretation is keyed by name inside the immutable Rust prover. This is precisely the "operator's bespoke internal semantics QED can't see through" limitation, consistent with the AGREE-verified SKIPPED precedent SimplifyCaseSingleTruthyBranch from the same rule family. No narrower special case is salvageable either, because any rule that eliminates a CASE node requires the prover to interpret CASE itself. ```
 
 ### `CaseNoBranchesTrueToElse` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1525-1562
-- Attempts used: 9
-- Last updated: 2026-09-30T23:40:15.264585+00:00
-- Reason / notes: The rule's core claims (CASE WHEN true THEN A ELSE B → A, and dropping false branches) require an interpreted value-level ite/CASE operator, but RuleScript's surface language (RexRN) only exposes And/Or/Not/bool-literals as interpreted scalar ops and emits any CASE as a named RexCall that the fixed Rust prover treats as an uninterpreted function it quantifies universally over — so case(true,A,B)=A is not entailed for arbitrary instantiations. No builder can be added via extend_dsl_file to make the prover interpret CASE (the prover is the unchangeable arbiter and only special-cases the boolean connectives, with ite being internal to their 3-valued-logic encoding, not a query-fragment operator), and a relational re-encoding (union of filtered projections) would bake the CASE semantics in by hand, proving a tautology rather than the rule. This is a genuine QED limitation of the "uninterpreted operator whose internal semantics the prover cannot see through" class, consistent with the two prior AGREE verdicts.
+- Attempts used: 87
+- Last updated: 2026-10-16T22:49:03.486767+00:00
+- Reason / notes: The rule's before side inherently contains a CASE scalar operator whose guard/branch-selection semantics are not in QED's modeled fragment — a CASE symbol in the pattern would be an uninterpreted operator unrelated to the else expression (independent-symbol entailment, a documented QED limitation), and since `JSONSerializer` only emits operator name strings, no `extend_dsl_file` change in the Java layer can supply CASE semantics that live in the immutable Rust prover. The porter's only provable encoding (attempt 1) drops the CASE and proves merely the propositional tautology (false∧a)∨(¬false∧b) ≡ b of the pre-expanded form, which is not a port of the CASE rewrite itself. This is exactly the documented category of "an operator whose specific internal semantics QED cannot see through as an uninterpreted function," so the UNSUPPORTED conclusion is correct.
 
 ### `CastLiteralFold` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 534-680
-- Attempts used: 24
-- Last updated: 2026-09-30T23:56:30.561349+00:00
-- Reason / notes: The rule's essential content is cast value algebra — QED models any cast as an uninterpreted function (qed.pdf §6.2) with no cast identities, and since all virtual types flatten to integers and the only interpreted literals are boolean, even a "cast of a boolean literal" special case would assert a specific output of an uninterpreted function, which is by definition not universally provable. No `extend_dsl_file` fix can help, because a new `cast` builder would still serialize to an uninterpreted operator in the JSON that the fixed prover has no algebra for; additionally, the evaluator's surrounding machinery (CASE/COALESCE short-circuiting, deferral flags, plan-time error propagation) is execution-time plan-shape semantics with no bag-semantic meaning at all.
+- Attempts used: 26
+- Last updated: 2026-10-16T21:49:34.068722+00:00
+- Reason / notes: QED models type casts as uninterpreted function symbols with no axioms — its only structural theorems are bag algebra, Boolean algebra, and NULL-lifting for primitive operators — so any faithful encoding of CAST(c)→c′ requires proving f(c)=c′ for all interpretations of f, which SMT correctly refutes with a countermodel. No special case rescues the rule: type erasure makes identity-cast cases inexpressible, the DSL exposes no NULL literal and QED has no NULL-propagation rule for uninterpreted symbols (so even CAST(NULL)→NULL is out), and the after-side folded value must be a concrete literal that can never be equationally linked to f(c). This is a genuine "bespoke internal semantics of an operator QED cannot see through as an uninterpreted function" limitation, not a missed encoding. ```
 
 ### `CommuteLimitProjection` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/push_down_limit.rs, lines 186-192
-- Attempts used: 22
-- Last updated: 2026-09-30T23:58:55.155399+00:00
-- Reason / notes: The rule's correctness rests on Limit's ordered-prefix semantics — *which* rows are retained depends on row order — and QED's bag-semantic model fundamentally has no Sort/Limit/Offset or ordering structure, so that premise cannot be stated. Encoding Limit as an uninterpreted operator gives no axiom linking its output to its input, so `Limit(f,s,Proj(E,R)) = Proj(E,Limit(f,s,R))` is not first-order valid (e.g. a LIMIT that returns one fixed row whenever its input is nonempty is a countermodel for any non-fixing projection E). The only special cases collapse: identity/permutation with unbounded fetch is vacuous, and fetch=0 would require the unmodeled cardinality axiom Limit(0)=∅, so no non-trivial provable special case exists. ```
-
-### `CommuteLimitSubqueryAlias` — ⏭️ SKIPPED
-
-- Source backend: Apache DataFusion
-- Source rule: Source: datafusion/optimizer/src/push_down_limit.rs, lines 193-199
-- Attempts used: 24
-- Last updated: 2026-10-01T00:35:20.360242+00:00
-- Reason / notes: SubqueryAlias is a pure name change — bag-identity — and RuleScript's core language has no operator for it (faithfully omitting it is the only bag-level model), while per qed.pdf §6.2 QED has no model for Limit's ordering/top-N semantics (Sort/Limit/Offset are uninterpreted with no algebraic laws), so before and after both reduce to the identical uninterpreted Limit over the same input. The rule's only semantic content — that alias transparency preserves Limit's row-position semantics — is exactly what QED's bag model cannot express, and even adding a Limit/Sort builder via DSL extension would not help, since the prover itself has no ordering semantics to reason over, leaving any encodable version a vacuous self-equality rather than a real proof of the rule. ```
+- Attempts used: 6
+- Last updated: 2026-10-16T21:35:14.872085+00:00
+- Reason / notes: Whether read as the fragment actually given (Limit(fetch) over Sort(fetch) being dropped, i.e. TopK pushdown) or as the named Limit/Project commute, the rule's validity is a statement about ordered row prefixes — "the first n rows survive" — and QED decides equivalence only over unordered bags with uninterpreted functions, explicitly modeling no ordering semantics for Sort/Limit/Offset (qed.pdf §6.2), with the Rust prover being the fixed arbiter that cannot be extended. Any encoding in the core language would have to stand in for "select n rows" as an uninterpreted bag-level function, and the required identity (Limit(π(x)) = π(Limit(x)), or Limit(Sort_k(x)) = Sort_k(x)) is not valid for arbitrary uninterpreted functions — projection can change sizes and duplicate rows after the selection, so the SMT solver would refute it — making a non-vacuous RuleScript encoding impossible. The porter's UNSUPPORTED conclusion (and the prior AGREE verdict on the sibling CapSortFetchWithLimit rule) is correct. ```
 
 ### `DedupeSortExprs` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/eliminate_duplicated_expr.rs, lines 68-114
-- Attempts used: 7
-- Last updated: 2026-10-01T00:41:39.271951+00:00
-- Reason / notes: The rule only trims the ORDER BY key list while the input (and hence the bag of emitted rows) is unchanged on both sides, so its entire soundness claim — that the deduplicated/FD-pruned collation induces the same row order — is a list/ordering property that QED does not model (qed.pdf §6.2; its evaluation's "List semantic" failure category). The missing Sort builder in RelRN is not the decisive gap: JSONSerializer already emits `sort` nodes into QED's JSON, meaning the prover (the unmodifiable arbiter) simply has no ordering semantics for them, so any Sort/Sort pattern would reduce to two trivially bag-equal plans and yield a vacuous "provable" that verifies nothing. Encoding the lexicographic preorder as a surrogate uninterpreted relation would only prove a separate combinatorial lemma, not an equivalence between plan patterns, so no genuine RuleScript encoding of this rule exists.
+- Attempts used: 11
+- Last updated: 2026-10-16T21:56:03.659787+00:00
+- Reason / notes: DedupeSortExprs is a pure ORDER BY optimization — deduping sort keys and FD-pruning never change the multiset of output rows, only their sequence — and QED is a bag-semantic decision procedure that explicitly does not model Sort/Order-By ordering semantics (qed.pdf §6.2), so any encoding of before/after collapses both sides to bag(input), a vacuous tautology that proves nothing about order preservation; the FD-pruning branch additionally rests on content-dependent functional dependencies that cannot be stated for uninterpreted table symbols, and this is a genuine prover limitation, not a missing DSL builder, so extend_dsl_file could not close the gap. ```
 
 ### `DistinctNoColumnsToLimitOne` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/replace_distinct_aggregate.rs, lines 89-100
-- Attempts used: 48
-- Last updated: 2026-10-01T01:21:04.202674+00:00
-- Reason / notes: The rule's target is exactly `Limit { fetch: Some(1) }`, and QED does not model Limit/Offset/Sort (list/ordering semantics have no meaning in its bag semantics, with no axioms relating such an operator to its input), so the after pattern has no faithful encoding in the core language. The rewrite only holds because the input is zero-column (all rows identical), and the only at-most-one-row construct the bag core offers for a zero-column bag is the set-variant self-intersect — which is precisely how the before side (Distinct) itself is encoded — so any "encoding" either collapses to the trivial identity B∩B ≡ B∩B or is simply false if the placeholder has one or more columns (where DISTINCT can yield many rows while LIMIT 1 yields at most one), with no DSL constraint available to express the all-rows-equal premise. ```
+- Attempts used: 28
+- Last updated: 2026-10-16T22:20:00.010916+00:00
+- Reason / notes: The rule's RHS is `LIMIT 1`, and QED fundamentally has no bag-semantic model for Limit — per qed.pdf it is only expressible as the uninterpreted QOp(Limit, n, Q) (§3.1) and is explicitly unsupported for its ordering semantics (§6.2) — so in the SMT encoding it is a fresh unconstrained relation, and no equivalence involving it can be proved universally; a `limit()` builder via extend_dsl_file could not help, since the obstacle is the untouchable prover itself, not the DSL. On a zero-column bag, the only core-language construct matching the RHS's "zero or one empty row" semantics is set self-intersection, which is exactly the LHS, so the sole provable encoding degenerates to a vacuous before==after identity rather than a faithful encoding of the DataFusion rewrite. The porter correctly identified that the gap is a real QED limitation (order/limit semantics) rather than a missing encoding trick, so UNSUPPORTED is the right call. ```
 
 ### `DivideByOne` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1197-1204
-- Attempts used: 11
-- Last updated: 2026-10-01T00:53:13.625879+00:00
-- Reason / notes: I verified the porter's two claims against the ground-truth sources: `RexRN.java` exposes only `trueLiteral`/`falseLiteral` (no numeric literal constructor, so the constant "1" cannot even be named faithfully in a pattern), and per the reference's Limitations, QED treats non-boolean scalar operators like `Divide` as uninterpreted function symbols with no axioms connecting them to their arguments — the identity `x / 1 = x` rests precisely on division's internal numeric semantics, which QED "cannot see through" and which no DSL extension can supply, since the prover is the unmodifiable arbiter. No relational/bag-structural re-encoding can avoid the arithmetic identity (the rule is purely a scalar simplification over a single projection), so this is a genuine QED limitation, consistent with the prior FoldDivOne precedent. ```
+- Attempts used: 13
+- Last updated: 2026-10-16T22:27:53.240144+00:00
+- Reason / notes: DivideByOne (A / 1 → A, and the multiply-by-zero variant actually in the given snippet) rests entirely on a scalar arithmetic identity — x / 1 = x (or x * 0 = 0) — but QED's fixed first-order theory contains only equality, a total order, natural-number addition, and ite; it has no division or multiplication algebra. So `Div`/`Mult` (and any `Cast`) can only be introduced as uninterpreted function symbols via `genericProjectionOp`, making the identity non-valid for every instantiation — a gap in the immutable Rust prover's theory that neither a `extend_dsl_file` Java/JSON edit nor any narrower special case can close, consistent with the AGREE SKIPPED verdicts for the structurally-identical FoldDivOne/FoldMultOne. ```
 
 ### `LimitZeroToEmpty` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/eliminate_limit.rs, lines 1-89
-- Attempts used: 7
-- Last updated: 2026-10-01T03:26:18.965693+00:00
-- Reason / notes: The rule's soundness (LIMIT with literal fetch 0 ⇒ empty relation, and skip-0/no-fetch ⇒ identity) rests entirely on the row-count/ordering semantics of LIMIT/OFFSET, but QED models Sort/Limit/Offset only as uninterpreted query operators (QOp) with no cardinality or ordering axioms, so `Limit(0, X)` is an unconstrained bag that SMT can instantiate as non-empty, making the equivalence with ∅ refutable for every input X. No non-trivial special case rescues it — even with an empty input (e.g. `Limit(0, Filter(false, X))`) there is no axiom linking the uninterpreted QOp's output to its input, so it remains unprovable. And closing it via `extend_dsl_file` is not an option: the DSL simply has no Limit/Sort builders, but adding one would serialize a LogicalSort that QED still treats as uninterpreted, since the limitation is in the trusted prover's bag-semantic model, not in the DSL's surface language. ```
+- Attempts used: 13
+- Last updated: 2026-10-16T22:37:49.759951+00:00
+- Reason / notes: The rule's entire content is the Limit operator's own semantic axioms (fetch=0 yields the zero-row relation; fetch=None with skip=0 is the identity), but QED encodes Limit/Offset only as a free, uninterpreted QOp with no axioms about row counting or ordering, so any before/after pair with an uninterpreted QOp on only one side is unprovable for every instantiation — a fundamental limitation of the unmodifiable Rust prover, not a DSL gap (a Limit builder added via extend_dsl_file would only serialize to the same uninterpreted node). No genuine special case exists: pinning the input (e.g., to Empty or a scan) still leaves an unconstrained QOp term to equate with ∅/Q, and the only provable Limit-involving equivalences would be degenerate same-structure tautologies that are not this rewrite. ```
 
 ### `MergeNestedLimits` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/push_down_limit.rs, lines 93-120
-- Attempts used: 9
-- Last updated: 2026-10-01T03:48:17.955422+00:00
-- Reason / notes: The rule's soundness is a row-position identity — OFFSET drops the first k rows of a stream and LIMIT keeps the first n — but QED's bag semantics models Sort/Limit/Offset only as uninterpreted QOps with no ordering, index, or cardinality axioms (qed.pdf; the AGREE-verified LimitZeroToEmpty and FoldLimits precedents), so `before` and `after` are structurally distinct uninterpreted terms over X that SMT refutes for every instantiation, and no special case (not even idempotent `L(n,L(n,X))=L(n,X)` or an empty input) is derivable. The gap is in the trusted prover's semantics, not the DSL: `RelRN` has no Limit/Sort builder, and `extend_dsl_file` could at best serialize the `LogicalSort` node (sort/offset/limit JSON already exists in `JSONSerializer`) that QED still treats as opaque, so no encoding of the real nested-merge shape can prove. The transcript's isolated "provable" flag must therefore reflect a degenerate/structurally-identical stand-in encoding (consistent with its all-zero timings), not the nested-merge rule, so `UNSUPPORTED` is the correct permanent record.
+- Attempts used: 21
+- Last updated: 2026-10-16T22:51:56.444774+00:00
+- Reason / notes: MergeNestedLimits is only correct under positional/ordering semantics — which rows survive `skip`+`fetch` depends on row order — and QED explicitly gives Sort/Limit/Offset no bag-semantic meaning, treating them as uninterpreted free operators with no axioms. Consequently `Limit(s,f,Limit(s',f',R))` and `Limit(s+s',min(f,f'),R)` are non-congruent free-term applications that SMT can never equate, and no constant choice or DSL builder extension can fix this, since even degenerate cases like limit idempotence (`Limit(k,R) ≡ Limit(k,Limit(k,R))`) would require limit axioms that the fixed prover does not and cannot have. ```
 
 ### `ModuloByOne` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1210-1223
-- Attempts used: 12
-- Last updated: 2026-10-01T03:45:40.119769+00:00
-- Reason / notes: QED models every scalar operator (including `Modulo`) as an uninterpreted function symbol over uninterpreted types, and the DSL exposes only the boolean literals true/false — no way to name the numeric constants 1 and 0 that the rule requires. The identity ∀a. a mod 1 = 0 is not valid for arbitrary instantiations of an uninterpreted modulo symbol and arbitrary constant symbols, so no SMT solver without an arithmetic theory can prove it, and QED's Rust prover has none by design. The gap is in the prover's theory, not in missing DSL surface syntax, so `extend_dsl_file` cannot close it and UNSUPPORTED is the correct conclusion. ```
+- Attempts used: 13
+- Last updated: 2026-10-16T22:59:08.218030+00:00
+- Reason / notes: The validity of `A % 1 = 0` rests entirely on the concrete algebra of the modulo operator (any integer divided by 1 has remainder 0), but QED's fixed SMT fragment contains only equality, uninterpreted functions, total order, natural-number addition, and ite — no modulo — so `%` can only be an uninterpreted symbol for which `∀A. mod(A,1)=0` is not valid. The porter's run after fixing the literal-type NPE returned a clean SMT refutation (`provable: false`, `complete_fragment: true`), confirming a genuine operator-semantics limitation rather than an encoding bug, and `extend_dsl_file` cannot help because the required modulo axioms would have to live in the immutable Rust prover. ```
 
 ### `MultiplyByOne` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1152-1159
 - Attempts used: 21
-- Last updated: 2026-10-01T03:54:40.512490+00:00
-- Reason / notes: The rewrite A * 1 ⟹ A is valid only because 1 is the multiplicative identity of real arithmetic, but QED models scalar operators like Multiply as uninterpreted symbols with no axioms tying them to their arguments (its theory covers only equality/uninterpreted functions, a total order, and natural-number addition), so the identity rests on numeric semantics the fixed prover cannot see through — and `RexRN` (verified in source) offers no numeric-literal constructor, only `trueLiteral`/`falseLiteral`, to express the constant `1` at all. Since the missing piece lives in the immutable prover's theory rather than in a DSL builder, `extend_dsl_file` cannot close the gap: even embedding the expression in a `Project` over a scan, `f(a, 1) = a` is unprovable for any uninterpreted `f`, and no faithful narrower special case of this rule exists — the same fundamental limitation as the verifier-agreed DivideByOne skip. ```
+- Last updated: 2026-10-16T23:01:54.793803+00:00
+- Reason / notes: The rewrite `A * 1 → A` (and `1 * A → A`) is valid only under the multiplicative-identity axiom for actual arithmetic multiplication; QED's fixed theory (equality, total order, addition, ite) contains no multiplication, so any encoding must treat `*` as an uninterpreted symbol, and `f(A,1)=A` is refutable by a countermodel rather than universally provable — the same "operator-specific internal semantics QED cannot see through" limitation. The missing literal `1` in `RexRN.Const` is a DSL gap that `extend_dsl_file` could in principle close, but that is moot: the missing arithmetic axiom lives in the immutable Rust prover, which is the hard boundary no DSL extension can cross. This matches the already-verified SKIPPED precedents for the structurally identical rules FoldOneMult (cockroach) and DivideByOne (datafusion). ```
 
 ### `MultiplyByZero` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1170-1180
-- Attempts used: 41
-- Last updated: 2026-10-01T04:35:58.583635+00:00
-- Reason / notes: MultiplyByZero is a pure scalar arithmetic identity — its soundness rests on the axiom ∀a. *(a, 0) = 0 (guarded by non-nullness of a), but QED's fixed SMT theory translates scalar operators to uninterpreted functions with no arithmetic axioms and no interpreted numeric zero constant (the only interpreted scalar operators are booleans, which is exactly why the DSL exposes And/Or/Not/True/False), so a countermodel with *(a, 0) ≠ 0 is always available and no encoding can avoid needing that axiom. This is the same verified limitation that forced the sibling constant-folding rules FoldPlusZero (a + 0 = a) and BitwiseAndByZero to be skipped, and an `extend_dsl_file` addition can't close it because new multiply/zero builders would merely serialize to additional uninterpreted symbols in the unmodifiable prover.
+- Attempts used: 24
+- Last updated: 2026-10-16T23:10:56.775927+00:00
+- Reason / notes: The rule `A * 0 → 0` (and `0 * A → 0`) rests on the multiplicative-zero axiom of actual arithmetic multiplication, but in RuleScript `*` can only be introduced as an uninterpreted scalar operator and QED's fixed theory (equality, uninterpreted functions, total order, natural-number addition, ite) has no multiplication or any axiom about such a symbol, so the universal claim `∀A. f(A,0) = 0` is refutable by a countermodel (e.g., an interpretation with f(x,0)=x). A DSL extension can add a builder emitting that operator name but cannot add the required axiom to the immutable Rust prover, and no narrower relational special case (unique keys, fixed shapes) escapes the unprovable identity, so this is genuinely outside what RuleScript+QED can prove — consistent with the independently AGREE-skipped MultiplyByOne precedent. ```
 
 ### `NotLikeToNotLike` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/simplify_expressions/utils.rs, lines 360-367
-- Attempts used: 24
-- Last updated: 2026-10-01T06:36:33.630231+00:00
-- Reason / notes: The rule's entire content is the definitional duality ¬(x LIKE y) ≡ x NOT LIKE y, and QED's fixed logic has no axiom or definitional expansion for LIKE/NOT_LIKE — so a faithful encoding, where NOT_LIKE is a distinct uninterpreted predicate, leaves `not(like(...))` and `not_like(...)` as independent symbols the prover can never relate (its stated limitation on predicate inference between independent symbols). The only alternative is to encode NOT_LIKE as `Not` of the same LIKE symbol, which collapses before/after into the identical plan and reduces any "proof" to a vacuous identity that assumes the theorem; no DSL extension can bridge this, since the unchanging prover sees uninterpreted function symbols either way.
-
-### `OrNotSelfTautology` — ⏭️ SKIPPED
-
-- Source backend: Apache DataFusion
-- Source rule: Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 978-985
-- Attempts used: 108
-- Last updated: 2026-10-01T08:23:31.216215+00:00
-- Reason / notes: The rule's soundness rests entirely on A being non-nullable (in Kleene logic A OR NOT(A) = NULL when A = NULL), and the porter's encodings are corroborated by an internal consistency check: the Kleene-valid dual A AND NOT(A) → FALSE proved while the OR direction was rejected with a complete SMT run, which is the signature of QED modeling uninterpreted predicates as possibly-null rather than a symbol-sharing or encoding bug. QED's JSON contract carries nullability only per table column (verified in JSONSerializer: expression nodes serialize only an operator/operand/type with no nullability flag), so an uninterpreted predicate or projection can never be asserted non-null, and the only guaranteed non-null boolean — a non-nullable scan column used directly in the filter condition — is rejected by QED's filter translator, whose boolean-term grammar admits predicate calls/connectives/literals but panics on a column reference (verified for both a BOOLEAN-named and a generic-typed non-nullable column). This gap cannot be closed via extend_dsl_file, because it lies in the JSON contract (no per-expression nullability channel) and in the prover-side boolean grammar, neither of which is modifiable from the Java DSL — a genuine QED limitation, not a missed encoding. ```
+- Attempts used: 64
+- Last updated: 2026-10-17T00:26:34.321944+00:00
+- Reason / notes: DataFusion's `simplify_not_like` is a pure scalar definitional identity — `NOT(e LIKE p) ≡ e NOT_LIKE p` — whose entire soundness rests on the backend axiom `NOT_LIKE ≡ NOT(LIKE)`. QED has no semantics for `LIKE`/`NOT_LIKE` (both are uninterpreted operators, and QED "can't reason about predicate inference/entailment between independent symbols or a backend operator's bespoke internal semantics"), so either the prover can't relate the two independent symbols (unprovable), or the pipeline's lowering of `NOT_LIKE` to `NOT(LIKE(...))` collapses both sides to the identical expression, a vacuous X≡X tautology that proves nothing about the rule. There is no non-trivial sub-case to fall back to, since the identity *is* the rule's content, and no `extend_dsl_file` change to `RelRN`/`RexRN`/`JSONSerializer` can supply the operator algebra — that lives in the frozen Rust prover.
 
 ### `PushFilterIntoSort` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/push_down_filter.rs, lines 885-889
-- Attempts used: 7
-- Last updated: 2026-10-01T08:37:57.242473+00:00
-- Reason / notes: I confirmed against the ground-truth RelRN.java that no Sort builder or record exists (JSONSerializer can carry a sort node, but the trusted, unmodifiable prover decides equivalence only under bag semantics, under which Sort has no list/ordering meaning, per QED's stated limitations). The rule's sole non-trivial content — that the survivors of Filter(p, Sort(R)) retain the same relative sorted order as Sort(Filter(p, R)) — is a sequence property that cannot be expressed in the bag algebra (row-wise uninterpreted predicates/projections cannot capture relative ordering across a whole relation). Any encodable reduction would degenerate to the tautology Filter(p, R) ≡ Filter(p, R), certifying nothing about order preservation, so the porter's UNSUPPORTED conclusion is correct. ```
+- Attempts used: 10
+- Last updated: 2026-10-16T23:41:39.966446+00:00
+- Reason / notes: The rule's only correctness content is that pushing a Filter below a Sort leaves the surviving rows in the same relative order — a purely list/ordering property — whereas QED decides equivalence only under bag semantics, where Sort (order-only) has no meaning and both `Filter(P, Sort(R))` and `Sort(Filter(P, R))` collapse to the identical bag {r∈R | P(r)}. Because the prover fundamentally cannot model ordering (explicitly listed in the Limitations as having no bag-semantic meaning), even adding a `sort` builder via extend_dsl_file would yield at best a vacuous tautology, and there is no non-trivial bag-semantic special case to salvage, since filtering is order-independent and the two sides are bag-identical for every instantiation. ```
 
 ### `PushFilterIntoTableScan` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/push_down_filter.rs, lines 1224-1301
-- Attempts used: 7
-- Last updated: 2026-10-01T08:45:39.081913+00:00
-- Reason / notes: The only branch of this rule with bag-semantic content — dropping an `Exact`-pushed conjunct from the Filter above a TableScan — is sound solely by the provider's execution-time contract that a scan configured with predicate P returns exactly the rows of Filter(P, T); QED models scans as uninterpreted bag relations whose only axioms are key uniqueness and check constraints on the table's own rows, so no operator or axiom can relate a filter-pushing scan to the filtered original (distinct scan symbols are independent, and same-name scans resolve to one symbol), and the sole available encoding — pre-asserting P as a table precondition — proves constraint-based filter elimination rather than pushdown. The Inexact/volatile/subquery branches introduce no bag-semantic difference, since `scan.filters` is planner metadata invisible to the prover, so no narrower special case carries the rule's actual content. ```
+- Attempts used: 27
+- Last updated: 2026-10-17T00:01:19.606536+00:00
+- Reason / notes: The rewrite Filter(P, Scan(T)) ⇒ Scan(T, filters=[P]) is sound only under the DataFusion TableProviderFilterPushDown::Exact contract — the pushed predicate's effect is a storage-engine internal semantic, not a relational-algebraic fact. QED models scans as uninterpreted bags with only per-row key/check constraints (no predicate parameter on the scan, no inter-table definitional relation), so the "after" side has no encodable form: a fresh table symbol would be an independent bag (the equivalence is refutable, not merely unproven), and the only bag-equal expression in the core language is Filter(P, Scan(T)) itself, which is a tautology rather than the rule. This falls squarely under the documented limitation that QED cannot model a backend operator's bespoke internal semantics, so the UNSUPPORTED conclusion is correct. ```
 
 ### `PushLimitIntoCrossJoin` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/push_down_limit.rs, lines 275-303
-- Attempts used: 27
-- Last updated: 2026-10-01T09:08:11.473596+00:00
-- Reason / notes: The cross-join branch rewrites `LIMIT_n(L ⋈cross R)` to `LIMIT_n(LIMIT_n(L) ⋈cross LIMIT_n(R))`, whose correctness is a purely prefix/enumeration-order argument (the first n output pairs of the nested-loop product draw only on the first n rows of each input, under a specific row-major output order). QED decides equivalence under bag semantics only and, per its documented failure breakdown, does not model the ordering semantics of Sort/Limit/Offset — so even though the JSON format can carry a limit-shaped node (LogicalSort fetch/offset), the unmodifiable prover cannot decide such queries, and no bag-semantic stand-in (uninterpreted filter or projection symbol) can capture prefix selection, since QED cannot reason about predicate entailment or order at all. The limitation sits in the prover itself rather than in a missing DSL feature, so `extend_dsl_file` cannot close the gap and the UNSUPPORTED conclusion stands. ```
+- Attempts used: 23
+- Last updated: 2026-10-17T00:18:35.884196+00:00
+- Reason / notes: The rule's soundness depends entirely on row-position semantics — a Limit retaining the first skip+fetch rows of a stream, plus the cross-join's stream prefix lying inside the cross product of input prefixes — and QED's decision procedure operates on bag semantics where Limit/Offset/Order-By have no modeled meaning (an uninterpreted operator at best). Under bag semantics the two sides are not universally equal (LHS is a fetch-element sub-bag of the full L×R, RHS a sub-bag of a strictly smaller cross product, and uninterpreted Limit applications give no equational power to relate them), so even an extended DSL exposing Sort/Limit (which JSONSerializer can already serialize) would be futile and no non-trivial special case — not even one using empty inputs, since an uninterpreted inner Limit need not preserve emptiness — could be proved; this is a fundamental QED limitation, not a missed encoding. ```
 
 ### `PushLimitIntoLeftJoin` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/push_down_limit.rs, lines 275-303
-- Attempts used: 9
-- Last updated: 2026-10-01T09:07:06.779894+00:00
-- Reason / notes: The soundness of this rewrite rests entirely on limit/row-count semantics — that the outer LIMIT(skip, fetch) can only observe rows produced by at most skip+fetch left rows, a fact no bag-semantic model of QED can express — and QED (qed.pdf §6.2) treats Sort/Limit/Offset as uninterpreted higher-order QOps with no cardinality or ordering axioms, so any faithful encoding leaves before() and after() as structurally unrelated uninterpreted applications that SMT can never equate. This is a genuine prover-model gap rather than a missing builder: JSONSerializer already carries LogicalSort's offset/limit, so even an extend_dsl_file addition of a Limit builder would serialize fine but still be treated opaquely by the trusted prover. The lone "provable" result in the transcript came from a degenerate stand-in encoding (identical structure on both sides), not a proof of the actual rewrite, so the UNSUPPORTED conclusion is correct. ```
+- Attempts used: 21
+- Last updated: 2026-10-17T00:19:14.808643+00:00
+- Reason / notes: QED models Limit (like Sort/Offset) as an uninterpreted QOp with no ordering, row-count, or top-N axioms, so `Limit(n, LeftJoin(L, R, on))` and `Limit(n, LeftJoin(Limit(n, L), R, on))` are structurally distinct uninterpreted terms that the SMT check refutes rather than equates. The rule's soundness rests precisely on ordered top-N semantics — in a left join each left row expands to one or more consecutive output rows, so the first N results can only involve the first N left rows — which the prover's bag semantics cannot express at all. No `extend_dsl_file` change can help because the missing axioms live in the QED prover itself (the trusted, unmodifiable arbiter), and a narrower provable special case is unreachable since any Limit-pushdown variant keeps structurally different Limit terms; this matches the already-recorded CockroachDB `PushLimitIntoJoinLeft` skip. ```
 
 ### `PushLimitIntoRightJoin` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/push_down_limit.rs, lines 275-303
-- Attempts used: 26
-- Last updated: 2026-10-01T09:23:52.870650+00:00
-- Reason / notes: The rule's soundness rests entirely on row-count/ordering semantics — that in a right join each preserved right-input row appears in the join output (in input order), so the first skip+fetch output rows can only come from the first fetch right rows — and QED models Sort/Limit/Offset as uninterpreted QOps with no bag-semantic meaning, no cardinality, and no ordering axioms (qed.pdf §6.2; the core language has no Limit builder at all). Any faithful encoding leaves before() and after() as structurally distinct applications of an opaque uninterpreted operator over different join trees, which the SMT solver can never equate, and even a Limit builder added via extend_dsl_file would only serialize into that same opaque QOp without granting the prover any row-count reasoning. This is a genuine prover-model gap, not a missing DSL surface or an untried encoding — the same fundamental limitation for which the sibling PushLimitIntoLeftJoin was already ruled UNSUPPORTED.
+- Attempts used: 23
+- Last updated: 2026-10-17T00:30:17.564539+00:00
+- Reason / notes: PushLimitIntoRightJoin is sound only because of a top-n/prefix ordering property — the first n rows of a RIGHT-join output can only involve the first ≤ n rows of the preserving (right) input — but QED works in pure bag semantics and encodes Limit as an uninterpreted QOp with no ordering, sub-bag, or idempotence axioms, so `Limit(n, RJoin(L,R))` and `Limit(n, RJoin(L, Limit(n,R)))` are two distinct uninterpreted terms the SMT solver can never equate. No DSL extension can close the gap (the immutable Rust prover itself is what lacks limit/ordering semantics per qed.pdf §6.2), and no non-trivial special case — unique-key inputs, skip=0, constant n — removes the dependence on top-n behavior, matching the independently verified skip of the structurally identical CockroachDB PushLimitIntoJoinRight.
 
 ### `PushLimitIntoTableScan` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/push_down_limit.rs, lines 128-144
-- Attempts used: 6
-- Last updated: 2026-10-01T09:14:33.776864+00:00
-- Reason / notes: The rule's validity is purely a prefix-in-enumeration-order argument — the outer Limit(skip, fetch) can only consume the first skip+fetch rows of the scan's ordered output, and the tightened scan must return that same prefix rather than merely some smaller subset — and QED models only unordered bags, explicitly lacking any list/ordering semantics for Limit/Offset/Sort. A DSL extension cannot close the gap either: even though JSONSerializer can carry a sort node with offset/limit, the prover has no bag meaning for it, and the scan's fetch cap is a physical operator-internal property with no representation in QED's uninterpreted-table model at all (fetch is not serialized). No bag-semantic stand-in works — a filter predicate cannot cap cardinality or select an order-dependent prefix, and modeling the capped scan as an independent uninterpreted table would destroy the prefix relationship the proof depends on — so no encoding can be proved equivalent. ```
+- Attempts used: 21
+- Last updated: 2026-10-17T00:37:19.318613+00:00
+- Reason / notes: The rule's soundness rests on row-order/scan-prefix semantics — LIMIT/OFFSET selects particular rows of an unordered scan, and TableScan.skip/fetch returns such a prefix — but QED's trusted bag-semantic model explicitly gives no semantics to Sort/Limit/Offset, and `RelRN` exposes no limit/offset builder (adding one to the DSL could not supply semantics the fixed Rust prover lacks). The before's full scan and the after's trimmed scan would be two unrelated opaque scan symbols whose prefix relation is unexpressible in the JSON format, and under strict bag equality the two plans aren't even equivalent (DataFusion treats unordered LIMIT output as an arbitrary subset, a coarser equivalence than bag equality), so no non-trivial special case could be proven either. ```
 
 ### `PushLimitIntoUnionBranches` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/push_down_limit.rs, lines 145-154
-- Attempts used: 8
-- Last updated: 2026-10-01T09:21:08.943054+00:00
-- Reason / notes: This rule is valid only because DataFusion’s union preserves branch order and Limit selects a row-position prefix, so capping each branch to `fetch + skip` rows preserves the outer `Limit(skip, fetch)` result. QED uses bag semantics and explicitly has no ordering semantics for Sort/Limit/Offset, and RuleScript provides no order-preserving limit operator; even if a Limit builder were added, the prover would still treat it as uninterpreted and could not prove the prefix argument.
+- Attempts used: 30
+- Last updated: 2026-10-17T00:47:53.421015+00:00
+- Reason / notes: The rewrite is sound only because "Limit" means "take the first skip+fetch rows of a sequence," a prefix/ordering notion that QED's bag semantics fundamentally lacks — Sort/Limit/Offset have no bag-semantic meaning, so Limit can at best be an uninterpreted symbol. For an arbitrary uninterpreted operator L, the identity L(skip,fetch, A∪B) ≡ L(skip,fetch, L(0,skip+fetch,A) ∪ L(0,skip+fetch,B)) is not a theorem (the "truncated branches still contain every row the outer prefix could draw" argument is exactly the ordering argument QED cannot perform), which is consistent with the porter's byte-verified JSON check being rejected with provable=false. No narrower bag-semantics special case recovers the rule's soundness content, and the gap is a fundamental QED limitation rather than a missing DSL builder, so UNSUPPORTED is correct. ```
 
 ### `PushTopKThroughJoin` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/push_down_limit/topk_through_join.rs, lines 92-308
-- Attempts used: 21
-- Last updated: 2026-10-01T09:45:15.254033+00:00
-- Reason / notes: The rule's substance — that the top-N rows of a LEFT/RIGHT join, ordered by keys that depend only on the preserved side, are all producible from the top-N of that side — is an ordering/top-k statement, while QED only decides bag equality and (per qed.pdf and the reference) has no semantics for Sort/Limit at all, which the RelRN DSL doesn't even expose a builder for, so `extend_dsl_file` could at best emit a "sort" JSON node that the unmodifiable prover has no ordering axioms to interpret. Furthermore the rewrite is not a bag equality in general: with equal sort keys, the before- and after-plans can yield different N-row result sets (both valid top-k results under arbitrary tie-breaking), so even a hypothetical ordering-aware equivalence prover could not certify it. I also checked the tempting narrow special cases (unique sort key via `scan(..., unique)`, at-most-one match per preserved row): they would make top-N deterministic, but "first N rows in an order" is still not expressible in the bag language — no comparison/total-order axiom on uninterpreted key values exists — so no provable, non-vacuous encoding exists, consistent with the PushLimitIntoLeftJoin precedent. ```
+- Attempts used: 30
+- Last updated: 2026-10-17T00:49:59.357355+00:00
+- Reason / notes: This rule's only content is that the first-N-rows-under-a-sort-key of a LEFT/RIGHT join are sourced from the first-N-rows of the preserved input (with sort keys confined to that side), which is pure ordered/top-N stream semantics; QED models all queries in bag semantics and treats Sort/Limit/Order-By as uninterpreted QOps with no ordering or top-N axioms (qed.pdf §6.2, "List semantics"), so `Sort(fetch=N, Join(L,R))` and `Sort(fetch=N, Join(Sort(fetch=N,L), R))` are structurally distinct uninterpreted terms SMT cannot equate. Dropping the Sort wrappers degenerates to the vacuous identity `Join(L,R) ≡ Join(L,R)`, no non-vacuous fragment reduces to a bag equality (even with a unique key or fetch=1, "the N-smallest" needs an order QED doesn't model), and `extend_dsl_file` can't close the gap because the missing axioms live in the unmodifiable prover, which serializes but does not axiomatize ordering — the same structural situation as the already-confirmed `SortJoinTranspose`/`PushLimitIntoLeftJoin`/`PushLimitIntoJoinLeft` skips. ```
 
 ### `RemoveNoopLimit` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/eliminate_limit.rs, lines 1-89
-- Attempts used: 21
-- Last updated: 2026-10-01T09:51:28.296081+00:00
-- Reason / notes: Both halves of this rule (fetch=Literal(0) ⇒ empty relation; fetch=None with skip=Literal(0) ⇒ drop the Limit as identity) draw their entire correctness from Limit/Offset operator semantics, which QED does not model — the prover treats limit/sort as uninterpreted operations with no cardinality or ordering axioms (qed.pdf §6.2), so the SMT solver can refute both equivalences against any input relation. This is a limitation of the trusted prover, not a DSL surface gap: even if `extend_dsl_file` added a Limit/Sort builder to `RelRN` (which currently exposes none), no axioms like `limit(0,R)=∅` or `offset(0,R)=R` could be introduced, since the Rust prover is unreachable and must stay as-is. This matches the independently-reviewed `LimitZeroToEmpty` precedent from the same source, which was likewise found unprovable. ```
-
-### `RewriteSetComparison` — ⏭️ SKIPPED
-
-- Source backend: Apache DataFusion
-- Source rule: Source: datafusion/optimizer/src/rewrite_set_comparison.rs, lines 1-175
-- Attempts used: 66
-- Last updated: 2026-10-01T10:39:08.495751+00:00
-- Reason / notes: The rule's entire semantic content is a scalar three-valued-logic identity — `x op ANY/ALL (S)` being equal to a CASE over EXISTS subqueries with IS TRUE / IS NULL / NULL-literal branches — and that is precisely the level QED abstracts away: predicates and comparisons are uninterpreted symbols with two-valued boolean output in the SMT encoding, there is no CASE/NULL/3VL operator or axiom mechanism in the prover to define ANY/ALL in terms of EXISTS, and even a maximal `extend_dsl_file` addition of those builders would only yield independent uninterpreted symbols whose equivalence the prover cannot decide (the stated "predicate entailment between independent symbols" / "bespoke operator internals" limitations). I confirmed against the DSL source that no EXISTS/scalar-subquery predicate, CASE, NULL literal, IS-TRUE/IS-NULL, or set-comparison node exists (the `RexSubQuery` hits are serializer/deserializer plumbing, and `Correlate` is a relational dependent join producing pair-rows, not a boolean EXISTS test), and the only fully-relational re-encoding of both sides collapses to semi-join ≡ semi-join, a tautology that discards the rule's content — so no genuine, non-trivial provable special case exists, and the gap is a fundamental prover limitation, not a missing builder.
+- Attempts used: 17
+- Last updated: 2026-10-17T01:16:15.938005+00:00
+- Reason / notes: The rule's correctness rests on Limit/offset semantics — that `LIMIT 0` truncates to the empty relation and that `Limit{skip=0, fetch=None}` is a no-op — which QED fundamentally cannot model (Sort/Limit/Offset/Window/Sample have no bag-semantic meaning, so any Limit node is a free uninterpreted operator with no row-count or order axioms). This is a genuine QED limitation rather than a missing DSL builder, since adding a Limit constructor would still leave the prover with no semantics to reason about, and the only "proof" of the no-op branch via a no-op Sort proxy restates QED's sort-identity axiom instead of establishing Limit removability.
 
 ### `ScalarSubqueryToJoin` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
-- Source rule: Source: datafusion/optimizer/src/scalar_subquery_to_join.rs, lines 1-437
-- Attempts used: 114
-- Last updated: 2026-10-01T13:01:33.450863+00:00
-- Reason / notes: The scalar-subquery → LEFT JOIN rewrite is only valid because a global (groupless) aggregate over an *empty* input yields the same value the LEFT JOIN injects as its synthetic right-side NULL row (and DataFusion's own `CASE ... IS NULL` "count-bug" compensation exists precisely to recover non-NULL empty-input values like COUNT), so the proof depends on the aggregate's value at the empty multiset and on the groupless aggregate being a singleton. QED models every aggregate as an uninterpreted function of its input bag and "knows nothing about a specific aggregate function's algebra beyond bag equality of its input," so it cannot relate `agg(∅)` to the join's NULL — confirmed by the SMT solver actually running (~36 ms) and refuting with a concrete unmatched-row counterexample. This is a genuine limitation of the prover's aggregate-algebra/cardinality reasoning, not a missing DSL builder; adding a "constrain to one row" operator would not close the gap because the blocker is the uninterpreted aggregate's unknown empty-input value.
+- Source rule: Source: datafusion/optimizer/src/scalar_subquery_to_join.rs:1-437
+- Attempts used: 0
+- Last updated: 2026-10-17T03:26:32.599724+00:00
+- Reason / notes: The rule rewrites a Filter or Projection holding a correlated scalar subquery into a left join against a decorrelated subquery, with compensation expressions for aggregates such as COUNT. QED has no scalar-subquery value: the prover receives it as an opaque operator unrelated to any join. Modelling the subquery as a LEFT correlate over a scalar aggregate and comparing it with a LEFT join against a per-key aggregate is not provable, because an uninterpreted aggregate of the empty bag is not tied to the NULL a left join produces for a missing key. The Count-bug compensation, the alias generation, and the Filter-versus-Projection handling are Rust logic with no DSL counterpart. A narrower encoding would prove only a different identity, so the rule is recorded as skipped.
 
 ### `SimplifyRegexToLike` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1710-1723
-- Attempts used: 13
-- Last updated: 2026-10-01T11:08:01.002545+00:00
-- Reason / notes: The rule's entire semantic content is a string pattern-matching axiom (e.g. `x ~ '^foo$'` ⟺ `x = 'foo'`, `x ~ 'foo'` ⟺ `x LIKE '%foo%'`), but QED lowers all column types to integers and treats each operator as a distinct uninterpreted predicate, so `regex(x, p)`, `like(x, p')`, `eq(x, c)`, and `isNotNull(x)` remain unrelated symbols over which the equivalence must hold for *all* instantiations — and the SMT layer has no string/regex/glob theory to connect them, making the before/after pairs inequivalent under QED's universal quantification. No DSL extension can close this: a new builder would only emit yet another uninterpreted symbol into the prover's JSON, and the only encoding that would be provable is one where both sides share a single predicate symbol, which is the vacuous identity rule, not the rewrite — so the porter's UNSUPPORTED verdict and its diagnosis (gap in the unmodifiable prover's theory, not a missing operator shape) are correct.
+- Attempts used: 24
+- Last updated: 2026-10-17T01:32:22.268672+00:00
+- Reason / notes: The rule's soundness rests entirely on string/glob semantics (the pattern "%" matches exactly the non-null strings, and nothing else), but QED has no string theory and encodes LIKE as an uninterpreted predicate symbol, so in the SMT model like(x,"%") may be false on a non-null input or true on NULL — hence neither the non-nullable case (⊨ like(x,"%")) nor the nullable case (like(x,"%") ⟺ x IS NOT NULL) is entailed, matching the documented limitation that QED cannot see through an operator's specific internal semantics as an uninterpreted function. The porter correctly noted this is not a fixable DSL gap: any new Java-side operator still serializes through the same name-based uninterpreted path in JSONSerializer, and the only lever available in RuleScript (table "guaranteed" constraints) would require assuming like(x,"%") ≡ isNotNull(x) as a premise — i.e., assuming the rule itself, which is circular and proves nothing. UNSUPPORTED is the right conclusion. ```
 
 ### `SimplifyUdafToScalar` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 1677-1684
-- Attempts used: 29
-- Last updated: 2026-10-01T11:25:13.208565+00:00
-- Reason / notes: The assigned source (L1677–1685) is a pure dispatch that hands the aggregate to an arbitrary per-UDAF, user-supplied `simplify()` closure, so there is no fixed after-pattern and thus no fixed before/after relational pair for QED to be asked to prove — this is a meta-hook, not a concrete transformation. Even specializing to a real UDAF rewrite (e.g. `percentile_cont(col, 0.0) → min(col)`) would still fail, because QED models aggregate functions as uninterpreted and knows nothing about their algebra beyond bag-equality of the input; the simplification changes the aggregate operator itself, which the prover cannot see through as an uninterpreted function. ```
+- Attempts used: 41
+- Last updated: 2026-10-17T02:08:37.655542+00:00
+- Reason / notes: The cited lines are a regex-predicate dispatch (`simplify_regex_expr` behind a regex-compilation planning-budget guard), not a UDAF hook, so the porter's aggregate-lifting explanation misread the source — but the conclusion holds: any concrete rewrite this dispatch performs (constant-folding a literal regex match, or relating the regex operator to other operators or equivalent patterns) rests on the regex engine's internal pattern-matching semantics, which QED cannot model because it treats scalar operators as uninterpreted symbols and cannot reason about entailment between independent symbols. No DSL extension can close that gap — it is a fundamental prover limitation, not a missing operator. ```
 
 ### `StructCastSameFieldCountFold` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/simplify_expressions/expr_simplifier.rs, lines 534-680
-- Attempts used: 5
-- Last updated: 2026-10-01T11:27:01.467581+00:00
-- Reason / notes: The rule's only effect is plan-time constant evaluation — replacing an eligible CAST/TRY_CAST over a struct literal with the concrete value the evaluator computes — which amounts to asserting a specific output of a cast that QED models as a purely uninterpreted function with no cast axioms (its only interpreted literals are booleans), so `cast(lit) = folded(lit)` is refutable under some SMT instantiation and no encoding of it can be universally provable; a Java-side `extend_dsl_file` builder for cast/values cannot close this gap because the fixed Rust prover is the unmodifiable arbiter and simply has no cast algebra to apply. The equal-field-count, field-name-overlap, and non-0-row conditions in `can_evaluate` are eligibility heuristics of DataFusion's 1-row dummy-batch evaluator (execution-time semantics with no bag meaning), and the identical source region was already independently verifier-agreed SKIPPED as CastLiteralFold for this same fundamental reason. ```
+- Attempts used: 22
+- Last updated: 2026-10-17T02:30:02.283148+00:00
+- Reason / notes: This "rule" is not a relational-algebra rewrite but a constant-folding step in DataFusion's const evaluator: CAST(struct_literal AS struct_type) is "simplified" by actually *evaluating* the cast on a 1-row dummy batch (with field-count/name-overlap/non-emptiness guards), so its correctness rests entirely on the backend's bespoke struct-cast semantics — and struct types with named fields aren't even expressible in RuleScript's type system, since the prover erases all virtual types to plain integers. In that type-erased world the rewrite goal reduces to proving f(c) = c' for an uninterpreted cast function f (with c, c' both serialized as the literal 0), which the SMT solver always refutes with a countermodel like f(0) ≠ 0, and no `extend_dsl_file` change can help because the QED prover is fixed and assigns no axioms to new operators — this is exactly the "operator whose specific internal semantics QED cannot see through" limitation, so the porter's UNSUPPORTED conclusion is correct.
 
 ### `UnwrapCastAroundComparison` — ⏭️ SKIPPED
 
 - Source backend: Apache DataFusion
 - Source rule: Source: datafusion/optimizer/src/simplify_expressions/unwrap_cast.rs, lines 1-250
-- Attempts used: 10
-- Last updated: 2026-10-01T11:35:30.386291+00:00
-- Reason / notes: The rewrite `cast(x) cmp y ⟺ x cmp cast(y)` is only sound because of the specific cast's value-algebra (injectivity/monotonicity, literal in-range) plus static type-level guards; in QED every operator — the cast and each comparison — is an uninterpreted function with no axioms, and all VarTypes are erased to INTEGER in the prover, so that commutation is genuinely not a universal identity (the porter's complete, non-timed-out SMT countermodel is the expected answer, not an encoding bug). No DSL extension could help: the prover has no cast theory to hook into, and the pattern language offers no way to state the required side conditions (range/losslessness), so even the degenerate sub-case `cast(lit) = lit` would be unprovable since the "literal" is just an arbitrary column value. ```
+- Attempts used: 21
+- Last updated: 2026-10-17T02:44:17.059597+00:00
+- Reason / notes: The rewrite `cast(x,T) op v ≡ x op cast(v,T)` is valid only under axioms about the concrete cast (injectivity for Eq/NotEq, order-embedding for ordered comparisons, and range-containment so the literal's reverse cast is lossless), but RuleScript/QED models every projection and predicate — casts and comparisons included — as uninterpreted symbols over type-erased integers with no axiom mechanism, so the SMT solver can always build a countermodel (e.g., a constant-valued "cast" plus an arbitrary predicate) and refute the equivalence. The gap is not a missing DSL builder — the shape `filter(op(proj(x), c)) → filter(op(x, proj(c)))` is expressible and would compile — it is the prover's axiom-free semantics for uninterpreted functions, which the Rust QED binary cannot be modified to extend; and the only degenerate escape (identity cast) collapses into a tautology, since type erasure makes "cast to the same type" indistinguishable from no cast, so no genuine narrower special case exists to prove.
 

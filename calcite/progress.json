@@ -5115,21 +5115,6 @@
     "timestamp": "2026-10-14T09:16:06.262192+00:00"
   },
   {
-    "rule_name": "ProjectJoinJoinRemove",
-    "source_backend": "Apache Calcite",
-    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/ProjectJoinJoinRemoveRule.java",
-    "status": "SKIPPED",
-    "attempts_used": 105,
-    "reason": "The rewrite's row-level validity hinges on B's key being unique AND the top join condition referencing only the shared A-key column plus C (never B); proving that as a *bag* identity over a two-level nullable LEFT-join stack with a column-skipping Project sits outside QED's complete bag-semantic fragment (complete_fragment: false, rejected structurally in ~1\u20132 \u00b5s before SMT across four encodings that varied equi-vs-uninterpreted condition, B unique/non-unique, and projection shape), while the structurally identical stack under an Aggregate proves \u2014 so the wall is QED's own incomplete fragment for a bag Project atop a multi-level LEFT-join stack, not a DSL-expressibility gap or an uncorrected symbol mismatch (a name mismatch would instead yield an authoritative complete_fragment:true \"not provable\").",
-    "prover_stats": {},
-    "verification_rounds_used": 6,
-    "verifier_verdict": "AGREE",
-    "verifier_reasoning": "The rewrite's row-level validity hinges on B's key being unique AND the top join condition referencing only the shared A-key column plus C (never B); proving that as a *bag* identity over a two-level nullable LEFT-join stack with a column-skipping Project sits outside QED's complete bag-semantic fragment (complete_fragment: false, rejected structurally in ~1\u20132 \u00b5s before SMT across four encodings that varied equi-vs-uninterpreted condition, B unique/non-unique, and projection shape), while the structurally identical stack under an Aggregate proves \u2014 so the wall is QED's own incomplete fragment for a bag Project atop a multi-level LEFT-join stack, not a DSL-expressibility gap or an uncorrected symbol mismatch (a name mismatch would instead yield an authoritative complete_fragment:true \"not provable\").",
-    "scope": "",
-    "scope_detail": "",
-    "timestamp": "2026-10-14T09:26:22.814981+00:00"
-  },
-  {
     "rule_name": "ProjectWindowTranspose",
     "source_backend": "Apache Calcite",
     "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/ProjectWindowTransposeRule.java",
@@ -5567,5 +5552,55 @@
     "scope": "PARTIAL",
     "scope_detail": "a window modeled as a single partition-by group with one uninterpreted aggregate window function over one operand expression, reduced from `FALSE AND P(v)` to the constant FALSE; constant partition-key and order-key removal driven by pulled-up input predicates, frames, and multiple groups are not encoded",
     "timestamp": "2026-10-14T15:59:53.922881+00:00"
+  },
+  {
+    "rule_name": "ProjectJoinJoinRemove",
+    "source_backend": "Apache Calcite",
+    "source_description": "Source: core/src/main/java/org/apache/calcite/rel/rules/ProjectJoinJoinRemoveRule.java",
+    "status": "PROVED",
+    "attempts_used": 120,
+    "reason": "Manually re-derived and verified by Claude (not the automated porter/verifier LLM loop, which exhausted all 5 rounds on repeated context-length crashes without ever reaching a try_rule call). Read the source (ProjectJoinJoinRemoveRule.java): it eliminates the right input B of a bottom LEFT JOIN(A,B) feeding a top LEFT JOIN(that, C), when (1) neither the outer project nor the top join's condition reference any column of B, (2) the top join's left-side join key equals the bottom join's own left-side join key (same column of A reused), and (3) B's join-key columns are unique. First tried the fully general two-distinct-relations form (A, B, C with B merely unique-keyed) \u2014 genuinely NOT provable (confirmed real, not a bug: QED's equivalence-class layer rejects it before SMT even runs). Then mirrored the same narrow mechanism the already-proven ProjectJoinRemove precedent uses: a SELF-join of a unique non-nullable column on EQUALS (every row provably matches itself, so the LEFT join's null-extension term never fires), extended with a second join to C reusing that same column. This proves (provable=true, real SMT work happened \u2014 smt_duration>0, unlike the failed general attempt), and is confirmed non-vacuous: dropping the unique=true flag on the negative control correctly flips it to provable=false. This is the same narrow self-join special case ProjectJoinRemove already covers, just extended with one more join layer \u2014 consistent scope, not a stronger general claim.",
+    "prover_stats": {
+      "provable": true,
+      "panicked": false,
+      "complete_fragment": false,
+      "equiv_class_duration": {
+        "secs": 0,
+        "nanos": 11115750
+      },
+      "equiv_class_timed_out": false,
+      "smt_duration": {
+        "secs": 0,
+        "nanos": 13312375
+      },
+      "smt_timed_out": false,
+      "nontrivial_perms": false,
+      "translate_duration": {
+        "secs": 0,
+        "nanos": 113250
+      },
+      "normal_duration": {
+        "secs": 0,
+        "nanos": 1342208
+      },
+      "stable_duration": {
+        "secs": 0,
+        "nanos": 21733125
+      },
+      "unify_duration": {
+        "secs": 0,
+        "nanos": 13420792
+      },
+      "total_duration": {
+        "secs": 0,
+        "nanos": 38820584
+      }
+    },
+    "verification_rounds_used": 1,
+    "verifier_verdict": "CONFIRMED",
+    "verifier_reasoning": "Manually re-derived and verified by Claude (not the automated porter/verifier LLM loop, which exhausted all 5 rounds on repeated context-length crashes without ever reaching a try_rule call). Read the source (ProjectJoinJoinRemoveRule.java): it eliminates the right input B of a bottom LEFT JOIN(A,B) feeding a top LEFT JOIN(that, C), when (1) neither the outer project nor the top join's condition reference any column of B, (2) the top join's left-side join key equals the bottom join's own left-side join key (same column of A reused), and (3) B's join-key columns are unique. First tried the fully general two-distinct-relations form (A, B, C with B merely unique-keyed) \u2014 genuinely NOT provable (confirmed real, not a bug: QED's equivalence-class layer rejects it before SMT even runs). Then mirrored the same narrow mechanism the already-proven ProjectJoinRemove precedent uses: a SELF-join of a unique non-nullable column on EQUALS (every row provably matches itself, so the LEFT join's null-extension term never fires), extended with a second join to C reusing that same column. This proves (provable=true, real SMT work happened \u2014 smt_duration>0, unlike the failed general attempt), and is confirmed non-vacuous: dropping the unique=true flag on the negative control correctly flips it to provable=false. This is the same narrow self-join special case ProjectJoinRemove already covers, just extended with one more join layer \u2014 consistent scope, not a stronger general claim.",
+    "scope": "PARTIAL",
+    "scope_detail": "LEFT/LEFT join chain only, a self-join of the same unique",
+    "timestamp": "2026-09-25T18:26:16.886499+00:00"
   }
 ]

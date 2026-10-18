@@ -2,7 +2,7 @@
 
 **Status:** SKIPPED
 **Source backend:** Apache DataFusion
-**Porter attempts used:** 7  **Verification rounds used:** 1
+**Porter attempts used:** 27  **Verification rounds used:** 2
 
 ## Source rule (as given to the porter)
 
@@ -14,4 +14,4 @@ Source: datafusion/optimizer/src/push_down_filter.rs, lines 1224-1301
 
 **Verdict:** AGREE
 
-The only branch of this rule with bag-semantic content — dropping an `Exact`-pushed conjunct from the Filter above a TableScan — is sound solely by the provider's execution-time contract that a scan configured with predicate P returns exactly the rows of Filter(P, T); QED models scans as uninterpreted bag relations whose only axioms are key uniqueness and check constraints on the table's own rows, so no operator or axiom can relate a filter-pushing scan to the filtered original (distinct scan symbols are independent, and same-name scans resolve to one symbol), and the sole available encoding — pre-asserting P as a table precondition — proves constraint-based filter elimination rather than pushdown. The Inexact/volatile/subquery branches introduce no bag-semantic difference, since `scan.filters` is planner metadata invisible to the prover, so no narrower special case carries the rule's actual content. ```
+The rewrite Filter(P, Scan(T)) ⇒ Scan(T, filters=[P]) is sound only under the DataFusion TableProviderFilterPushDown::Exact contract — the pushed predicate's effect is a storage-engine internal semantic, not a relational-algebraic fact. QED models scans as uninterpreted bags with only per-row key/check constraints (no predicate parameter on the scan, no inter-table definitional relation), so the "after" side has no encodable form: a fresh table symbol would be an independent bag (the equivalence is refutable, not merely unproven), and the only bag-equal expression in the core language is Filter(P, Scan(T)) itself, which is a tautology rather than the rule. This falls squarely under the documented limitation that QED cannot model a backend operator's bespoke internal semantics, so the UNSUPPORTED conclusion is correct. ```
